@@ -27,7 +27,7 @@ async function boot(): Promise<void> {
       api = http;
       const server = { url: location.origin, name: location.hostname, version: status.version };
       if (status.user) return start(server);
-      return showSignIn(root, api, status.setupNeeded, () => fresh().then(() => start(server)));
+      return showSignIn(root, api, status, () => fresh().then(() => start(server)));
     } catch {
       /* no server here: fall through to the demo */
     }

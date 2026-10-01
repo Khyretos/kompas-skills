@@ -150,6 +150,16 @@ pub async fn stream_chat(
         }
     };
 
+    let mut body = body;
+    if let (Some(extra), Some(obj)) = (&p.extra_body, body.as_object_mut()) {
+        for (k, v) in serde_json::to_value(extra)?
+            .as_object()
+            .into_iter()
+            .flatten()
+        {
+            obj.insert(k.clone(), v.clone());
+        }
+    }
     let resp = authorize(http.post(url), p)
         .json(&body)
         .send()

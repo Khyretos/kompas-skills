@@ -6,9 +6,12 @@ use axum::{
     Json,
     extract::{Path, Query, State},
     http::StatusCode,
-    response::sse::{Event as SseEvent, KeepAlive, Sse},
+    response::{
+        IntoResponse,
+        sse::{Event as SseEvent, KeepAlive, Sse},
+    },
 };
-use futures::{Stream, StreamExt};
+use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tokio_stream::wrappers::{BroadcastStream, errors::BroadcastStreamRecvError};
@@ -450,8 +453,31 @@ pub async fn calls(
 }
 
 // Tasks and machines arrive with milestones 2 and 3.
-pub async fn tasks() -> Json<Vec<Value>> {
-    Json(vec![])
+#[derive(Deserialize)]
+pub struct TasksQuery {
+    project: Option<String>,
+}
+
+pub async fn tasks(
+    State(s): State<AppState>,
+    Query(q): Query<TasksQuery>,
+) -> ApiResult<Json<Vec<Value>>> {
+    type Row = (String, String, String, String, f64, String, String, String);
+    let rows: Vec<Row> = sqlx::query_as(
+        "SELECT id, project_id, title, state, progress, step, role, model FROM tasks
+         WHERE ?1 IS NULL OR project_id = ?1 ORDER BY updated_at DESC LIMIT 500",
+    )
+    .bind(q.project)
+    .fetch_all(&s.db)
+    .await?;
+    Ok(Json(
+        rows.into_iter()
+            .map(|(id, project_id, title, state, progress, step, role, model)| {
+                json!({ "id": id, "projectId": project_id, "title": title, "state": state,
+                        "progress": progress, "step": step, "role": role, "model": model, "events": [] })
+            })
+            .collect(),
+    ))
 }
 pub async fn machines() -> Json<Vec<Value>> {
     Json(vec![])
@@ -459,17 +485,21 @@ pub async fn machines() -> Json<Vec<Value>> {
 
 // ---- Live events ----
 
-pub async fn events(
-    State(s): State<AppState>,
-) -> Sse<impl Stream<Item = Result<SseEvent, Infallible>>> {
+pub async fn events(State(s): State<AppState>) -> impl IntoResponse {
     let stream = BroadcastStream::new(s.bus.subscribe()).filter_map(|e| async move {
         match e {
-            Ok(event) => Some(Ok(SseEvent::default().json_data(event).unwrap_or_default())),
+            Ok(event) => Some(Ok::<_, Infallible>(
+                SseEvent::default().json_data(event).unwrap_or_default(),
+            )),
             // A slow client missed events; tell it to reload instead of guessing.
             Err(BroadcastStreamRecvError::Lagged(_)) => {
                 Some(Ok(SseEvent::default().event("resync").data("{}")))
             }
         }
     });
-    Sse::new(stream).keep_alive(KeepAlive::default())
+    // Tell nginx not to buffer the stream, or events arrive in bursts.
+    (
+        [("x-accel-buffering", "no")],
+        Sse::new(stream).keep_alive(KeepAlive::default()),
+    )
 }

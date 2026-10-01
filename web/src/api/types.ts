@@ -155,4 +155,6 @@ export interface ServerStatus {
   version: string;
   setupNeeded: boolean;
   user: string | null;
+  /** How people can sign in; absent on older servers (password only). */
+  signIn?: { password: boolean; oidc: string | null };
 }

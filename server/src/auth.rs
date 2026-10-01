@@ -84,7 +84,7 @@ fn verify_password(password: &str, hash: &str) -> bool {
         .unwrap_or(false)
 }
 
-fn session_cookie(state: &AppState, token: &str, max_age: i64) -> String {
+pub fn session_cookie(state: &AppState, token: &str, max_age: i64) -> String {
     let secure = if state.config.secure_cookies {
         "; Secure"
     } else {
@@ -151,6 +151,10 @@ pub async fn status(
         "version": env!("CARGO_PKG_VERSION"),
         "setupNeeded": !users_exist(&state).await?,
         "user": user.map(|u| u.name),
+        "signIn": {
+            "password": state.config.password_login(),
+            "oidc": state.config.oidc.as_ref().map(|o| o.label.clone()),
+        },
     })))
 }
 
@@ -217,6 +221,11 @@ pub async fn login(
     State(state): State<AppState>,
     Json(body): Json<LoginBody>,
 ) -> ApiResult<Response> {
+    if !state.config.password_login() {
+        return Err(ApiError::Forbidden(
+            "Password sign-in is off. Use single sign-on.".into(),
+        ));
+    }
     let key = body.name.trim().to_lowercase();
     state.throttle.check(&key)?;
     let row: Option<(String, String)> =
@@ -238,6 +247,12 @@ pub async fn login(
 }
 
 async fn start_session(state: &AppState, user_id: &str) -> ApiResult<Response> {
+    let cookie = create_session(state, user_id).await?;
+    Ok(([(header::SET_COOKIE, cookie)], Json(json!({ "ok": true }))).into_response())
+}
+
+/// Stores a new session and returns the Set-Cookie value for it.
+pub async fn create_session(state: &AppState, user_id: &str) -> ApiResult<String> {
     let token = util::random_token();
     sqlx::query("INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)")
         .bind(util::sha256_hex(&token))
@@ -245,8 +260,7 @@ async fn start_session(state: &AppState, user_id: &str) -> ApiResult<Response> {
         .bind(util::in_days(SESSION_DAYS))
         .execute(&state.db)
         .await?;
-    let cookie = session_cookie(state, &token, SESSION_DAYS * 86_400);
-    Ok(([(header::SET_COOKIE, cookie)], Json(json!({ "ok": true }))).into_response())
+    Ok(session_cookie(state, &token, SESSION_DAYS * 86_400))
 }
 
 pub async fn logout(State(state): State<AppState>, headers: HeaderMap) -> ApiResult<Response> {
@@ -264,12 +278,16 @@ pub async fn logout(State(state): State<AppState>, headers: HeaderMap) -> ApiRes
 /// - state-changing requests must carry `X-Kompanion: 1` (a custom header no
 ///   cross-site form or simple request can send) and, when the browser sends
 ///   an Origin, it must be one we serve from;
-/// - everything except status, setup and login needs a signed-in user.
+/// - everything except status, setup, login and the OIDC redirects needs a
+///   signed-in user.
 pub async fn guard(State(state): State<AppState>, mut req: Request, next: Next) -> Response {
     // Inside the nested /api router the prefix is already stripped.
     let path = req.uri().path();
     let path = path.strip_prefix("/api").unwrap_or(path).to_string();
-    let open = matches!(path.as_str(), "/status" | "/setup" | "/login");
+    let open = matches!(
+        path.as_str(),
+        "/status" | "/setup" | "/login" | "/auth/oidc/start" | "/auth/oidc/callback"
+    );
 
     if !matches!(*req.method(), Method::GET | Method::HEAD | Method::OPTIONS) {
         if req

@@ -3,7 +3,9 @@ mod auth;
 mod config;
 mod error;
 mod events;
+mod import;
 mod llm;
+mod oidc;
 mod util;
 
 use std::{
@@ -34,6 +36,23 @@ pub struct AppState {
     pub throttle: Arc<auth::Throttle>,
     pub setup_code: Arc<Mutex<Option<String>>>,
     pub dummy_hash: String,
+    pub oidc: Arc<oidc::Oidc>,
+}
+
+#[cfg(test)]
+impl AppState {
+    pub fn for_tests(config: config::Config, db: SqlitePool) -> Self {
+        AppState {
+            config: Arc::new(config),
+            db,
+            http: llm::http_client(),
+            bus: events::Bus::new(),
+            throttle: Default::default(),
+            setup_code: Default::default(),
+            dummy_hash: String::new(),
+            oidc: Default::default(),
+        }
+    }
 }
 
 const CSP: &str = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; \
@@ -61,6 +80,14 @@ async fn main() -> anyhow::Result<()> {
         .with_context(|| format!("opening {}", config.database.display()))?;
     sqlx::migrate!().run(&db).await?;
 
+    let args: Vec<String> = std::env::args().collect();
+    if args.get(1).map(String::as_str) == Some("import") {
+        let path = args
+            .get(2)
+            .context("usage: kompanion-server import <file.json>")?;
+        return import::run(&db, path).await;
+    }
+
     // Starting roles from the config file, only where none is set yet.
     for (role, d) in &config.roles {
         sqlx::query("INSERT OR IGNORE INTO roles (role, provider_id, model_id) VALUES (?, ?, ?)")
@@ -79,6 +106,7 @@ async fn main() -> anyhow::Result<()> {
         throttle: Default::default(),
         setup_code: Default::default(),
         dummy_hash: auth::hash_password(&util::random_token())?,
+        oidc: Default::default(),
     };
     auth::ensure_setup_code(&state).await?;
 
@@ -87,6 +115,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/setup", post(auth::setup))
         .route("/login", post(auth::login))
         .route("/logout", post(auth::logout))
+        .route("/auth/oidc/start", get(oidc::start))
+        .route("/auth/oidc/callback", get(oidc::callback))
         .route("/projects", get(api::projects))
         .route("/chats", get(api::chats).post(api::create_chat))
         .route("/chats/{id}/messages", get(api::messages).post(api::send))

@@ -15,6 +15,9 @@ name = "OVMS on kireserver"
 kind = "openai-compatible"
 base_url = "http://ovms:8000/v3"
 local = true
+api_key_env = "OVMS_API_KEY"
+# Qwen otherwise "thinks" for thousands of tokens before a short answer.
+extra_body = { chat_template_kwargs = { enable_thinking = false } }
 
 [[provider]]
 id = "ollama-soucouyant"

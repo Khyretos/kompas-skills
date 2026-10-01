@@ -20,6 +20,47 @@ pub struct Config {
     pub providers: Vec<ProviderConfig>,
     #[serde(default)]
     pub roles: HashMap<String, RoleDefault>,
+    /// Single sign-on with an OpenID Connect provider such as Keycloak.
+    pub oidc: Option<OidcConfig>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct OidcConfig {
+    /// e.g. https://auth.example.com/realms/example
+    pub issuer: String,
+    pub client_id: String,
+    /// Name of the environment variable that holds the client secret.
+    pub client_secret_env: String,
+    /// Must match the redirect URI registered with the provider:
+    /// https://<your host>/api/auth/oidc/callback
+    pub redirect_url: String,
+    /// Text on the sign-in button.
+    #[serde(default = "default_oidc_label")]
+    pub label: String,
+    /// Keep name-and-password sign-in next to single sign-on.
+    #[serde(default = "yes")]
+    pub password_login: bool,
+    /// Link a first single sign-on to an existing account with the same
+    /// name as the provider's username. Only safe when users can't pick
+    /// their own username at the provider.
+    #[serde(default = "yes")]
+    pub link_by_username: bool,
+    /// Emails or usernames that may get a new account on first sign-in.
+    /// Everyone else must match an existing account.
+    #[serde(default)]
+    pub allow_new: Vec<String>,
+}
+
+impl OidcConfig {
+    pub fn client_secret(&self) -> Option<String> {
+        std::env::var(&self.client_secret_env)
+            .ok()
+            .filter(|s| !s.is_empty())
+    }
+}
+
+fn default_oidc_label() -> String {
+    "Single sign-on".into()
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
@@ -39,6 +80,10 @@ pub struct ProviderConfig {
     pub local: bool,
     /// Name of the environment variable that holds the API key.
     pub api_key_env: Option<String>,
+    /// Extra fields merged into every chat request, e.g. to turn off long
+    /// "thinking" on Qwen: `extra_body = { chat_template_kwargs = { enable_thinking = false } }`
+    #[serde(default)]
+    pub extra_body: Option<toml::Table>,
 }
 
 impl ProviderConfig {
@@ -92,6 +137,20 @@ impl Config {
                 tracing::warn!(provider = %p.id, env = %env, "API key variable is not set");
             }
         }
+        if let Some(o) = &self.oidc {
+            if !o.issuer.starts_with("https://") {
+                bail!("oidc.issuer must start with https://");
+            }
+            if !o.redirect_url.ends_with("/api/auth/oidc/callback") {
+                bail!("oidc.redirect_url must end with /api/auth/oidc/callback");
+            }
+            if o.client_secret().is_none() {
+                bail!(
+                    "oidc: environment variable {} is not set",
+                    o.client_secret_env
+                );
+            }
+        }
         for (role, d) in &self.roles {
             if !["orchestrator", "worker", "reviewer"].contains(&role.as_str()) {
                 bail!("unknown role {role}");
@@ -101,6 +160,10 @@ impl Config {
             }
         }
         Ok(())
+    }
+
+    pub fn password_login(&self) -> bool {
+        self.oidc.as_ref().is_none_or(|o| o.password_login)
     }
 
     pub fn provider(&self, id: &str) -> Option<&ProviderConfig> {
