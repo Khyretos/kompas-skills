@@ -285,6 +285,7 @@ export class MockApi implements KompanionApi {
     return { name: "Kreative Kompanion (demo)", version: "0.1.0", setupNeeded: false, user: "Kees" };
   }
   async setup() {}
+  async logout() {}
   async login() {}
   async listProjects() { return structuredClone(projects); }
   async listChats() {

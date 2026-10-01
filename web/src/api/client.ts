@@ -9,6 +9,7 @@ export interface KompanionApi {
   status(): Promise<ServerStatus>;
   setup(code: string, name: string, password: string): Promise<void>;
   login(name: string, password: string): Promise<void>;
+  logout(): Promise<void>;
 
   listProjects(): Promise<Project[]>;
   listChats(): Promise<Chat[]>;

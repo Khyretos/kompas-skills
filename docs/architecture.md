@@ -330,6 +330,76 @@ Already in use alongside the milestones: soucouyant's Ollama (qwen3:14b)
 reachable by kireserver only, and a Forgejo Actions runner on soucouyant, so
 image builds run on the faster PC instead of kireserver.
 
+## Added milestones (owner requests, 2026-10-01)
+
+Already in milestone 1: sign out (sidebar, bottom), the logo top left, chat
+menu, expandable projects, the server's own machine in the Machines tab.
+
+### 1.5 Admin and polish (doesn't need tasks, so it comes before them)
+
+- **Admins.** `users.is_admin`; the first account is admin, and an optional
+  `[oidc] admin_group` gives admin to members of a Keycloak group (checked on
+  every sign-in). Admin-only routes under `/api/admin/*`, refused (403) for
+  everyone else; a test per route checks that.
+- **General settings** (admin menu): app name, default model roles for new
+  users, sign-in options (password on/off, who gets a new account), the
+  provider list stays in `kompanion.toml` (no SSRF through the UI). Stored in a
+  `settings` key-value table; the config file gives the defaults.
+- **Mail (SMTP).** Host, port, TLS mode, user and sender in `settings`; the
+  password only from an environment variable (`SMTP_PASSWORD`), never in the
+  database or the UI. Sent with `lettre` (MIT/Apache-2.0) to the existing
+  docker-mailserver. A "Send test mail" button. Mails carry titles and links,
+  never prompts, model output, keys or file contents.
+- **Theming.** Admin sets brand colours and uploads a logo (SVG or PNG, size
+  limit, SVGs sanitised and served as images, never inline); default is the
+  Kreative Kompas palette. Saving checks every text/background pair the app
+  uses and refuses anything under 4.5:1 (3:1 for large text), computed in the
+  server with the WCAG formula (no extra crate). Users choose light, dark or
+  system (`users.theme`).
+- **Tests:** contrast function against known pairs; admin guard; settings
+  round-trip; test mail against a local SMTP sink in CI.
+
+### Notifications (milestone 3, when tasks run)
+
+- Per-user switches: task needs input, task failed, task done, daily summary
+  (`notification_prefs` table). Mail for now; web push later.
+- Sent from the task state machine on state changes, batched (at most one mail
+  per task per 10 minutes, daily summary at a set hour).
+- Tests: a simulated task run produces exactly the mails the user switched on,
+  with no secrets in the body.
+
+### Agents that don't need babysitting (owner request, 2026-10-01)
+
+Kees: "if explicitly given permission it should be able to handle most by
+itself". These land in **milestone 3** (they need running tasks and agents),
+with the permission model started in milestone 2 (the runner is the first
+thing that asks).
+
+- **Standing permissions.** A user grants a scope once, explicitly: a
+  machine, a folder or repo, a kind of action (read, write, run commands,
+  push without force, install packages, change a service), optionally with a
+  time limit. Agents then act inside that scope without asking again. Grants
+  are listed on one page, can be revoked at any time, and every action taken
+  under a grant is logged with the grant that allowed it. Outside the scope,
+  or for anything no one can undo (deleting data, force-push, production
+  changes, spending money), the agent still asks. It only escalates to the
+  user for things that need their hands: typing a password, a web login, a
+  physical action. Before handing the user a command, the agent tests it.
+- **Agents talk to each other.** The orchestrator and its task threads can
+  message, steer and hand work to each other directly (a message bus on the
+  server, stored like everything else), so the user is never the relay
+  between two agents. A task thread can ask the orchestrator for help or
+  another machine; the orchestrator can redirect or stop a task.
+- **Orchestrator notes.** Like the coordinator in Kees's Claude project: the
+  orchestrator posts short notes to the user ("started", "blocked on X",
+  "done, here is the result") and can inject notes into a running task
+  thread, which show there as a distinct, visible "note from the
+  orchestrator" bubble. The user sees who said what.
+- **Calendar view.** A month/week view of planned and scheduled tasks
+  (scheduled-for time, deadlines, night-scheduled work, consent windows),
+  next to the task list. Dragging a task to another day reschedules it.
+  Imported tasks show up once they have a date.
+
 ## Milestone 1 in detail (the first step)
 
 - `server`: axum app with `/api/chat` (SSE stream), `/api/providers`,

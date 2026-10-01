@@ -92,5 +92,12 @@ export function renderSidebar(s: AppState): SafeHtml {
       <h2 class="label">Chats</h2>
       <ul class="loose">${loose.map(chatRow)}</ul>
     </nav>
-    <button class="nav-item settings-link" data-action="settings">${icon("gear")} Models and roles</button>`;
+    <div class="account">
+      <button class="nav-item settings-link" data-action="settings">${icon("gear")} Models and roles</button>
+      <div class="user-row">
+        <span class="avatar" aria-hidden="true">${(s.userName ?? "?").slice(0, 1).toUpperCase()}</span>
+        <span class="nav-title">${s.userName ?? ""}</span>
+        <button class="btn small" data-action="logout">${icon("logout")} Sign out</button>
+      </div>
+    </div>`;
 }
