@@ -83,11 +83,11 @@ async function start(server: Server): Promise<void> {
       <div id="settings" hidden></div>
     </div>`);
 
-  const [projects, chats, tasks, providers, roles, machines, today] = await Promise.all([
+  const [projects, chats, tasks, providers, roles, machines, today, status] = await Promise.all([
     api.listProjects(), api.listChats(), api.listTasks(), api.listProviders(), api.listRoles(),
-    api.listMachines(), api.today(),
+    api.listMachines(), api.today(), api.status(),
   ]);
-  store.set({ server, projects, chats, tasks, providers, roles, machines, today });
+  store.set({ server, projects, chats, tasks, providers, roles, machines, today, userName: status.user ?? undefined });
   wire(shellRoot);
   await openChat(chats[0]?.id);
 }
@@ -204,6 +204,9 @@ function wire(shell: HTMLElement): void {
     pane: (el) => store.set({ pane: el.dataset.pane as AppState["pane"] }),
     answer: (el) => api.answer(el.dataset.task ?? "", el.dataset.option ?? "").catch(showError),
     settings: () => store.set({ settingsOpen: true, pane: "main" }),
+    // Ends this app's session. Keycloak keeps its own session, so "Sign in
+    // with Kreative Kompas" afterwards may not ask for a password again.
+    logout: () => api.logout().then(() => location.replace("/"), showError),
     "close-settings": () => store.set({ settingsOpen: false }),
   });
 

@@ -308,6 +308,44 @@ prompts and tool ideas, with attribution) or be archived.
 5. **Every machine** — runner builds for Windows and macOS, auto-update,
    scheduled tasks, project memory.
 
+## Added milestones (owner requests, 2026-10-01)
+
+Already in milestone 1: sign out (sidebar, bottom), the logo top left, chat
+menu, expandable projects, the server's own machine in the Machines tab.
+
+### 1.5 Admin and polish (doesn't need tasks, so it comes before them)
+
+- **Admins.** `users.is_admin`; the first account is admin, and an optional
+  `[oidc] admin_group` gives admin to members of a Keycloak group (checked on
+  every sign-in). Admin-only routes under `/api/admin/*`, refused (403) for
+  everyone else; a test per route checks that.
+- **General settings** (admin menu): app name, default model roles for new
+  users, sign-in options (password on/off, who gets a new account), the
+  provider list stays in `kompanion.toml` (no SSRF through the UI). Stored in a
+  `settings` key-value table; the config file gives the defaults.
+- **Mail (SMTP).** Host, port, TLS mode, user and sender in `settings`; the
+  password only from an environment variable (`SMTP_PASSWORD`), never in the
+  database or the UI. Sent with `lettre` (MIT/Apache-2.0) to the existing
+  docker-mailserver. A "Send test mail" button. Mails carry titles and links,
+  never prompts, model output, keys or file contents.
+- **Theming.** Admin sets brand colours and uploads a logo (SVG or PNG, size
+  limit, SVGs sanitised and served as images, never inline); default is the
+  Kreative Kompas palette. Saving checks every text/background pair the app
+  uses and refuses anything under 4.5:1 (3:1 for large text), computed in the
+  server with the WCAG formula (no extra crate). Users choose light, dark or
+  system (`users.theme`).
+- **Tests:** contrast function against known pairs; admin guard; settings
+  round-trip; test mail against a local SMTP sink in CI.
+
+### Notifications (milestone 3, when tasks run)
+
+- Per-user switches: task needs input, task failed, task done, daily summary
+  (`notification_prefs` table). Mail for now; web push later.
+- Sent from the task state machine on state changes, batched (at most one mail
+  per task per 10 minutes, daily summary at a set hour).
+- Tests: a simulated task run produces exactly the mails the user switched on,
+  with no secrets in the body.
+
 ## Milestone 1 in detail (the first step)
 
 - `server`: axum app with `/api/chat` (SSE stream), `/api/providers`,

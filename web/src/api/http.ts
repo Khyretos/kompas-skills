@@ -53,6 +53,7 @@ export class HttpApi implements KompanionApi {
     return this.request<void>("POST", "/setup", { code, name, password });
   }
   login(name: string, password: string) { return this.request<void>("POST", "/login", { name, password }); }
+  logout() { return this.request<void>("POST", "/logout"); }
 
   listProjects() { return this.request<Project[]>("GET", "/projects"); }
   listChats() { return this.request<Chat[]>("GET", "/chats"); }

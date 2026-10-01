@@ -3,6 +3,7 @@ import type { DaySummary, MachineStats, Chat, Message, ModelProvider, Project, R
 
 export interface AppState {
   server?: Server;
+  userName?: string; // signed-in user
   projects: Project[];
   chats: Chat[];
   activeChatId?: string;
