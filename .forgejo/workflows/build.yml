@@ -1,0 +1,40 @@
+# Tests and builds on soucouyant (the faster PC), not on kireserver.
+name: build
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  server:
+    runs-on: soucouyant
+    container:
+      image: rust:1
+    steps:
+      - uses: https://code.forgejo.org/actions/checkout@v4
+      - name: Test the server
+        working-directory: server
+        run: cargo test --locked
+
+  web:
+    runs-on: soucouyant
+    container:
+      image: node:22
+    steps:
+      - uses: https://code.forgejo.org/actions/checkout@v4
+      - name: Typecheck and build the web app
+        working-directory: web
+        run: |
+          npm ci
+          npm run typecheck
+          npm run build
+
+  image:
+    runs-on: soucouyant
+    needs: [server, web]
+    container:
+      image: docker:cli
+    steps:
+      - uses: https://code.forgejo.org/actions/checkout@v4
+      - name: Build the container image
+        run: docker build -t kreative-kompanion:ci .
