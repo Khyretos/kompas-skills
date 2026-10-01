@@ -297,6 +297,24 @@ prompts and tool ideas, with attribution) or be archived.
 1. **Talk to any model** — server + web app: chat with streaming, provider
    settings for OVMS, DeepSeek and Claude, history in SQLite, Keycloak login.
    Already useful: one chat app for all your models on every device.
+1b. **Make it yours** (asked 2026-10-01, after first real use):
+   - *Account*: sign out (menu under your name, top left), the Kreative Kompas
+     logo top left and on the sign-in and SSO buttons.
+   - *Chats and projects*: ⋮ menu per chat (pin, rename, archive, delete),
+     projects that open and expand.
+   - *Admin settings* (admins only, stored in the database, not the config
+     file): instance name and logo, who may sign in (`allow_new`, password
+     sign-in on/off), users list (make admin, disable), model providers and
+     default roles, mail server, default theme. Secrets stay in env.
+   - *Mail*: SMTP through your own mailserver (house rule: service mail as
+     info@kreative-kompas.com, or a descriptive kompanion@ alias with replies
+     to info@). Per-user notification settings: off, digest, or immediately.
+     The first events are "a task needs you" and "a task finished or failed";
+     they fire for real once tasks run (milestone 3).
+   - *Theming*: Kompas Night/Day/system per user; admins set the default theme
+     and can override the colour tokens (palette variables) and logo. No
+     custom CSS or scripts from users, so the strict CSP stays.
+   - *Machines*: kireserver itself shows live CPU, RAM, disk and GPU.
 2. **Hands on one PC** — runner on your Linux PC: pairing, allowed folders,
    read/write/shell with approval cards and diffs in the web app.
 3. **Plan, delegate, review** (with MCP client, RAG index and cheap checks) — planner splits a project into tasks, Qwen works
@@ -307,6 +325,10 @@ prompts and tool ideas, with attribution) or be archived.
    control per OS after that.
 5. **Every machine** — runner builds for Windows and macOS, auto-update,
    scheduled tasks, project memory.
+
+Already in use alongside the milestones: soucouyant's Ollama (qwen3:14b)
+reachable by kireserver only, and a Forgejo Actions runner on soucouyant, so
+image builds run on the faster PC instead of kireserver.
 
 ## Milestone 1 in detail (the first step)
 
