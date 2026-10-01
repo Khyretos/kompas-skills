@@ -18,22 +18,40 @@ import { renderSettings } from "./views/settings";
 let api: KompanionApi;
 let root = $("#app");
 
-/** Served by a Kompanion server: use it. Opened as a file or preview: demo mode. */
+/** Served by a Kompanion server: use it. Opened as a file, or with ?demo: demo mode. */
 async function boot(): Promise<void> {
-  if (location.protocol.startsWith("http")) {
+  const demo = !location.protocol.startsWith("http") || new URLSearchParams(location.search).has("demo");
+  if (!demo) {
+    // Never fall back to example data on a real server: retry, then say so.
     const http = new HttpApi();
-    try {
-      const status = await http.status();
-      api = http;
-      const server = { url: location.origin, name: location.hostname, version: status.version };
-      if (status.user) return start(server);
-      return showSignIn(root, api, status, () => fresh().then(() => start(server)));
-    } catch {
-      /* no server here: fall through to the demo */
+    for (let attempt = 1; ; attempt++) {
+      try {
+        const status = await http.status();
+        api = http;
+        const server = { url: location.origin, name: location.hostname, version: status.version };
+        if (status.user) return start(server);
+        return showSignIn(root, api, status, () => fresh().then(() => start(server)));
+      } catch {
+        if (attempt >= 3) return showUnreachable(root, () => void boot());
+        await new Promise((r) => setTimeout(r, 1500));
+      }
     }
   }
+  document.body.classList.add("demo");
   api = new MockApi();
   showConnect(root, api, (server) => start(server));
+}
+
+function showUnreachable(el: HTMLElement, retry: () => void): void {
+  mount(el, html`
+    <main class="connect">
+      <div class="connect-card">
+        <h1>Kreative Kompanion</h1>
+        <p class="error" role="alert">Can't reach the Kompanion server right now. It may be restarting.</p>
+        <button class="btn primary" type="button" id="retry">Try again</button>
+      </div>
+    </main>`);
+  $("#retry", el).addEventListener("click", retry, { once: true });
 }
 
 /** Replace #app with a clean element (drops the previous screen's listeners). */
