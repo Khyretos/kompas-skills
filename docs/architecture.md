@@ -359,6 +359,31 @@ menu, expandable projects, the server's own machine in the Machines tab.
 - **Tests:** contrast function against known pairs; admin guard; settings
   round-trip; test mail against a local SMTP sink in CI.
 
+### Tasks and project sources (milestone 1.5)
+
+- **Every task says what to do.** A task has a title and a description in
+  markdown: a one-line goal, numbered steps, and a "Done when" line. A title
+  alone is never enough; the editor shows that template for new tasks, and the
+  orchestrator (milestone 3) must fill it before a task can start.
+- **Editing in Kompanion.** Add a task, change title, description and state,
+  reorder, close, delete (asks first). Every endpoint is scoped to the
+  signed-in user. Changes are kept in a `task_events` history.
+- **Project sources.** Each project has `source = internal | windshift`.
+  - *internal*: only in Kompanion.
+  - *windshift*: a live link to a Windshift workspace, configured per user:
+    the Windshift URL in the user's settings, the API token in the server's
+    secret store (`.env`), never in the database. Edits in Kompanion are
+    written to Windshift through its token API (`/rest/api/v2/items`);
+    Windshift changes are pulled every few minutes. If both sides changed since
+    the last sync, the newest write wins and the losing version is kept in the
+    task's history.
+  - Users without Windshift only see internal projects.
+  - A windshift project can be turned into an internal one; it keeps a copy
+    and stops syncing.
+- **Tests:** per-user scoping (another user's task is a 404), stable
+  reordering, the sync adapter against a fake Windshift (including the
+  both-sides-changed case), and the description template check.
+
 ### Notifications (milestone 3, when tasks run)
 
 - Per-user switches: task needs input, task failed, task done, daily summary
