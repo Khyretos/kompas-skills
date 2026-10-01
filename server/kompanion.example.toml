@@ -1,0 +1,44 @@
+# Kreative Kompanion server configuration.
+# API keys never go in this file: name an environment variable with `api_key_env`.
+
+# Where to listen. Put a reverse proxy with HTTPS in front for access from outside.
+bind = "0.0.0.0:8080"
+database = "/data/kompanion.db"
+web_dir = "/app/web"
+# Public origin(s) the web app is served from; state-changing requests from
+# other origins are refused.
+allowed_origins = ["https://kompanion.example.com"]
+
+[[provider]]
+id = "ovms"
+name = "OVMS on kireserver"
+kind = "openai-compatible"
+base_url = "http://ovms:8000/v3"
+local = true
+
+[[provider]]
+id = "ollama-soucouyant"
+name = "Ollama on soucouyant"
+kind = "openai-compatible"
+base_url = "http://127.0.0.1:11434/v1"
+local = true
+
+[[provider]]
+id = "deepseek"
+name = "DeepSeek"
+kind = "openai-compatible"
+base_url = "https://api.deepseek.com"
+api_key_env = "DEEPSEEK_API_KEY"
+
+[[provider]]
+id = "anthropic"
+name = "Claude (Anthropic API)"
+kind = "anthropic"
+base_url = "https://api.anthropic.com"
+api_key_env = "ANTHROPIC_API_KEY"
+
+# Starting roles; change them later in the app.
+[roles]
+orchestrator = { provider = "deepseek", model = "deepseek-chat" }
+worker = { provider = "ovms", model = "qwen3.5-9b" }
+reviewer = { provider = "deepseek", model = "deepseek-chat" }

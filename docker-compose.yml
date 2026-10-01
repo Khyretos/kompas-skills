@@ -1,0 +1,21 @@
+# One-file deploy. Copy server/kompanion.example.toml to ./kompanion.toml,
+# put API keys in .env, then: docker compose up -d
+# The first start prints a setup code in the log: docker compose logs kompanion
+services:
+  kompanion:
+    build: .
+    image: kreative-kompanion:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080" # put your HTTPS reverse proxy in front
+    env_file: .env
+    volumes:
+      - ./kompanion.toml:/config/kompanion.toml:ro
+      - kompanion-data:/data
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+
+volumes:
+  kompanion-data:

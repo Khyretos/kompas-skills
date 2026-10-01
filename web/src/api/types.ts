@@ -10,14 +10,16 @@ export interface ModelProvider {
   baseUrl: string;
   local: boolean;
   models: ModelInfo[];
+  error?: string; // set when the server couldn't reach it
 }
 
 export interface ModelInfo {
   id: string; // "qwen3.5-9b"
-  contextTokens: number;
+  // Measured by the setup check; undefined until tested.
+  contextTokens?: number;
   tokensPerSecond?: number;
-  toolCalls: boolean;
-  jsonSchema: boolean;
+  toolCalls?: boolean;
+  jsonSchema?: boolean;
 }
 
 export interface RoleAssignment {
@@ -146,4 +148,11 @@ export interface Server {
   name: string;
   version: string;
   discovered?: boolean; // found on the local network
+}
+
+export interface ServerStatus {
+  name: string;
+  version: string;
+  setupNeeded: boolean;
+  user: string | null;
 }

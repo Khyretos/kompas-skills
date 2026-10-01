@@ -1,3 +1,5 @@
+import { showSignIn } from "./views/signin";
+import { HttpApi } from "./api/http";
 import { $, html, mount, onAction } from "./core/html";
 import { MockApi } from "./api/mock";
 import type { KompanionApi, ServerEvent } from "./api/client";
@@ -12,16 +14,42 @@ import { renderMachines } from "./views/machines";
 import { html as h } from "./core/html";
 import { renderSettings } from "./views/settings";
 
-const api: KompanionApi = new MockApi();
-const root = $("#app");
 
-showConnect(root, api, (server) => start(server));
+let api: KompanionApi;
+let root = $("#app");
+
+/** Served by a Kompanion server: use it. Opened as a file or preview: demo mode. */
+async function boot(): Promise<void> {
+  if (location.protocol.startsWith("http")) {
+    const http = new HttpApi();
+    try {
+      const status = await http.status();
+      api = http;
+      const server = { url: location.origin, name: location.hostname, version: status.version };
+      if (status.user) return start(server);
+      return showSignIn(root, api, status.setupNeeded, () => fresh().then(() => start(server)));
+    } catch {
+      /* no server here: fall through to the demo */
+    }
+  }
+  api = new MockApi();
+  showConnect(root, api, (server) => start(server));
+}
+
+/** Replace #app with a clean element (drops the previous screen's listeners). */
+async function fresh(): Promise<HTMLElement> {
+  const el = root.cloneNode(false) as HTMLElement;
+  root.replaceWith(el);
+  root = el;
+  return el;
+}
+
+boot();
 
 async function start(server: Server): Promise<void> {
-  const fresh = root.cloneNode(false) as HTMLElement; // drop the connect screen's listeners
-  root.replaceWith(fresh);
+  const shellRoot = await fresh();
 
-  mount(fresh, html`
+  mount(shellRoot, html`
     <div class="shell" data-pane="main">
       <aside class="pane left" id="left" aria-label="Projects and chats"></aside>
       <main class="pane center">
@@ -42,7 +70,7 @@ async function start(server: Server): Promise<void> {
     api.listMachines(), api.today(),
   ]);
   store.set({ server, projects, chats, tasks, providers, roles, machines, today });
-  wire(fresh);
+  wire(shellRoot);
   await openChat(chats[0]?.id);
 }
 
@@ -91,6 +119,8 @@ function applyEvent(ev: ServerEvent): void {
       const last = [...s.messages].reverse().find((m) => m.author === "orchestrator");
       if (last) store.set({ messages: store.get().messages.map((m) => (m.id === last.id ? { ...m, taskIds: [ev.task.id] } : m)) });
     }
+  } else if (ev.type === "resync") {
+    reload();
   } else if (ev.type === "machines") {
     store.set({ machines: ev.machines });
   } else if (ev.type === "message" && ev.message.chatId === s.activeChatId) {
@@ -101,6 +131,14 @@ function applyEvent(ev: ServerEvent): void {
         m.id === ev.messageId ? { ...m, text: m.text + ev.text, streaming: !ev.done } : m),
     });
   }
+}
+
+async function reload(): Promise<void> {
+  const s = store.get();
+  const [chats, tasks, messages] = await Promise.all([
+    api.listChats(), api.listTasks(), s.activeChatId ? api.listMessages(s.activeChatId) : Promise.resolve([]),
+  ]);
+  store.set({ chats, tasks, messages });
 }
 
 function wire(shell: HTMLElement): void {
@@ -116,14 +154,14 @@ function wire(shell: HTMLElement): void {
     "close-task": () => store.set({ openTaskId: undefined }),
     scope: (el) => store.set({ taskScope: el.dataset.scope as AppState["taskScope"] }),
     pane: (el) => store.set({ pane: el.dataset.pane as AppState["pane"] }),
-    answer: (el) => api.answer(el.dataset.task ?? "", el.dataset.option ?? ""),
+    answer: (el) => api.answer(el.dataset.task ?? "", el.dataset.option ?? "").catch(showError),
     settings: () => store.set({ settingsOpen: true, pane: "main" }),
     "close-settings": () => store.set({ settingsOpen: false }),
   });
 
   shell.addEventListener("change", async (ev) => {
     const sel = ev.target as HTMLSelectElement;
-    if (!sel.dataset.role) return;
+    if (!sel.dataset.role || !sel.value) return;
     const [providerId, modelId] = sel.value.split("::");
     await api.setRole({ role: sel.dataset.role as Role, providerId, modelId });
     store.set({ roles: await api.listRoles() });
@@ -147,7 +185,7 @@ function wire(shell: HTMLElement): void {
       store.set({ chats: [chat, ...store.get().chats], activeChatId: chat.id });
       chatId = chat.id;
     }
-    await api.send(chatId, text);
+    await api.send(chatId, text).catch(showError);
   };
   const autosize = () => {
     prompt.style.height = "auto";
@@ -158,4 +196,14 @@ function wire(shell: HTMLElement): void {
   prompt.addEventListener("keydown", (ev) => {
     if (ev.key === "Enter" && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); submit(); }
   });
+}
+
+function showError(e: unknown): void {
+  const message = e instanceof Error ? e.message : String(e);
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  toast.setAttribute("role", "alert");
+  toast.textContent = message;
+  document.body.append(toast);
+  setTimeout(() => toast.remove(), 6000);
 }

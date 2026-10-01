@@ -281,6 +281,11 @@ export class MockApi implements KompanionApi {
     if (!/^https?:\/\/[^\s]+$/.test(clean)) throw new Error("That doesn't look like a link. It should start with https://");
     return { url: clean, name: new URL(clean).hostname, version: "0.1.0" };
   }
+  async status() {
+    return { name: "Kreative Kompanion (demo)", version: "0.1.0", setupNeeded: false, user: "Kees" };
+  }
+  async setup() {}
+  async login() {}
   async listProjects() { return structuredClone(projects); }
   async listChats() { return structuredClone(chats); }
   async listMessages(chatId: string) { return structuredClone(messages.filter((m) => m.chatId === chatId)); }

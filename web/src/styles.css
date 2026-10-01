@@ -397,3 +397,13 @@ input[type="url"]:focus, select:focus, textarea:focus { outline: none; border-co
 .meter > span { display: block; height: 100%; background: var(--link); transition: width 0.6s ease; }
 .gpu { display: grid; gap: 0.3rem; padding-top: 0.5rem; border-top: 1px solid var(--line); }
 .gpu-head { display: flex; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; font-size: 0.85rem; }
+
+/* Sign-in and errors */
+.field { display: grid; gap: 0.35rem; }
+.field input { width: 100%; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 0.55rem 0.7rem; }
+.field input:focus { outline: none; border-color: var(--accent); }
+.toast {
+  position: fixed; left: 50%; bottom: calc(1rem + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 50;
+  max-width: min(32rem, calc(100% - 2rem)); padding: 0.7rem 1rem; border-radius: var(--radius);
+  background: var(--surface-2); border: 1px solid var(--bad); color: var(--fg);
+}

@@ -29,6 +29,7 @@ export function renderSettings(s: AppState): SafeHtml {
             <div class="role">
               <label for="role-${role}"><strong>${roleInfo[role].name}</strong><small>${roleInfo[role].text}</small></label>
               <select id="role-${role}" data-role="${role}">
+                ${value ? "" : html`<option value="" selected disabled>Not set</option>`}
                 ${options.map((o) => html`<option value="${o.value}" ${o.value === value ? "selected" : ""}>${o.m.id} · ${o.p.name}</option>`)}
               </select>
             </div>`;
@@ -43,14 +44,16 @@ export function renderSettings(s: AppState): SafeHtml {
               <span class="chip ${p.local ? "good" : ""}">${p.local ? "Local" : "Cloud"}</span>
             </div>
             <small class="muted">${p.kind === "anthropic" ? "Anthropic API" : "OpenAI-compatible API"} · ${p.baseUrl}</small>
+            ${p.error ? html`<p class="error small">Can't reach it: ${p.error}</p>` : ""}
             ${p.models.map((m) => html`
               <div class="model-row">
                 <code>${m.id}</code>
                 <span class="chips">
-                  <span class="chip">${Math.round(m.contextTokens / 1024)}k context</span>
+                  ${m.contextTokens ? html`<span class="chip">${Math.round(m.contextTokens / 1024)}k context</span>` : ""}
                   ${m.tokensPerSecond ? html`<span class="chip">${m.tokensPerSecond} tok/s</span>` : ""}
-                  <span class="chip ${m.toolCalls ? "good" : "bad"}">tool calls ${m.toolCalls ? "ok" : "no"}</span>
-                  <span class="chip ${m.jsonSchema ? "good" : "bad"}">JSON schema ${m.jsonSchema ? "ok" : "no"}</span>
+                  ${m.toolCalls === undefined ? html`<span class="chip">not tested yet</span>` : html`
+                    <span class="chip ${m.toolCalls ? "good" : "bad"}">tool calls ${m.toolCalls ? "ok" : "no"}</span>
+                    <span class="chip ${m.jsonSchema ? "good" : "bad"}">JSON schema ${m.jsonSchema ? "ok" : "no"}</span>`}
                 </span>
               </div>`)}
           </li>`)}</ul>

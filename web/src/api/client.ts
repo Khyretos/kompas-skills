@@ -1,11 +1,14 @@
 // The app talks to a Kompanion server only through this interface.
 // `MockApi` implements it for the draft; `HttpApi` (next milestone) will call
 // the real server over HTTPS + server-sent events.
-import type { DaySummary, MachineStats, Chat, Message, Project, RoleAssignment, ModelProvider, Server, Task } from "./types";
+import type { DaySummary, MachineStats, ServerStatus, Chat, Message, Project, RoleAssignment, ModelProvider, Server, Task } from "./types";
 
 export interface KompanionApi {
   discover(): Promise<Server[]>;
   connect(url: string): Promise<Server>;
+  status(): Promise<ServerStatus>;
+  setup(code: string, name: string, password: string): Promise<void>;
+  login(name: string, password: string): Promise<void>;
 
   listProjects(): Promise<Project[]>;
   listChats(): Promise<Chat[]>;
@@ -22,7 +25,8 @@ export interface KompanionApi {
   send(chatId: string, text: string): Promise<void>;
   answer(taskId: string, optionId: string): Promise<void>;
 
-  /** Live updates: streamed tokens, task progress, new messages. */
+  /** Live updates: streamed tokens, task progress, new messages. A "resync"
+   * event means some updates were missed and lists should be reloaded. */
   onEvent(listener: (ev: ServerEvent) => void): () => void;
 }
 
@@ -30,4 +34,5 @@ export type ServerEvent =
   | { type: "message"; message: Message }
   | { type: "message-delta"; messageId: string; chatId: string; text: string; done: boolean }
   | { type: "task"; task: Task }
-  | { type: "machines"; machines: MachineStats[] };
+  | { type: "machines"; machines: MachineStats[] }
+  | { type: "resync" };

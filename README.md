@@ -6,8 +6,44 @@ a stronger model reviewing and teaching them. See `docs/architecture.md`.
 
 ## Status
 
-First UI draft (`web/`), running against a fake server (`web/src/api/mock.ts`).
-No real server or runner yet.
+Milestone 1 in progress:
+
+- `server/` (Rust, axum, SQLite): sign-in, chats, streaming answers from any
+  OpenAI-compatible or Anthropic model, model roles, and a full log of every
+  model call (`GET /api/calls`).
+- `web/` (vanilla TypeScript): talks to the server when served by it, and falls
+  back to a demo with example data when opened on its own.
+- Not yet: tasks, runners, machines (milestones 2 and 3), OIDC sign-in.
+
+## Run it
+
+```sh
+cp server/kompanion.example.toml kompanion.toml   # edit providers and roles
+cp .env.example .env                              # API keys, if any
+docker compose up -d
+docker compose logs kompanion   # shows the one-time setup code
+```
+
+Then open the app, enter the setup code and create your account.
+
+For development: `cd web && npm run build`, then
+`cd server && KOMPANION_CONFIG=../kompanion.toml cargo run` (set
+`web_dir = "../web/dist"` and, for plain http on localhost only,
+`secure_cookies = false`).
+
+## Server security
+
+- No open endpoints except status, setup and sign-in. The first account needs a
+  one-time setup code printed in the server log.
+- Session cookie: random token (stored only as a SHA-256 hash), HttpOnly,
+  Secure, SameSite=Strict. Passwords hashed with Argon2id; sign-in throttled.
+- State-changing requests need an `X-Kompanion: 1` header and an allowed Origin.
+- Strict Content-Security-Policy with Trusted Types, `nosniff`, `no-referrer`.
+- Provider URLs come only from the admin's config file (no user-supplied URLs,
+  so no SSRF through the API). API keys come from environment variables and are
+  never stored or logged.
+- The container runs as a non-root user with a read-only filesystem and no
+  capabilities.
 
 ## Web app
 
