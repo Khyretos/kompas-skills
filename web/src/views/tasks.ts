@@ -100,17 +100,65 @@ function eventRow(e: TaskEvent): SafeHtml {
   }
 }
 
+export const TEMPLATE = "**Goal:** \n\n**Steps**\n1. \n\n**Done when:** ";
+
+/** Add or change a task: title, description (markdown), state. */
+function editor(t: Task | undefined, projectId: string, s: AppState): SafeHtml {
+  const project = s.projects.find((p) => p.id === projectId);
+  const state = t?.state ?? "queued";
+  return html`
+    <div class="pane-head">
+      <button class="icon-btn" data-action="cancel-task-edit" aria-label="Cancel">${icon("back")}</button>
+      <h2>${t ? "Edit task" : "New task"}</h2>
+    </div>
+    <form class="task-editor" id="task-editor" data-id="${t?.id ?? ""}" data-project="${projectId}">
+      <span class="eyebrow">${project?.name ?? ""}</span>
+      <div class="field">
+        <label for="task-title">Title</label>
+        <input id="task-title" name="title" value="${t?.title ?? ""}" maxlength="200" required>
+      </div>
+      <div class="field">
+        <label for="task-description">Description</label>
+        <textarea id="task-description" name="description" rows="14" required
+          aria-describedby="task-description-hint">${t?.description || TEMPLATE}</textarea>
+        <p class="hint" id="task-description-hint">Write a goal, numbered steps and when it is done. Markdown works.</p>
+      </div>
+      <div class="field">
+        <label for="task-state">State</label>
+        <select id="task-state" name="state">${(Object.keys(labels) as TaskState[]).map((k) =>
+          html`<option value="${k}" ${k === state ? "selected" : ""}>${labels[k]}</option>`)}</select>
+      </div>
+      <p class="error small" id="task-msg" role="alert"></p>
+      <div class="row">
+        <button class="btn primary" type="submit">${t ? "Save" : "Add task"}</button>
+        <button class="btn" type="button" data-action="cancel-task-edit">Cancel</button>
+      </div>
+    </form>`;
+}
+
 function detail(t: Task, s: AppState): SafeHtml {
   const project = s.projects.find((p) => p.id === t.projectId);
   const pct = Math.round(t.progress * 100);
+  const siblings = s.tasks.filter((x) => x.projectId === t.projectId);
+  const i = siblings.findIndex((x) => x.id === t.id);
   return html`
     <div class="pane-head">
       <button class="icon-btn" data-action="close-task" aria-label="Back to tasks">${icon("back")}</button>
       <h2>Task</h2>
     </div>
     <div class="task-detail">
-      <span class="eyebrow">${project?.name ?? ""}</span>
+      <span class="eyebrow">${project?.name ?? ""}${t.source?.startsWith("windshift:")
+        ? html` · <span class="chip" title="Changes here are written to Windshift">Windshift ${t.source.slice(10)}</span>` : ""}</span>
       <h3>${t.title}</h3>
+      <div class="task-actions">
+        <button class="btn small" data-action="edit-task" data-id="${t.id}">${icon("edit")} Edit</button>
+        <button class="btn small" data-action="move-task" data-id="${t.id}" data-dir="-1" ${i <= 0 ? "disabled" : ""} aria-label="Move up">↑</button>
+        <button class="btn small" data-action="move-task" data-id="${t.id}" data-dir="1" ${i < 0 || i >= siblings.length - 1 ? "disabled" : ""} aria-label="Move down">↓</button>
+        ${t.state !== "done" ? html`<button class="btn small" data-action="close-task-done" data-id="${t.id}">Mark done</button>` : ""}
+        <button class="btn small danger" data-action="delete-task" data-id="${t.id}">${icon("trash")} Delete</button>
+      </div>
+      ${t.description ? html`<div class="task-desc md" data-md-task="${t.id}"></div>`
+        : html`<p class="warn">This task has no description yet. <button class="link" data-action="edit-task" data-id="${t.id}">Write one</button>: goal, steps, done when.</p>`}
       <div class="detail-state">
         <span class="chip state s-${t.state}">${stateLabel(t.state)}</span>
         <span class="muted">${pct}% · ${t.step}</span>
@@ -138,10 +186,15 @@ export function paneTabs(s: AppState): SafeHtml {
 }
 
 export function renderTasks(s: AppState): SafeHtml {
+  const project = activeProject(s);
+  if (s.editingTaskId) {
+    const t = s.tasks.find((x) => x.id === s.editingTaskId);
+    const projectId = t?.projectId ?? project?.id;
+    if (projectId) return editor(t, projectId, s);
+  }
   const open = s.openTaskId ? s.tasks.find((t) => t.id === s.openTaskId) : undefined;
   if (open) return detail(open, s);
 
-  const project = activeProject(s);
   const scope = project && s.taskScope === "project" ? "project" : "all";
   const list = scope === "project" ? s.tasks.filter((t) => t.projectId === project!.id) : s.tasks;
   const projectName = (t: Task) => (scope === "all" ? s.projects.find((p) => p.id === t.projectId)?.name : undefined);
@@ -156,9 +209,17 @@ export function renderTasks(s: AppState): SafeHtml {
       <button class="icon-btn only-narrow" data-action="pane" data-pane="main" aria-label="Close tasks">${icon("close")}</button>
     </div>
     <div class="task-groups">
+      ${scope === "project" ? html`
+        <div class="project-bar">
+          <button class="btn small" data-action="new-task">${icon("plus")} Add task</button>
+          ${project!.kind === "windshift" ? html`
+            <span class="chip" title="Edits here are written to Windshift and Windshift changes come back">Synced with Windshift</span>
+            <button class="btn small" data-action="make-internal" data-id="${project!.id}">Stop syncing</button>` : ""}
+        </div>` : ""}
       ${list.length === 0 ? html`<p class="muted pad">No tasks yet. Ask the orchestrator for something and its tasks show up here.</p>` : ""}
       ${groups.map((g) => {
-        const items = list.filter((t) => g.states.includes(t.state));
+        const items = list.filter((t) => g.states.includes(t.state))
+          .sort((a, b) => (a.projectId === b.projectId ? (a.position ?? 0) - (b.position ?? 0) : 0));
         if (!items.length) return "";
         return html`
           <section class="group">

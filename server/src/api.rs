@@ -33,6 +33,9 @@ pub struct Project {
     pub name: String,
     pub description: String,
     pub updated_at: String,
+    /// "internal" or "windshift" (synced with a Windshift workspace).
+    #[sqlx(default)]
+    pub kind: String,
 }
 
 #[derive(Debug, Clone, Serialize, sqlx::FromRow)]
@@ -80,7 +83,7 @@ pub async fn projects(
     Extension(u): Extension<User>,
 ) -> ApiResult<Json<Vec<Project>>> {
     let rows = sqlx::query_as(
-        "SELECT id, name, description, updated_at FROM projects WHERE user_id = ? ORDER BY updated_at DESC",
+        "SELECT id, name, description, updated_at, kind FROM projects WHERE user_id = ? ORDER BY updated_at DESC",
     )
     .bind(&u.id)
     .fetch_all(&s.db)
@@ -590,34 +593,6 @@ pub async fn calls(
 }
 
 // Tasks and machines arrive with milestones 2 and 3.
-#[derive(Deserialize)]
-pub struct TasksQuery {
-    project: Option<String>,
-}
-
-pub async fn tasks(
-    State(s): State<AppState>,
-    Extension(u): Extension<User>,
-    Query(q): Query<TasksQuery>,
-) -> ApiResult<Json<Vec<Value>>> {
-    type Row = (String, String, String, String, f64, String, String, String);
-    let rows: Vec<Row> = sqlx::query_as(
-        "SELECT id, project_id, title, state, progress, step, role, model FROM tasks
-         WHERE user_id = ?2 AND (?1 IS NULL OR project_id = ?1) ORDER BY updated_at DESC LIMIT 500",
-    )
-    .bind(q.project)
-    .bind(&u.id)
-    .fetch_all(&s.db)
-    .await?;
-    Ok(Json(
-        rows.into_iter()
-            .map(|(id, project_id, title, state, progress, step, role, model)| {
-                json!({ "id": id, "projectId": project_id, "title": title, "state": state,
-                        "progress": progress, "step": step, "role": role, "model": model, "events": [] })
-            })
-            .collect(),
-    ))
-}
 /// The server's own machine; runners on other PCs come in milestone 3.
 pub async fn machines(State(s): State<AppState>) -> Json<Vec<Value>> {
     Json(vec![s.host.snapshot_now(&s)])

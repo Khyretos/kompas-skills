@@ -33,6 +33,7 @@ export interface Project {
   name: string;
   description: string;
   updatedAt: string; // ISO
+  kind?: "internal" | "windshift";
 }
 
 export interface Chat {
@@ -74,6 +75,9 @@ export interface Task {
   runner?: string; // "soucouyant (Linux)"
   workspace?: string; // "container: rust-1.83, 4 cores, 8 GB"
   scheduledFor?: string;
+  description?: string; // markdown: goal, steps, done when
+  position?: number;
+  source?: string | null; // "windshift:SRV-12" for synced tasks
   events: TaskEvent[];
   question?: TaskQuestion;
 }

@@ -3,7 +3,8 @@ import { HttpApi } from "./api/http";
 import { $, html, mount, onAction } from "./core/html";
 import { MockApi } from "./api/mock";
 import type { KompanionApi, ServerEvent } from "./api/client";
-import type { AdminSettings, Role, Server, ThemeChoice } from "./api/types";
+import type { AdminSettings, Role, Server, TaskState, ThemeChoice } from "./api/types";
+import { renderMarkdown } from "./core/markdown";
 import { store, type AppState } from "./state";
 import { showConnect } from "./views/connect";
 import { renderSidebar } from "./views/sidebar";
@@ -125,6 +126,11 @@ function render(s: AppState, prev: AppState): void {
     <div class="pane-head">${paneTabs(s)}
       <button class="icon-btn only-narrow" data-action="pane" data-pane="main" aria-label="Close">✕</button></div>
     ${renderMachines(s.machines, s.today, s.machinesRefresh)}`);
+  // Task descriptions are markdown, rendered sanitised after mounting.
+  for (const el of document.querySelectorAll<HTMLElement>("[data-md-task]")) {
+    const t = s.tasks.find((x) => x.id === el.dataset.mdTask);
+    if (t?.description) el.replaceChildren(renderMarkdown(t.description));
+  }
 
   const box = $("#messages");
   const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
@@ -194,6 +200,25 @@ function wire(shell: HTMLElement): void {
       store.set({ expandedProjects: expanded, activeProjectId: id, taskScope: "project" });
     },
     "project-tasks": (el) => store.set({ activeProjectId: el.dataset.id, taskScope: "project", rightTab: "tasks", pane: "right" }),
+    "new-task": () => store.set({ editingTaskId: "new" }),
+    "edit-task": (el) => store.set({ editingTaskId: el.dataset.id }),
+    "cancel-task-edit": () => store.set({ editingTaskId: undefined }),
+    "close-task-done": (el) => saveTask(el.dataset.id ?? "", { state: "done" }),
+    "delete-task": (el) => {
+      const t = store.get().tasks.find((x) => x.id === el.dataset.id);
+      if (!t || !confirm(`Delete "${t.title}"?${t.source?.startsWith("windshift:") ? " It is closed in Windshift too." : ""}`)) return;
+      api.deleteTask(t.id).then(() => store.set({
+        tasks: store.get().tasks.filter((x) => x.id !== t.id), openTaskId: undefined,
+      }), showError);
+    },
+    "move-task": (el) => moveTask(el.dataset.id ?? "", Number(el.dataset.dir)),
+    "make-internal": (el) => {
+      if (!confirm("Stop syncing this project with Windshift? Everything stays here as an internal project.")) return;
+      const id = el.dataset.id ?? "";
+      api.makeProjectInternal(id).then(() => store.set({
+        projects: store.get().projects.map((p) => (p.id === id ? { ...p, kind: "internal" } : p)),
+      }), showError);
+    },
     "chat-menu": (el) => store.set({ chatMenuId: store.get().chatMenuId === el.dataset.id ? undefined : el.dataset.id }),
     "chat-pin": (el) => {
       const c = store.get().chats.find((x) => x.id === el.dataset.id);
@@ -264,6 +289,8 @@ function wire(shell: HTMLElement): void {
     if (c && title && title !== c.title) changeChat(id, { title });
   };
   shell.addEventListener("submit", (ev) => {
+    const taskForm = (ev.target as HTMLElement).closest("#task-editor") as HTMLFormElement | null;
+    if (taskForm) { ev.preventDefault(); submitTask(taskForm); return; }
     const admin = (ev.target as HTMLElement).closest("#admin-form") as HTMLFormElement | null;
     if (admin) { ev.preventDefault(); saveAdmin(admin); return; }
     const form = (ev.target as HTMLElement).closest("form.rename") as HTMLFormElement | null;
@@ -358,6 +385,48 @@ async function saveAdmin(form: HTMLFormElement): Promise<void> {
   } catch (e) {
     adminMessage(e instanceof Error ? e.message : String(e), true);
   }
+}
+
+async function saveTask(id: string, change: { title?: string; description?: string; state?: TaskState }): Promise<void> {
+  try {
+    const t = await api.updateTask(id, change);
+    store.set({ tasks: store.get().tasks.map((x) => (x.id === id ? { ...x, ...t } : x)), editingTaskId: undefined, openTaskId: id });
+  } catch (e) { showError(e); }
+}
+
+async function submitTask(form: HTMLFormElement): Promise<void> {
+  const f = new FormData(form);
+  const title = String(f.get("title") ?? "").trim();
+  const description = String(f.get("description") ?? "").trim();
+  const state = String(f.get("state") ?? "queued") as TaskState;
+  const msg = form.querySelector("#task-msg");
+  try {
+    if (form.dataset.id) {
+      const t = await api.updateTask(form.dataset.id, { title, description, state });
+      store.set({ tasks: store.get().tasks.map((x) => (x.id === t.id ? { ...x, ...t } : x)), editingTaskId: undefined, openTaskId: t.id });
+    } else {
+      const t = await api.createTask({ projectId: form.dataset.project ?? "", title, description, state });
+      store.set({ tasks: [...store.get().tasks, t], editingTaskId: undefined, openTaskId: t.id });
+    }
+  } catch (e) {
+    if (msg) msg.textContent = e instanceof Error ? e.message : String(e);
+  }
+}
+
+async function moveTask(id: string, dir: number): Promise<void> {
+  const s = store.get();
+  const t = s.tasks.find((x) => x.id === id);
+  if (!t) return;
+  const ids = s.tasks.filter((x) => x.projectId === t.projectId)
+    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0)).map((x) => x.id);
+  const i = ids.indexOf(id), j = i + dir;
+  if (i < 0 || j < 0 || j >= ids.length) return;
+  [ids[i], ids[j]] = [ids[j], ids[i]];
+  try {
+    await api.reorderTasks(t.projectId, ids);
+    const pos = new Map(ids.map((x, k) => [x, k]));
+    store.set({ tasks: store.get().tasks.map((x) => (pos.has(x.id) ? { ...x, position: pos.get(x.id) } : x)) });
+  } catch (e) { showError(e); }
 }
 
 async function changeChat(id: string, change: { title?: string; pinned?: boolean; archived?: boolean }): Promise<void> {

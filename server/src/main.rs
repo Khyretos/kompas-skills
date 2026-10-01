@@ -10,6 +10,7 @@ mod import;
 mod llm;
 mod mail;
 mod oidc;
+mod tasks;
 mod util;
 
 use std::{
@@ -127,7 +128,11 @@ async fn main() -> anyhow::Result<()> {
         .route("/providers", get(api::providers))
         .route("/roles", get(api::roles).put(api::set_role))
         .route("/calls", get(api::calls))
-        .route("/tasks", get(api::tasks))
+        .route("/tasks", get(tasks::list).post(tasks::create))
+        .route("/tasks/order", axum::routing::put(tasks::reorder))
+        .route("/tasks/{id}", patch(tasks::update).delete(tasks::delete))
+        .route("/tasks/{id}/events", get(tasks::events))
+        .route("/projects/{id}", patch(tasks::set_project_kind))
         .route("/machines", get(api::machines))
         .route("/machines/live", post(api::machines_live))
         .route("/me/prefs", axum::routing::put(admin::set_prefs))

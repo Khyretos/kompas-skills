@@ -1,7 +1,7 @@
 // A fake server so the UI can be built and tried before the real one exists.
 // Everything here is example data.
 import type { KompanionApi, ServerEvent } from "./client";
-import type { AdminSettings, DaySummary, MachineStats, Chat, Message, ModelProvider, Project, RoleAssignment, Server, Task } from "./types";
+import type { TaskState, AdminSettings, DaySummary, MachineStats, Chat, Message, ModelProvider, Project, RoleAssignment, Server, Task } from "./types";
 
 const now = Date.now();
 const ago = (min: number) => new Date(now - min * 60_000).toISOString();
@@ -329,6 +329,26 @@ export class MockApi implements KompanionApi {
     else Object.assign(chats[i], { title: change.title ?? chats[i].title, pinned: change.pinned ?? chats[i].pinned });
   }
 
+  async createTask(t: { projectId: string; title: string; description: string; state?: TaskState }) {
+    const task: Task = { id: id("t"), projectId: t.projectId, title: t.title, description: t.description, state: t.state ?? "queued",
+      progress: 0, step: "", role: "worker", model: "", events: [] };
+    tasks.unshift(task);
+    return structuredClone(task);
+  }
+  async updateTask(taskId: string, change: { title?: string; description?: string; state?: TaskState }) {
+    const t = tasks.find((x) => x.id === taskId);
+    if (!t) throw new Error("No such task.");
+    Object.assign(t, Object.fromEntries(Object.entries(change).filter(([, v]) => v !== undefined)));
+    return structuredClone(t);
+  }
+  async deleteTask(taskId: string) {
+    const i = tasks.findIndex((x) => x.id === taskId);
+    if (i >= 0) tasks.splice(i, 1);
+  }
+  async reorderTasks(_projectId: string, ids: string[]) {
+    ids.forEach((tid, i) => { const t = tasks.find((x) => x.id === tid); if (t) t.position = i; });
+  }
+  async makeProjectInternal() {}
   async deleteChat(chatId: string) {
     const i = chats.findIndex((c) => c.id === chatId);
     if (i >= 0) chats.splice(i, 1);

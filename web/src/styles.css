@@ -215,6 +215,20 @@ input[type="url"]:focus, select:focus, textarea:focus { outline: none; border-co
 .refresh { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 0.25rem 0.75rem; margin-bottom: 0.75rem; font-size: 0.85rem; }
 .refresh input[type="range"] { grid-column: 1 / -1; width: 100%; accent-color: var(--brand); }
 .refresh span { grid-column: 1 / -1; }
+.task-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.5rem 0 0.75rem; }
+.btn.danger { color: var(--bad); }
+.task-desc { font-size: 0.9rem; line-height: 1.55; margin-bottom: 1rem; }
+.task-desc ol, .task-desc ul { padding-left: 1.25rem; }
+.task-desc p { margin: 0.4rem 0; }
+.warn { color: var(--attn); font-size: 0.9rem; }
+.link { color: var(--link); text-decoration: underline; padding: 0; }
+.task-editor { display: grid; gap: 0.75rem; padding: 0.75rem 1rem 1.5rem; }
+.task-editor textarea, .task-editor select {
+  width: 100%; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 0.55rem 0.7rem; color: var(--fg); font: inherit;
+}
+.task-editor textarea { font-family: var(--mono); font-size: 0.85rem; resize: vertical; }
+.project-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; }
 .server-logo { width: 1.75rem; height: 1.75rem; flex: none; }
 .server small { display: flex; align-items: center; gap: 0.35rem; }
 .account { border-top: 1px solid var(--line); padding-top: 0.5rem; display: grid; gap: 0.25rem; }

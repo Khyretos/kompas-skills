@@ -36,6 +36,8 @@ struct Project {
 struct Task {
     id: String,
     title: String,
+    #[serde(default)]
+    description: String,
     #[serde(default = "queued")]
     state: String,
     source: Option<String>,
@@ -81,7 +83,7 @@ pub async fn run(db: &SqlitePool, path: &str, user: Option<&str>) -> Result<()> 
             bail!("project {} has no name", p.id);
         }
         sqlx::query(
-            "INSERT INTO projects (id, name, description, source, updated_at, user_id) VALUES (?, ?, ?, ?, ?, ?)
+            "INSERT INTO projects (id, name, description, source, updated_at, user_id, kind) VALUES (?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT(id) DO UPDATE SET name = excluded.name, description = excluded.description,
              source = excluded.source, updated_at = excluded.updated_at
              WHERE projects.user_id = excluded.user_id",
@@ -92,6 +94,7 @@ pub async fn run(db: &SqlitePool, path: &str, user: Option<&str>) -> Result<()> 
         .bind(&p.source)
         .bind(util::now())
         .bind(&owner)
+        .bind(if p.source.as_deref().is_some_and(|s| s.starts_with("windshift:")) { "windshift" } else { "internal" })
         .execute(&mut *tx)
         .await?;
         np += 1;
@@ -100,18 +103,21 @@ pub async fn run(db: &SqlitePool, path: &str, user: Option<&str>) -> Result<()> 
                 bail!("task {}: unknown state {}", t.id, t.state);
             }
             sqlx::query(
-                "INSERT INTO tasks (id, project_id, title, state, source, updated_at, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)
+                "INSERT INTO tasks (id, project_id, title, description, state, source, updated_at, user_id, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                  ON CONFLICT(id) DO UPDATE SET project_id = excluded.project_id, title = excluded.title,
+                 description = CASE WHEN excluded.description = '' THEN tasks.description ELSE excluded.description END,
                  state = excluded.state, source = excluded.source, updated_at = excluded.updated_at
                  WHERE tasks.user_id = excluded.user_id",
             )
             .bind(&t.id)
             .bind(&p.id)
             .bind(t.title.trim())
+            .bind(t.description.trim())
             .bind(&t.state)
             .bind(&t.source)
             .bind(util::now())
             .bind(&owner)
+            .bind(nt as f64) // keeps the order of the file
             .execute(&mut *tx)
             .await?;
             nt += 1;

@@ -1,7 +1,7 @@
 // The app talks to a Kompanion server only through this interface.
 // `MockApi` implements it for the draft; `HttpApi` (next milestone) will call
 // the real server over HTTPS + server-sent events.
-import type { AdminSettings, ThemeChoice, DaySummary, MachineStats, ServerStatus, Chat, Message, Project, RoleAssignment, ModelProvider, Server, Task } from "./types";
+import type { TaskState, AdminSettings, ThemeChoice, DaySummary, MachineStats, ServerStatus, Chat, Message, Project, RoleAssignment, ModelProvider, Server, Task } from "./types";
 
 export interface KompanionApi {
   discover(): Promise<Server[]>;
@@ -31,6 +31,11 @@ export interface KompanionApi {
   createChat(title: string, projectId?: string): Promise<Chat>;
   updateChat(chatId: string, change: { title?: string; pinned?: boolean; archived?: boolean }): Promise<void>;
   deleteChat(chatId: string): Promise<void>;
+  createTask(t: { projectId: string; title: string; description: string; state?: TaskState }): Promise<Task>;
+  updateTask(id: string, change: { title?: string; description?: string; state?: TaskState }): Promise<Task>;
+  deleteTask(id: string): Promise<void>;
+  reorderTasks(projectId: string, ids: string[]): Promise<void>;
+  makeProjectInternal(projectId: string): Promise<void>;
   /** Sends a message; the reply streams back through `onEvent`. */
   send(chatId: string, text: string): Promise<void>;
   answer(taskId: string, optionId: string): Promise<void>;

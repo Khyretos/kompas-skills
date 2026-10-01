@@ -2,7 +2,7 @@
 // a session cookie. Live updates arrive as server-sent events.
 import type { KompanionApi, ServerEvent } from "./client";
 import type {
-  AdminSettings, ThemeChoice, Chat, DaySummary, MachineStats, Message, ModelProvider, Project, RoleAssignment, Server, ServerStatus, Task,
+  AdminSettings, ThemeChoice, TaskState, Chat, DaySummary, MachineStats, Message, ModelProvider, Project, RoleAssignment, Server, ServerStatus, Task,
 } from "./types";
 
 export class ApiError extends Error {
@@ -76,6 +76,17 @@ export class HttpApi implements KompanionApi {
   createChat(title: string, projectId?: string) { return this.request<Chat>("POST", "/chats", { title, projectId }); }
   updateChat(chatId: string, change: { title?: string; pinned?: boolean; archived?: boolean }) {
     return this.request<void>("PATCH", `/chats/${encodeURIComponent(chatId)}`, change);
+  }
+  createTask(t: { projectId: string; title: string; description: string; state?: TaskState }) {
+    return this.request<Task>("POST", "/tasks", t);
+  }
+  updateTask(id: string, change: { title?: string; description?: string; state?: TaskState }) {
+    return this.request<Task>("PATCH", `/tasks/${encodeURIComponent(id)}`, change);
+  }
+  deleteTask(id: string) { return this.request<void>("DELETE", `/tasks/${encodeURIComponent(id)}`); }
+  reorderTasks(projectId: string, ids: string[]) { return this.request<void>("PUT", "/tasks/order", { projectId, ids }); }
+  makeProjectInternal(projectId: string) {
+    return this.request<void>("PATCH", `/projects/${encodeURIComponent(projectId)}`, { kind: "internal" });
   }
   deleteChat(chatId: string) { return this.request<void>("DELETE", `/chats/${encodeURIComponent(chatId)}`); }
   send(chatId: string, text: string) {
