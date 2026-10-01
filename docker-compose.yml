@@ -12,6 +12,7 @@ services:
     volumes:
       - ./kompanion.toml:/config/kompanion.toml:ro
       - kompanion-data:/data
+      - /etc/os-release:/host/os-release:ro # OS name in the Machines panel
     read_only: true
     tmpfs: [/tmp]
     cap_drop: [ALL]

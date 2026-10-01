@@ -17,6 +17,10 @@ export interface AppState {
   taskScope: "project" | "all";
   settingsOpen: boolean;
   pane: "main" | "left" | "right"; // which pane is visible on a phone
+  expandedProjects: Set<string>; // projects open in the sidebar
+  activeProjectId?: string; // project picked in the sidebar (tasks pane, new chats)
+  chatMenuId?: string; // chat whose options menu is open
+  renamingChatId?: string; // chat being renamed in place
 }
 
 export const store = new Store<AppState>({
@@ -31,6 +35,7 @@ export const store = new Store<AppState>({
   taskScope: "project",
   settingsOpen: false,
   pane: "main",
+  expandedProjects: new Set(),
 });
 
 export function activeChat(s: AppState): Chat | undefined {
@@ -39,5 +44,6 @@ export function activeChat(s: AppState): Chat | undefined {
 
 export function activeProject(s: AppState): Project | undefined {
   const chat = activeChat(s);
-  return chat?.projectId ? s.projects.find((p) => p.id === chat.projectId) : undefined;
+  const id = chat?.projectId ?? s.activeProjectId;
+  return id ? s.projects.find((p) => p.id === id) : undefined;
 }

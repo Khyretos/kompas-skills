@@ -67,6 +67,10 @@ export class HttpApi implements KompanionApi {
   }
 
   createChat(title: string, projectId?: string) { return this.request<Chat>("POST", "/chats", { title, projectId }); }
+  updateChat(chatId: string, change: { title?: string; pinned?: boolean; archived?: boolean }) {
+    return this.request<void>("PATCH", `/chats/${encodeURIComponent(chatId)}`, change);
+  }
+  deleteChat(chatId: string) { return this.request<void>("DELETE", `/chats/${encodeURIComponent(chatId)}`); }
   send(chatId: string, text: string) {
     return this.request<void>("POST", `/chats/${encodeURIComponent(chatId)}/messages`, { text });
   }

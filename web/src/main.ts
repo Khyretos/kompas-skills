@@ -108,6 +108,11 @@ function render(s: AppState, prev: AppState): void {
   shell.dataset.pane = s.pane;
 
   mount($("#left"), renderSidebar(s));
+  if (s.renamingChatId && s.renamingChatId !== prev.renamingChatId) {
+    const input = document.querySelector<HTMLInputElement>("form.rename input");
+    input?.focus();
+    input?.select();
+  }
   mount($("#conv-head"), renderHeader(s));
   mount($("#right"), s.rightTab === "tasks" ? renderTasks(s) : h`
     <div class="pane-head">${paneTabs(s)}
@@ -168,7 +173,32 @@ function wire(shell: HTMLElement): void {
 
   onAction(shell, {
     "open-chat": (el) => openChat(el.dataset.id),
-    "new-chat": () => store.set({ activeChatId: undefined, messages: [], pane: "main" }),
+    "new-chat": (el) => store.set({
+      activeChatId: undefined, messages: [], pane: "main", chatMenuId: undefined,
+      activeProjectId: el.dataset.project ?? store.get().activeProjectId,
+    }),
+    project: (el) => {
+      const id = el.dataset.id ?? "";
+      const s = store.get();
+      const expanded = new Set(s.expandedProjects);
+      // First click selects and opens; clicking the selected project closes it.
+      if (s.activeProjectId === id && expanded.has(id)) expanded.delete(id);
+      else expanded.add(id);
+      store.set({ expandedProjects: expanded, activeProjectId: id, taskScope: "project" });
+    },
+    "project-tasks": (el) => store.set({ activeProjectId: el.dataset.id, taskScope: "project", rightTab: "tasks", pane: "right" }),
+    "chat-menu": (el) => store.set({ chatMenuId: store.get().chatMenuId === el.dataset.id ? undefined : el.dataset.id }),
+    "chat-pin": (el) => {
+      const c = store.get().chats.find((x) => x.id === el.dataset.id);
+      if (c) changeChat(c.id, { pinned: !c.pinned });
+    },
+    "chat-rename": (el) => store.set({ renamingChatId: el.dataset.id, chatMenuId: undefined }),
+    "chat-archive": (el) => changeChat(el.dataset.id ?? "", { archived: true }),
+    "chat-delete": (el) => {
+      const c = store.get().chats.find((x) => x.id === el.dataset.id);
+      if (c && confirm(`Delete "${c.title}" and its messages? This can't be undone.`)) removeChat(c.id);
+      else store.set({ chatMenuId: undefined });
+    },
     "open-task": (el) => store.set({ openTaskId: el.dataset.id, rightTab: "tasks", pane: "right" }),
     tab: (el) => store.set({ rightTab: el.dataset.tab as AppState["rightTab"], openTaskId: undefined }),
     "close-task": () => store.set({ openTaskId: undefined }),
@@ -188,8 +218,36 @@ function wire(shell: HTMLElement): void {
   });
 
   document.addEventListener("keydown", (ev) => {
-    if (ev.key === "Escape" && store.get().settingsOpen) store.set({ settingsOpen: false });
+    if (ev.key !== "Escape") return;
+    const s = store.get();
+    if (s.renamingChatId || s.chatMenuId) store.set({ renamingChatId: undefined, chatMenuId: undefined });
+    else if (s.settingsOpen) store.set({ settingsOpen: false });
   });
+  // A click anywhere outside an open chat menu closes it.
+  document.addEventListener("click", (ev) => {
+    const t = ev.target as HTMLElement;
+    if (store.get().chatMenuId && !t.closest(".menu, .chat-more")) store.set({ chatMenuId: undefined });
+  });
+  // Rename in place: Enter saves, leaving the field saves too.
+  const saveRename = (form: HTMLFormElement) => {
+    const id = form.dataset.id ?? "";
+    const title = (form.elements.namedItem("title") as HTMLInputElement).value.trim();
+    store.set({ renamingChatId: undefined });
+    const c = store.get().chats.find((x) => x.id === id);
+    if (c && title && title !== c.title) changeChat(id, { title });
+  };
+  shell.addEventListener("submit", (ev) => {
+    const form = (ev.target as HTMLElement).closest("form.rename") as HTMLFormElement | null;
+    if (form) { ev.preventDefault(); saveRename(form); }
+  });
+  shell.addEventListener("focusout", (ev) => {
+    const form = (ev.target as HTMLElement).closest("form.rename") as HTMLFormElement | null;
+    if (form && store.get().renamingChatId) saveRename(form);
+  });
+  // Live stats of the server's machine.
+  setInterval(() => {
+    if (store.get().rightTab === "machines") api.listMachines().then((machines) => store.set({ machines })).catch(() => {});
+  }, 5000);
 
   const form = $("#composer");
   const prompt = $("#prompt") as HTMLTextAreaElement;
@@ -201,7 +259,7 @@ function wire(shell: HTMLElement): void {
     let chatId = store.get().activeChatId;
     if (!chatId) {
       const title = text.length > 40 ? text.slice(0, 38) + "…" : text;
-      const chat = await api.createChat(title);
+      const chat = await api.createChat(title, store.get().activeProjectId);
       store.set({ chats: [chat, ...store.get().chats], activeChatId: chat.id });
       chatId = chat.id;
     }
@@ -216,6 +274,24 @@ function wire(shell: HTMLElement): void {
   prompt.addEventListener("keydown", (ev) => {
     if (ev.key === "Enter" && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); submit(); }
   });
+}
+
+async function changeChat(id: string, change: { title?: string; pinned?: boolean; archived?: boolean }): Promise<void> {
+  store.set({ chatMenuId: undefined });
+  try {
+    await api.updateChat(id, change);
+    if (change.archived && store.get().activeChatId === id) store.set({ activeChatId: undefined, messages: [] });
+    store.set({ chats: await api.listChats() });
+  } catch (e) { showError(e); }
+}
+
+async function removeChat(id: string): Promise<void> {
+  store.set({ chatMenuId: undefined });
+  try {
+    await api.deleteChat(id);
+    if (store.get().activeChatId === id) store.set({ activeChatId: undefined, messages: [] });
+    store.set({ chats: await api.listChats() });
+  } catch (e) { showError(e); }
 }
 
 function showError(e: unknown): void {

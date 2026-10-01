@@ -3,6 +3,7 @@ mod auth;
 mod config;
 mod error;
 mod events;
+mod hoststats;
 mod import;
 mod llm;
 mod oidc;
@@ -18,7 +19,7 @@ use axum::{
     Router,
     http::{HeaderValue, header},
     middleware,
-    routing::{get, post},
+    routing::{get, patch, post},
 };
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePool, SqlitePoolOptions};
 use tower_http::{
@@ -37,6 +38,7 @@ pub struct AppState {
     pub setup_code: Arc<Mutex<Option<String>>>,
     pub dummy_hash: String,
     pub oidc: Arc<oidc::Oidc>,
+    pub host: Arc<hoststats::HostStats>,
 }
 
 #[cfg(test)]
@@ -51,6 +53,7 @@ impl AppState {
             setup_code: Default::default(),
             dummy_hash: String::new(),
             oidc: Default::default(),
+            host: Default::default(),
         }
     }
 }
@@ -97,7 +100,9 @@ async fn main() -> anyhow::Result<()> {
         setup_code: Default::default(),
         dummy_hash: auth::hash_password(&util::random_token())?,
         oidc: Default::default(),
+        host: Default::default(),
     };
+    state.host.clone().spawn();
     auth::ensure_setup_code(&state).await?;
 
     let api = Router::new()
@@ -109,6 +114,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/auth/oidc/callback", get(oidc::callback))
         .route("/projects", get(api::projects))
         .route("/chats", get(api::chats).post(api::create_chat))
+        .route("/chats/{id}", patch(api::update_chat).delete(api::delete_chat))
         .route("/chats/{id}/messages", get(api::messages).post(api::send))
         .route("/providers", get(api::providers))
         .route("/roles", get(api::roles).put(api::set_role))

@@ -17,6 +17,7 @@ const options = {
   logLevel: "info",
   // Only the shareable preview runs on demo data.
   define: { __DEMO__: JSON.stringify(single) },
+  loader: { ".svg": "dataurl" }, // logos as data: URLs (CSP allows img data:)
 };
 
 await mkdir("dist", { recursive: true });

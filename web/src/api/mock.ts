@@ -287,7 +287,9 @@ export class MockApi implements KompanionApi {
   async setup() {}
   async login() {}
   async listProjects() { return structuredClone(projects); }
-  async listChats() { return structuredClone(chats); }
+  async listChats() {
+    return structuredClone([...chats].sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned)));
+  }
   async listMessages(chatId: string) { return structuredClone(messages.filter((m) => m.chatId === chatId)); }
   async listTasks(projectId?: string) {
     return structuredClone(projectId ? tasks.filter((t) => t.projectId === projectId) : tasks);
@@ -306,6 +308,18 @@ export class MockApi implements KompanionApi {
     const chat: Chat = { id: id("c"), title, projectId, updatedAt: new Date().toISOString() };
     chats.unshift(chat);
     return structuredClone(chat);
+  }
+
+  async updateChat(chatId: string, change: { title?: string; pinned?: boolean; archived?: boolean }) {
+    const i = chats.findIndex((c) => c.id === chatId);
+    if (i < 0) return;
+    if (change.archived) chats.splice(i, 1);
+    else Object.assign(chats[i], { title: change.title ?? chats[i].title, pinned: change.pinned ?? chats[i].pinned });
+  }
+
+  async deleteChat(chatId: string) {
+    const i = chats.findIndex((c) => c.id === chatId);
+    if (i >= 0) chats.splice(i, 1);
   }
 
   async send(chatId: string, text: string) {

@@ -119,6 +119,9 @@ input[type="url"]:focus, select:focus, textarea:focus { outline: none; border-co
 }
 .brand { display: flex; gap: 0.9rem; align-items: center; }
 .brand h1 { font-size: 1.35rem; font-weight: 750; letter-spacing: -0.01em; }
+.brand-logo { width: 2.75rem; height: 2.75rem; flex: none; }
+.btn.sso { justify-content: center; gap: 0.5rem; text-decoration: none; }
+.btn.sso img { width: 1.25rem; height: 1.25rem; background: #fff; border-radius: 50%; padding: 1px; }
 .brand-mark {
   width: 2.75rem; height: 2.75rem; border-radius: 12px; display: grid; place-items: center; flex: none;
   background: linear-gradient(135deg, var(--brand), #bf4eff 60%, #f15bb5); color: #fff; font-size: 1.3rem;
@@ -165,7 +168,13 @@ input[type="url"]:focus, select:focus, textarea:focus { outline: none; border-co
 .nav { flex: 1; overflow-y: auto; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 0.5rem; margin: 0 -0.25rem; padding: 0 0.25rem; }
 .nav .label { padding: 0.75rem 0.5rem 0.25rem; }
 .projects, .loose { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.6rem; }
-.project-head { display: flex; align-items: center; gap: 0.45rem; padding: 0.25rem 0.5rem; font-weight: 600; font-size: 0.9rem; }
+.project-head {
+  width: 100%; display: flex; align-items: center; gap: 0.45rem; padding: 0.35rem 0.5rem; border-radius: 6px;
+  font-weight: 600; font-size: 0.9rem; text-align: left;
+}
+.project-head:hover { background: var(--surface-2); }
+.project-head.active { background: var(--surface-2); box-shadow: inset 2px 0 0 var(--accent); }
+.project-head .icon:first-child { color: var(--muted); width: 0.9rem; height: 0.9rem; }
 .project-head .icon { color: var(--link); }
 .project-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .project ul { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px; margin-left: 1.1rem; padding-left: 0.5rem; border-left: 1px solid var(--line); }
@@ -176,6 +185,35 @@ input[type="url"]:focus, select:focus, textarea:focus { outline: none; border-co
 .nav-item.active { background: var(--surface-2); color: var(--fg); box-shadow: inset 2px 0 0 var(--accent); }
 .nav-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nav-meta { font-size: 0.72rem; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* Chat rows with an options menu (shown on hover, focus, or when open) */
+.chat-row { position: relative; display: flex; align-items: center; border-radius: 6px; }
+.chat-row > .nav-item { flex: 1; min-width: 0; }
+.chat-row:hover, .chat-row.active { background: var(--surface-2); }
+.chat-row.active { box-shadow: inset 2px 0 0 var(--accent); }
+.chat-row .nav-item:hover { background: transparent; }
+.chat-more { flex: none; width: 1.9rem; height: 1.9rem; opacity: 0; }
+.chat-row:hover .chat-more, .chat-row:focus-within .chat-more, .chat-row.menu-open .chat-more { opacity: 1; }
+.chat-row:hover .nav-meta, .chat-row.menu-open .nav-meta { display: none; }
+@media (hover: none) { .chat-more { opacity: 1; } }
+.menu {
+  position: absolute; top: 100%; right: 0; z-index: 20; min-width: 10rem; display: grid; padding: 0.3rem;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+}
+.menu button { display: flex; align-items: center; gap: 0.55rem; padding: 0.45rem 0.6rem; border-radius: 6px; font-size: 0.88rem; text-align: left; }
+.menu button:hover, .menu button:focus-visible { background: var(--surface-2); }
+.menu .danger { color: var(--bad); }
+.rename { flex: 1; padding: 0.15rem 0.25rem; }
+.rename input { width: 100%; padding: 0.3rem 0.45rem; font-size: 0.9rem; }
+/* Tasks listed under an open project */
+.task-line { display: flex; align-items: center; gap: 0.5rem; padding: 0.3rem 0.5rem; font-size: 0.85rem; color: var(--muted); }
+.task-dot { width: 0.45rem; height: 0.45rem; border-radius: 50%; flex: none; background: var(--muted); }
+.task-line.state-running .task-dot, .task-line.state-in_review .task-dot { background: var(--link); }
+.task-line.state-needs_input .task-dot, .task-line.state-waiting_resources .task-dot { background: var(--attn); }
+.task-line.state-done .task-dot { background: var(--good); }
+.task-line.state-failed .task-dot { background: var(--bad); }
+.project .more .nav-item, .new-in-project { color: var(--muted); font-size: 0.85rem; }
+.server-logo { width: 1.75rem; height: 1.75rem; flex: none; }
+.server small { display: flex; align-items: center; gap: 0.35rem; }
 .settings-link { align-items: center; color: var(--muted); border-top: 1px solid var(--line); border-radius: 0; padding-top: 0.75rem; }
 
 /* Conversation */
@@ -382,7 +420,7 @@ input[type="url"]:focus, select:focus, textarea:focus { outline: none; border-co
 .machine { display: grid; gap: 0.5rem; padding: 0.75rem; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); }
 .machine.off { opacity: 0.7; }
 .machine-head { display: flex; align-items: center; gap: 0.5rem; }
-.watts { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--cta); }
+.watts { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--attn); /* orange on dark, dark amber on light (no orange text on light) */ }
 .spark { width: 100%; height: 2.25rem; display: block; }
 .spark-line { fill: none; stroke: var(--accent); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
 .spark-area { fill: color-mix(in srgb, var(--accent) 14%, transparent); stroke: none; }

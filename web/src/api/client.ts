@@ -21,6 +21,8 @@ export interface KompanionApi {
   setRole(assignment: RoleAssignment, projectId?: string): Promise<void>;
 
   createChat(title: string, projectId?: string): Promise<Chat>;
+  updateChat(chatId: string, change: { title?: string; pinned?: boolean; archived?: boolean }): Promise<void>;
+  deleteChat(chatId: string): Promise<void>;
   /** Sends a message; the reply streams back through `onEvent`. */
   send(chatId: string, text: string): Promise<void>;
   answer(taskId: string, optionId: string): Promise<void>;
