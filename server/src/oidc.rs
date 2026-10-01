@@ -7,7 +7,8 @@
 //!
 //! Accounts are linked, not duplicated: a sign-in matches an account by its
 //! OIDC subject, then by verified email, then (if allowed) by username. A new
-//! account is only created for people listed in `oidc.allow_new`.
+//! account is only created for people listed in `oidc.allow_new` (or for
+//! everyone when it contains `"*"`).
 
 use std::{
     collections::HashMap,
@@ -324,7 +325,8 @@ pub async fn link_account(
     // A new account only for people the config allows.
     let allowed = cfg.allow_new.iter().any(|a| {
         let a = a.to_lowercase();
-        who.email.as_deref() == Some(a.as_str())
+        a == "*"
+            || who.email.as_deref() == Some(a.as_str())
             || who.username.as_deref().map(str::to_lowercase).as_deref() == Some(a.as_str())
     });
     if !allowed {
@@ -446,6 +448,22 @@ mod tests {
         let no = who("sub-4", Some("other@example.com"), Some("other"));
         assert_eq!(link_account(&s, &c, &no).await.unwrap(), None);
         assert_eq!(count(&s).await, 1);
+    }
+
+    #[tokio::test]
+    async fn wildcard_creates_everyone_once() {
+        let c = cfg(&["*"], true);
+        let s = state(c.clone()).await;
+        let a = who("sub-5", Some("a@example.com"), Some("alice"));
+        let first = link_account(&s, &c, &a).await.unwrap().unwrap();
+        assert_eq!(link_account(&s, &c, &a).await.unwrap(), Some(first));
+        assert!(
+            link_account(&s, &c, &who("sub-6", None, Some("bob")))
+                .await
+                .unwrap()
+                .is_some()
+        );
+        assert_eq!(count(&s).await, 2);
     }
 
     #[tokio::test]

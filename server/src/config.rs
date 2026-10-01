@@ -46,7 +46,8 @@ pub struct OidcConfig {
     #[serde(default = "yes")]
     pub link_by_username: bool,
     /// Emails or usernames that may get a new account on first sign-in.
-    /// Everyone else must match an existing account.
+    /// Everyone else must match an existing account. `"*"` lets everyone the
+    /// provider signs in get an account (the provider decides who gets in).
     #[serde(default)]
     pub allow_new: Vec<String>,
 }
