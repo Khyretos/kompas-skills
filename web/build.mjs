@@ -15,6 +15,8 @@ const options = {
   minify: !serve,
   sourcemap: serve,
   logLevel: "info",
+  // Only the shareable preview runs on demo data.
+  define: { __DEMO__: JSON.stringify(single) },
 };
 
 await mkdir("dist", { recursive: true });

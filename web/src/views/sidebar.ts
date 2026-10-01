@@ -25,7 +25,7 @@ export function renderSidebar(s: AppState): SafeHtml {
     <div class="pane-head">
       <div class="server" title="${s.server?.url ?? ""}">
         <span class="dot ok" aria-hidden="true"></span>
-        <span><strong>${s.server?.name ?? ""}</strong><small>Connected</small></span>
+        <span><strong>${s.server?.name ?? ""}</strong><small>${s.server?.demo ? "Demo, example data" : "Connected"}</small></span>
       </div>
       <button class="icon-btn only-phone" data-action="pane" data-pane="main" aria-label="Close">${icon("close")}</button>
     </div>

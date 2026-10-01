@@ -148,6 +148,7 @@ export interface Server {
   name: string;
   version: string;
   discovered?: boolean; // found on the local network
+  demo?: boolean; // example data, not a real server
 }
 
 export interface ServerStatus {
