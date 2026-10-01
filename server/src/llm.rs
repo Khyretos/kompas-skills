@@ -70,6 +70,38 @@ pub async fn list_models(http: &reqwest::Client, p: &ProviderConfig) -> Result<V
         .collect())
 }
 
+/// Some servers (OVMS among them) list models without a key but refuse chats.
+/// Sends an empty chat request, which a server rejects before running any
+/// model, and reports when the rejection is about the key rather than the body.
+pub async fn check_chat_auth(http: &reqwest::Client, p: &ProviderConfig) -> Result<()> {
+    if !matches!(p.kind, ProviderKind::OpenaiCompatible) {
+        return Ok(()); // Anthropic already needs the key to list models.
+    }
+    let resp = authorize(http.post(join(&p.base_url, "chat/completions")), p)
+        .json(&json!({ "model": "", "messages": [], "max_tokens": 1 }))
+        .timeout(Duration::from_secs(10))
+        .send()
+        .await?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    if is_auth_error(status, &text) {
+        bail!(
+            "{} refuses chats without a valid API key ({status}). Set api_key_env for this provider.",
+            p.name
+        );
+    }
+    Ok(())
+}
+
+fn is_auth_error(status: reqwest::StatusCode, body: &str) -> bool {
+    let body = body.to_ascii_lowercase();
+    status == reqwest::StatusCode::UNAUTHORIZED
+        || status == reqwest::StatusCode::FORBIDDEN
+        || body.contains("api-key")
+        || body.contains("api key")
+        || body.contains("unauthorized")
+}
+
 fn authorize(req: reqwest::RequestBuilder, p: &ProviderConfig) -> reqwest::RequestBuilder {
     match (p.kind.clone(), p.api_key()) {
         (ProviderKind::OpenaiCompatible, Some(key)) => req.bearer_auth(key),
@@ -222,6 +254,21 @@ where
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn spots_key_errors() {
+        use reqwest::StatusCode;
+        let ovms = r#"{"error":"Unauthorized request due to invalid or missing api-key"}"#;
+        assert!(super::is_auth_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            ovms
+        ));
+        assert!(super::is_auth_error(StatusCode::UNAUTHORIZED, ""));
+        assert!(!super::is_auth_error(
+            StatusCode::BAD_REQUEST,
+            r#"{"error":"model not found"}"#
+        ));
+    }
+
     use super::*;
 
     #[test]

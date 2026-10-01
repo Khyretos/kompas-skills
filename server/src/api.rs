@@ -349,7 +349,10 @@ pub async fn providers(State(s): State<AppState>) -> Json<Vec<Value>> {
         let http = s.http.clone();
         async move {
             let (models, error) = match llm::list_models(&http, p).await {
-                Ok(m) => (m, None),
+                Ok(m) => match llm::check_chat_auth(&http, p).await {
+                    Ok(()) => (m, None),
+                    Err(e) => (m, Some(format!("{e:#}"))),
+                },
                 Err(e) => (vec![], Some(format!("{e:#}"))),
             };
             json!({
