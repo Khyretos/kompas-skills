@@ -111,40 +111,76 @@ async function openChat(chatId?: string): Promise<void> {
 
 let messageList: KeyedList<MessageView> | undefined;
 
+let firstRender = true;
+
+/** True when any of these state fields changed since the last render. */
+const changed = (s: AppState, prev: AppState, keys: (keyof AppState)[]) => firstRender || keys.some((k) => s[k] !== prev[k]);
+
+/** Re-mounts a pane but keeps its scroll position and the focused field. */
+function remount(el: HTMLElement, content: ReturnType<typeof renderSidebar>): void {
+  const scrollers = [el, ...el.querySelectorAll<HTMLElement>(".nav, .task-groups, .task-detail, .sheet")];
+  const tops = scrollers.map((x) => x.scrollTop);
+  const focusId = el.contains(document.activeElement) ? (document.activeElement as HTMLElement).id : "";
+  mount(el, content);
+  const after = [el, ...el.querySelectorAll<HTMLElement>(".nav, .task-groups, .task-detail, .sheet")];
+  after.forEach((x, i) => { if (tops[i]) x.scrollTop = tops[i]; });
+  if (focusId) document.getElementById(focusId)?.focus();
+}
+
+// Each pane re-renders only when the state it shows changes, so live machine
+// stats (every second on "Live") never rebuild Settings, a task being edited,
+// or the sidebar.
 function render(s: AppState, prev: AppState): void {
   const shell = $(".shell");
   shell.dataset.pane = s.pane;
 
-  mount($("#left"), renderSidebar(s));
+  if (changed(s, prev, ["chats", "projects", "tasks", "activeChatId", "activeProjectId", "expandedProjects",
+    "chatMenuId", "renamingChatId", "server", "userName"])) {
+    remount($("#left"), renderSidebar(s));
+  }
   if (s.renamingChatId && s.renamingChatId !== prev.renamingChatId) {
     const input = document.querySelector<HTMLInputElement>("form.rename input");
     input?.focus();
     input?.select();
   }
-  mount($("#conv-head"), renderHeader(s));
-  mount($("#right"), s.rightTab === "tasks" ? renderTasks(s) : h`
-    <div class="pane-head">${paneTabs(s)}
-      <button class="icon-btn only-narrow" data-action="pane" data-pane="main" aria-label="Close">✕</button></div>
-    ${renderMachines(s.machines, s.today, s.machinesRefresh)}`);
-  // Task descriptions are markdown, rendered sanitised after mounting.
-  for (const el of document.querySelectorAll<HTMLElement>("[data-md-task]")) {
-    const t = s.tasks.find((x) => x.id === el.dataset.mdTask);
-    if (t?.description) el.replaceChildren(renderMarkdown(t.description));
+  if (changed(s, prev, ["chats", "projects", "activeChatId", "activeProjectId", "messages", "roles", "tasks"])) {
+    mount($("#conv-head"), renderHeader(s));
+  }
+  const rightKeys: (keyof AppState)[] = s.rightTab === "tasks"
+    ? ["rightTab", "tasks", "projects", "openTaskId", "editingTaskId", "taskScope", "activeProjectId", "activeChatId", "chats"]
+    : ["rightTab", "machines", "today", "machinesRefresh", "tasks"];
+  // Never rebuild the task editor under the user's hands; only when it opens or closes.
+  const editing = s.rightTab === "tasks" && s.editingTaskId && s.editingTaskId === prev.editingTaskId && !firstRender;
+  if (!editing && changed(s, prev, rightKeys)) {
+    remount($("#right"), s.rightTab === "tasks" ? renderTasks(s) : h`
+      <div class="pane-head">${paneTabs(s)}
+        <button class="icon-btn only-narrow" data-action="pane" data-pane="main" aria-label="Close">✕</button></div>
+      ${renderMachines(s.machines, s.today, s.machinesRefresh)}`);
+    // Task descriptions are markdown, rendered sanitised after mounting.
+    for (const el of document.querySelectorAll<HTMLElement>("[data-md-task]")) {
+      const t = s.tasks.find((x) => x.id === el.dataset.mdTask);
+      if (t?.description) el.replaceChildren(renderMarkdown(t.description));
+    }
   }
 
-  const box = $("#messages");
-  const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
-  if (s.activeChatId !== prev.activeChatId) messageList?.clear();
-  messageList ??= new KeyedList<MessageView>($("#msg-list"), renderMessage, fillMessage);
-  messageList.update(messageViews(s));
-  const empty = $("#empty-slot");
-  if (s.messages.length === 0) mount(empty, renderEmpty(s));
-  else empty.replaceChildren();
-  if (nearBottom || s.activeChatId !== prev.activeChatId) box.scrollTop = box.scrollHeight;
+  if (changed(s, prev, ["messages", "activeChatId", "activeProjectId", "projects", "tasks"])) {
+    const box = $("#messages");
+    const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+    if (s.activeChatId !== prev.activeChatId) messageList?.clear();
+    messageList ??= new KeyedList<MessageView>($("#msg-list"), renderMessage, fillMessage);
+    messageList.update(messageViews(s));
+    const empty = $("#empty-slot");
+    if (s.messages.length === 0) mount(empty, renderEmpty(s));
+    else empty.replaceChildren();
+    if (nearBottom || s.activeChatId !== prev.activeChatId) box.scrollTop = box.scrollHeight;
+  }
 
   const settings = $("#settings");
   settings.hidden = !s.settingsOpen;
-  if (s.settingsOpen) mount(settings, renderSettings(s));
+  if (s.settingsOpen && changed(s, prev, ["settingsOpen", "providers", "roles", "admin", "theme", "isAdmin"])) {
+    remount(settings, renderSettings(s));
+  }
+  firstRender = false;
 }
 
 function applyEvent(ev: ServerEvent): void {
@@ -369,7 +405,7 @@ async function saveAdmin(form: HTMLFormElement): Promise<void> {
   const v = (k: string) => String(f.get(k) ?? "").trim();
   const settings: AdminSettings = {
     appName: v("appName"), smtpHost: v("smtpHost"), smtpPort: Number(v("smtpPort")) || 587,
-    smtpTls: v("smtpTls") as AdminSettings["smtpTls"], smtpUser: v("smtpUser"), smtpFrom: v("smtpFrom"),
+    smtpTls: v("smtpTls") as AdminSettings["smtpTls"], smtpUser: v("smtpUser"), smtpFrom: v("smtpFrom"), smtpReplyTo: v("smtpReplyTo"),
     colorBrand: v("colorBrand"), colorLinkDark: v("colorLinkDark"), colorLinkLight: v("colorLinkLight"), colorAccent: v("colorAccent"),
   };
   adminMessage("Saving…");

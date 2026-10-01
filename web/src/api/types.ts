@@ -179,6 +179,7 @@ export interface AdminSettings {
   smtpTls: "starttls" | "tls" | "none";
   smtpUser: string;
   smtpFrom: string;
+  smtpReplyTo: string;
   colorBrand: string;
   colorLinkDark: string;
   colorLinkLight: string;

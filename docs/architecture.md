@@ -320,6 +320,10 @@ prompts and tool ideas, with attribution) or be archived.
 3. **Plan, delegate, review** (with MCP client, RAG index and cheap checks) — planner splits a project into tasks, Qwen works
    them, the reviewer checks, the task board shows progress, questions come to
    you as cards and notifications.
+   Live status everywhere: a spinner and step text on running tasks (task list,
+   project list badges, chat task chips, sidebar counts), a progress bar, and
+   needs-you/running badges. Driven by task events over SSE, the same way chat
+   replies stream today.
 4. **Workspaces** — container workspaces with headless GUI (screenshots and
    input there), resource-consent cards and night scheduling; real-desktop
    control per OS after that.

@@ -139,7 +139,7 @@ function editor(t: Task | undefined, projectId: string, s: AppState): SafeHtml {
 function detail(t: Task, s: AppState): SafeHtml {
   const project = s.projects.find((p) => p.id === t.projectId);
   const pct = Math.round(t.progress * 100);
-  const siblings = s.tasks.filter((x) => x.projectId === t.projectId);
+  const siblings = s.tasks.filter((x) => x.projectId === t.projectId).sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
   const i = siblings.findIndex((x) => x.id === t.id);
   return html`
     <div class="pane-head">

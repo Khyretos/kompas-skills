@@ -35,7 +35,8 @@ export function renderSidebar(s: AppState): SafeHtml {
       </li>`;
   };
 
-  const tasksOf = (projectId: string) => s.tasks.filter((t) => t.projectId === projectId);
+  const tasksOf = (projectId: string) =>
+    s.tasks.filter((t) => t.projectId === projectId).sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
   const needsYou = (ts: Task[]) => ts.filter((t) => t.state === "needs_input" || t.state === "waiting_resources").length;
   const running = (ts: Task[]) => ts.filter((t) => t.state === "running" || t.state === "in_review").length;
 

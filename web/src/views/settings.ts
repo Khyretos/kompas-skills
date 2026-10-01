@@ -13,7 +13,7 @@ const roleInfo: Record<Role, { name: string; text: string }> = {
 };
 
 const DEFAULTS: AdminSettings = {
-  appName: "", smtpHost: "", smtpPort: 587, smtpTls: "starttls", smtpUser: "", smtpFrom: "",
+  appName: "", smtpHost: "", smtpPort: 587, smtpTls: "starttls", smtpUser: "", smtpFrom: "", smtpReplyTo: "",
   colorBrand: "#5c398e", colorLinkDark: "#cca9ff", colorLinkLight: "#7b2fb5", colorAccent: "#bf4eff",
 };
 

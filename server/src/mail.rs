@@ -15,6 +15,8 @@ pub struct SmtpSettings {
     pub tls: String,
     pub user: String,
     pub from: String,
+    /// Optional Reply-To address.
+    pub reply_to: String,
 }
 
 pub async fn send(s: &SmtpSettings, password: Option<&str>, to: &str, subject: &str, body: &str) -> Result<()> {
@@ -29,8 +31,11 @@ pub async fn send(s: &SmtpSettings, password: Option<&str>, to: &str, subject: &
         Some(p) if !s.user.is_empty() => builder.credentials(Credentials::new(s.user.clone(), p.to_string())),
         _ => builder,
     };
-    let message = Message::builder()
-        .from(s.from.parse::<Mailbox>().context("sender address")?)
+    let mut message = Message::builder().from(s.from.parse::<Mailbox>().context("sender address")?);
+    if !s.reply_to.trim().is_empty() {
+        message = message.reply_to(s.reply_to.parse::<Mailbox>().context("reply-to address")?);
+    }
+    let message = message
         .to(to.parse::<Mailbox>().context("recipient address")?)
         .subject(subject)
         .header(ContentType::TEXT_PLAIN)

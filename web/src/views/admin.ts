@@ -53,7 +53,11 @@ export function renderAdmin(a: AdminSettings, smtpPasswordSet: boolean, theme: "
           </div>
           <div class="field">
             <label for="smtpFrom">SMTP from</label>
-            <input type="email" id="smtpFrom" name="smtpFrom" value="${a.smtpFrom}">
+            <input type="text" id="smtpFrom" name="smtpFrom" placeholder="Name &lt;address@example.com&gt;" value="${a.smtpFrom}">
+          </div>
+          <div class="field">
+            <label for="smtpReplyTo">Replies go to</label>
+            <input type="email" id="smtpReplyTo" name="smtpReplyTo" value="${a.smtpReplyTo}">
           </div>
           <p class="muted small">${smtpPasswordSet ? "The mail password is set in the server's .env (SMTP_PASSWORD)." : "No mail password set: add SMTP_PASSWORD to the server's .env if your mail server needs one."}</p>
           <div class="field">

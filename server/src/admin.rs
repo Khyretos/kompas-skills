@@ -33,6 +33,8 @@ pub struct Settings {
     pub smtp_tls: String,
     pub smtp_user: String,
     pub smtp_from: String,
+    /// Where replies go, e.g. info@ while sending as kompanion@.
+    pub smtp_reply_to: String,
     /// Primary fills (buttons); white text sits on it.
     pub color_brand: String,
     /// Links and highlighted text on the dark theme.
@@ -50,6 +52,7 @@ const KEYS: &[&str] = &[
     "smtpTls",
     "smtpUser",
     "smtpFrom",
+    "smtpReplyTo",
     "colorBrand",
     "colorLinkDark",
     "colorLinkLight",
@@ -216,6 +219,7 @@ pub async fn test_mail(
         tls: st.smtp_tls,
         user: st.smtp_user,
         from: st.smtp_from,
+        reply_to: st.smtp_reply_to,
     };
     let body = format!(
         "This is a test from {}. If you can read it, mail notifications work.\n",

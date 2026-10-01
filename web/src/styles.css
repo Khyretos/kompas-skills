@@ -219,6 +219,8 @@ input[type="url"]:focus, select:focus, textarea:focus { outline: none; border-co
 .btn.danger { color: var(--bad); }
 .task-desc { font-size: 0.9rem; line-height: 1.55; margin-bottom: 1rem; }
 .task-desc ol, .task-desc ul { padding-left: 1.25rem; }
+.task-desc ol { list-style: decimal; }
+.task-desc ul { list-style: disc; }
 .task-desc p { margin: 0.4rem 0; }
 .warn { color: var(--attn); font-size: 0.9rem; }
 .link { color: var(--link); text-decoration: underline; padding: 0; }
