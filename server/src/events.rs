@@ -19,17 +19,18 @@ pub enum Event {
     },
 }
 
+/// One channel for everyone; each listener only passes on its own user's events.
 #[derive(Clone)]
-pub struct Bus(broadcast::Sender<Event>);
+pub struct Bus(broadcast::Sender<(String, Event)>);
 
 impl Bus {
     pub fn new() -> Self {
         Self(broadcast::channel(1024).0)
     }
-    pub fn send(&self, e: Event) {
-        let _ = self.0.send(e); // no listeners is fine
+    pub fn send(&self, user_id: &str, e: Event) {
+        let _ = self.0.send((user_id.to_string(), e)); // no listeners is fine
     }
-    pub fn subscribe(&self) -> broadcast::Receiver<Event> {
+    pub fn subscribe(&self) -> broadcast::Receiver<(String, Event)> {
         self.0.subscribe()
     }
 }

@@ -3,7 +3,7 @@
 use std::{convert::Infallible, time::Instant};
 
 use axum::{
-    Json,
+    Extension, Json,
     extract::{Path, Query, State},
     http::StatusCode,
     response::{
@@ -18,6 +18,7 @@ use tokio_stream::wrappers::{BroadcastStream, errors::BroadcastStreamRecvError};
 
 use crate::{
     AppState,
+    auth::User,
     config::ProviderKind,
     error::{ApiError, ApiResult},
     events::Event,
@@ -72,19 +73,27 @@ connected yet.";
 
 // ---- Projects and chats ----
 
-pub async fn projects(State(s): State<AppState>) -> ApiResult<Json<Vec<Project>>> {
+pub async fn projects(
+    State(s): State<AppState>,
+    Extension(u): Extension<User>,
+) -> ApiResult<Json<Vec<Project>>> {
     let rows = sqlx::query_as(
-        "SELECT id, name, description, updated_at FROM projects ORDER BY updated_at DESC",
+        "SELECT id, name, description, updated_at FROM projects WHERE user_id = ? ORDER BY updated_at DESC",
     )
+    .bind(&u.id)
     .fetch_all(&s.db)
     .await?;
     Ok(Json(rows))
 }
 
-pub async fn chats(State(s): State<AppState>) -> ApiResult<Json<Vec<Chat>>> {
+pub async fn chats(
+    State(s): State<AppState>,
+    Extension(u): Extension<User>,
+) -> ApiResult<Json<Vec<Chat>>> {
     let rows = sqlx::query_as(
-        "SELECT id, title, project_id, updated_at FROM chats ORDER BY updated_at DESC",
+        "SELECT id, title, project_id, updated_at FROM chats WHERE user_id = ? ORDER BY updated_at DESC",
     )
+    .bind(&u.id)
     .fetch_all(&s.db)
     .await?;
     Ok(Json(rows))
@@ -99,11 +108,17 @@ pub struct NewChat {
 
 pub async fn create_chat(
     State(s): State<AppState>,
+    Extension(u): Extension<User>,
     Json(b): Json<NewChat>,
 ) -> ApiResult<(StatusCode, Json<Chat>)> {
     let title: String = b.title.trim().chars().take(120).collect();
     if title.is_empty() {
         return Err(ApiError::BadRequest("Give the chat a title.".into()));
+    }
+    if let Some(p) = &b.project_id
+        && !owns(&s, "projects", p, &u).await?
+    {
+        return Err(ApiError::NotFound);
     }
     let chat = Chat {
         id: util::new_id(),
@@ -111,20 +126,27 @@ pub async fn create_chat(
         project_id: b.project_id,
         updated_at: util::now(),
     };
-    sqlx::query("INSERT INTO chats (id, project_id, title, updated_at) VALUES (?, ?, ?, ?)")
-        .bind(&chat.id)
-        .bind(&chat.project_id)
-        .bind(&chat.title)
-        .bind(&chat.updated_at)
-        .execute(&s.db)
-        .await?;
+    sqlx::query(
+        "INSERT INTO chats (id, project_id, title, updated_at, user_id) VALUES (?, ?, ?, ?, ?)",
+    )
+    .bind(&chat.id)
+    .bind(&chat.project_id)
+    .bind(&chat.title)
+    .bind(&chat.updated_at)
+    .bind(&u.id)
+    .execute(&s.db)
+    .await?;
     Ok((StatusCode::CREATED, Json(chat)))
 }
 
 pub async fn messages(
     State(s): State<AppState>,
+    Extension(u): Extension<User>,
     Path(chat_id): Path<String>,
 ) -> ApiResult<Json<Vec<Message>>> {
+    if !owns(&s, "chats", &chat_id, &u).await? {
+        return Err(ApiError::NotFound);
+    }
     let rows = sqlx::query_as(
         "SELECT id, chat_id, author, text, at FROM messages WHERE chat_id = ? ORDER BY at, rowid",
     )
@@ -143,6 +165,7 @@ pub struct SendBody {
 /// events. Returns right away; the reply arrives over /api/events.
 pub async fn send(
     State(s): State<AppState>,
+    Extension(u): Extension<User>,
     Path(chat_id): Path<String>,
     Json(b): Json<SendBody>,
 ) -> ApiResult<StatusCode> {
@@ -152,21 +175,17 @@ pub async fn send(
             "Messages must be 1 to 100,000 characters.".into(),
         ));
     }
-    let exists: Option<(String,)> = sqlx::query_as("SELECT id FROM chats WHERE id = ?")
-        .bind(&chat_id)
-        .fetch_optional(&s.db)
-        .await?;
-    if exists.is_none() {
+    if !owns(&s, "chats", &chat_id, &u).await? {
         return Err(ApiError::NotFound);
     }
 
     let user_msg = insert_message(&s, &chat_id, "user", &text).await?;
-    s.bus.send(Event::Message { message: user_msg });
+    s.bus.send(&u.id, Event::Message { message: user_msg });
 
-    let role: Option<RoleAssignment> =
-        sqlx::query_as("SELECT role, provider_id, model_id FROM roles WHERE role = 'orchestrator'")
-            .fetch_optional(&s.db)
-            .await?;
+    let role = user_roles(&s, &u.id)
+        .await?
+        .into_iter()
+        .find(|r| r.role == "orchestrator");
     let Some(role) = role else {
         let m = insert_message(
             &s,
@@ -175,11 +194,11 @@ pub async fn send(
             "No model is set for the orchestrator role yet. Pick one under Models and roles.",
         )
         .await?;
-        s.bus.send(Event::Message { message: m });
+        s.bus.send(&u.id, Event::Message { message: m });
         return Ok(StatusCode::ACCEPTED);
     };
 
-    tokio::spawn(answer(s.clone(), chat_id, role));
+    tokio::spawn(answer(s.clone(), u.id.clone(), chat_id, role));
     Ok(StatusCode::ACCEPTED)
 }
 
@@ -213,19 +232,22 @@ async fn insert_message(
     Ok(m)
 }
 
-async fn answer(s: AppState, chat_id: String, role: RoleAssignment) {
+async fn answer(s: AppState, user_id: String, chat_id: String, role: RoleAssignment) {
     let reply_id = util::new_id();
     let at = util::now();
-    s.bus.send(Event::Message {
-        message: Message {
-            id: reply_id.clone(),
-            chat_id: chat_id.clone(),
-            author: "orchestrator".into(),
-            text: String::new(),
-            at: at.clone(),
-            streaming: true,
+    s.bus.send(
+        &user_id,
+        Event::Message {
+            message: Message {
+                id: reply_id.clone(),
+                chat_id: chat_id.clone(),
+                author: "orchestrator".into(),
+                text: String::new(),
+                at: at.clone(),
+                streaming: true,
+            },
         },
-    });
+    );
 
     // Conversation so far, oldest first (last 40 messages).
     let history: Vec<(String, String)> = sqlx::query_as(
@@ -264,12 +286,15 @@ async fn answer(s: AppState, chat_id: String, role: RoleAssignment) {
                     match chunk {
                         Ok(Chunk::Text(t)) => {
                             text.push_str(&t);
-                            s.bus.send(Event::MessageDelta {
-                                message_id: reply_id.clone(),
-                                chat_id: chat_id.clone(),
-                                text: t,
-                                done: false,
-                            });
+                            s.bus.send(
+                                &user_id,
+                                Event::MessageDelta {
+                                    message_id: reply_id.clone(),
+                                    chat_id: chat_id.clone(),
+                                    text: t,
+                                    done: false,
+                                },
+                            );
                         }
                         Ok(Chunk::Usage {
                             tokens_in: i,
@@ -296,19 +321,25 @@ async fn answer(s: AppState, chat_id: String, role: RoleAssignment) {
             e.chars().take(300).collect::<String>()
         );
         text.push_str(&note);
-        s.bus.send(Event::MessageDelta {
+        s.bus.send(
+            &user_id,
+            Event::MessageDelta {
+                message_id: reply_id.clone(),
+                chat_id: chat_id.clone(),
+                text: note,
+                done: false,
+            },
+        );
+    }
+    s.bus.send(
+        &user_id,
+        Event::MessageDelta {
             message_id: reply_id.clone(),
             chat_id: chat_id.clone(),
-            text: note,
-            done: false,
-        });
-    }
-    s.bus.send(Event::MessageDelta {
-        message_id: reply_id.clone(),
-        chat_id: chat_id.clone(),
-        text: String::new(),
-        done: true,
-    });
+            text: String::new(),
+            done: true,
+        },
+    );
 
     let saved = sqlx::query(
         "INSERT INTO messages (id, chat_id, author, text, at) VALUES (?, ?, 'orchestrator', ?, ?)",
@@ -326,9 +357,10 @@ async fn answer(s: AppState, chat_id: String, role: RoleAssignment) {
     // Every call is recorded in full (see the call inspector in the app).
     let request = json!({ "messages": convo });
     let _ = sqlx::query(
-        "INSERT INTO calls (id, chat_id, role, provider_id, model_id, reason, request, response,
-         tokens_in, tokens_out, ms, error, at) VALUES (?, ?, 'orchestrator', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO calls (user_id, id, chat_id, role, provider_id, model_id, reason, request, response,
+         tokens_in, tokens_out, ms, error, at) VALUES (?, ?, ?, 'orchestrator', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
+    .bind(&user_id)
     .bind(util::new_id())
     .bind(&chat_id)
     .bind(&role.provider_id)
@@ -373,15 +405,52 @@ pub async fn providers(State(s): State<AppState>) -> Json<Vec<Value>> {
     Json(futures::future::join_all(probes).await)
 }
 
-pub async fn roles(State(s): State<AppState>) -> ApiResult<Json<Vec<RoleAssignment>>> {
-    let rows = sqlx::query_as("SELECT role, provider_id, model_id FROM roles ORDER BY role")
-        .fetch_all(&s.db)
+/// The user's roles; roles they haven't set yet come from the config file.
+async fn user_roles(s: &AppState, user_id: &str) -> ApiResult<Vec<RoleAssignment>> {
+    let mut rows: Vec<RoleAssignment> =
+        sqlx::query_as("SELECT role, provider_id, model_id FROM user_roles WHERE user_id = ?")
+            .bind(user_id)
+            .fetch_all(&s.db)
+            .await?;
+    for (role, d) in &s.config.roles {
+        if !rows.iter().any(|r| &r.role == role) {
+            rows.push(RoleAssignment {
+                role: role.clone(),
+                provider_id: d.provider.clone(),
+                model_id: d.model.clone(),
+            });
+        }
+    }
+    rows.sort_by(|a, b| a.role.cmp(&b.role));
+    Ok(rows)
+}
+
+/// Whether `id` in `table` (projects, chats or tasks) belongs to this user.
+async fn owns(s: &AppState, table: &str, id: &str, u: &User) -> ApiResult<bool> {
+    let sql = match table {
+        "projects" => "SELECT 1 FROM projects WHERE id = ? AND user_id = ?",
+        "chats" => "SELECT 1 FROM chats WHERE id = ? AND user_id = ?",
+        "tasks" => "SELECT 1 FROM tasks WHERE id = ? AND user_id = ?",
+        _ => unreachable!("unknown table"),
+    };
+    let row: Option<(i64,)> = sqlx::query_as(sql)
+        .bind(id)
+        .bind(&u.id)
+        .fetch_optional(&s.db)
         .await?;
-    Ok(Json(rows))
+    Ok(row.is_some())
+}
+
+pub async fn roles(
+    State(s): State<AppState>,
+    Extension(u): Extension<User>,
+) -> ApiResult<Json<Vec<RoleAssignment>>> {
+    Ok(Json(user_roles(&s, &u.id).await?))
 }
 
 pub async fn set_role(
     State(s): State<AppState>,
+    Extension(u): Extension<User>,
     Json(r): Json<RoleAssignment>,
 ) -> ApiResult<StatusCode> {
     if !["orchestrator", "worker", "reviewer"].contains(&r.role.as_str()) {
@@ -391,9 +460,10 @@ pub async fn set_role(
         return Err(ApiError::BadRequest("Unknown provider.".into()));
     }
     sqlx::query(
-        "INSERT INTO roles (role, provider_id, model_id) VALUES (?, ?, ?)
-         ON CONFLICT(role) DO UPDATE SET provider_id = excluded.provider_id, model_id = excluded.model_id",
+        "INSERT INTO user_roles (user_id, role, provider_id, model_id) VALUES (?, ?, ?, ?)
+         ON CONFLICT(user_id, role) DO UPDATE SET provider_id = excluded.provider_id, model_id = excluded.model_id",
     )
+    .bind(&u.id)
     .bind(&r.role)
     .bind(&r.provider_id)
     .bind(&r.model_id)
@@ -412,6 +482,7 @@ pub struct CallQuery {
 
 pub async fn calls(
     State(s): State<AppState>,
+    Extension(u): Extension<User>,
     Query(q): Query<CallQuery>,
 ) -> ApiResult<Json<Vec<Value>>> {
     let limit = q.limit.unwrap_or(50).clamp(1, 500);
@@ -433,10 +504,11 @@ pub async fn calls(
     let rows: Vec<Row> =
         sqlx::query_as(
             "SELECT id, chat_id, role, provider_id, model_id, reason, request, response, tokens_in, tokens_out, ms, error, at
-             FROM calls WHERE (?1 IS NULL OR chat_id = ?1) ORDER BY at DESC LIMIT ?2",
+             FROM calls WHERE user_id = ?3 AND (?1 IS NULL OR chat_id = ?1) ORDER BY at DESC LIMIT ?2",
         )
         .bind(&q.chat)
         .bind(limit)
+        .bind(&u.id)
         .fetch_all(&s.db)
         .await?;
     Ok(Json(
@@ -460,14 +532,16 @@ pub struct TasksQuery {
 
 pub async fn tasks(
     State(s): State<AppState>,
+    Extension(u): Extension<User>,
     Query(q): Query<TasksQuery>,
 ) -> ApiResult<Json<Vec<Value>>> {
     type Row = (String, String, String, String, f64, String, String, String);
     let rows: Vec<Row> = sqlx::query_as(
         "SELECT id, project_id, title, state, progress, step, role, model FROM tasks
-         WHERE ?1 IS NULL OR project_id = ?1 ORDER BY updated_at DESC LIMIT 500",
+         WHERE user_id = ?2 AND (?1 IS NULL OR project_id = ?1) ORDER BY updated_at DESC LIMIT 500",
     )
     .bind(q.project)
+    .bind(&u.id)
     .fetch_all(&s.db)
     .await?;
     Ok(Json(
@@ -485,15 +559,20 @@ pub async fn machines() -> Json<Vec<Value>> {
 
 // ---- Live events ----
 
-pub async fn events(State(s): State<AppState>) -> impl IntoResponse {
-    let stream = BroadcastStream::new(s.bus.subscribe()).filter_map(|e| async move {
-        match e {
-            Ok(event) => Some(Ok::<_, Infallible>(
-                SseEvent::default().json_data(event).unwrap_or_default(),
-            )),
-            // A slow client missed events; tell it to reload instead of guessing.
-            Err(BroadcastStreamRecvError::Lagged(_)) => {
-                Some(Ok(SseEvent::default().event("resync").data("{}")))
+pub async fn events(State(s): State<AppState>, Extension(u): Extension<User>) -> impl IntoResponse {
+    let me = u.id;
+    let stream = BroadcastStream::new(s.bus.subscribe()).filter_map(move |e| {
+        let me = me.clone();
+        async move {
+            match e {
+                Ok((user_id, _)) if user_id != me => None,
+                Ok((_, event)) => Some(Ok::<_, Infallible>(
+                    SseEvent::default().json_data(event).unwrap_or_default(),
+                )),
+                // A slow client missed events; tell it to reload instead of guessing.
+                Err(BroadcastStreamRecvError::Lagged(_)) => {
+                    Some(Ok(SseEvent::default().event("resync").data("{}")))
+                }
             }
         }
     });

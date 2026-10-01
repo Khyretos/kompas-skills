@@ -30,7 +30,6 @@ pub const COOKIE: &str = "kk_session";
 const SESSION_DAYS: i64 = 30;
 
 #[derive(Clone, Debug)]
-#[allow(dead_code)] // id is used once data becomes per-user
 pub struct User {
     pub id: String,
     pub name: String,

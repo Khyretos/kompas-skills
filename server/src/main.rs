@@ -84,18 +84,8 @@ async fn main() -> anyhow::Result<()> {
     if args.get(1).map(String::as_str) == Some("import") {
         let path = args
             .get(2)
-            .context("usage: kompanion-server import <file.json>")?;
-        return import::run(&db, path).await;
-    }
-
-    // Starting roles from the config file, only where none is set yet.
-    for (role, d) in &config.roles {
-        sqlx::query("INSERT OR IGNORE INTO roles (role, provider_id, model_id) VALUES (?, ?, ?)")
-            .bind(role)
-            .bind(&d.provider)
-            .bind(&d.model)
-            .execute(&db)
-            .await?;
+            .context("usage: kompanion-server import <file.json> [user name]")?;
+        return import::run(&db, path, args.get(3).map(String::as_str)).await;
     }
 
     let state = AppState {
