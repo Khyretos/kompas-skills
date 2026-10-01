@@ -1,11 +1,14 @@
+mod admin;
 mod api;
 mod auth;
 mod config;
+mod contrast;
 mod error;
 mod events;
 mod hoststats;
 mod import;
 mod llm;
+mod mail;
 mod oidc;
 mod util;
 
@@ -102,11 +105,16 @@ async fn main() -> anyhow::Result<()> {
         oidc: Default::default(),
         host: Default::default(),
     };
-    state.host.clone().spawn();
+    hoststats::HostStats::spawn_live(state.clone());
+    admin::ensure_admin(&state.db).await?;
     auth::ensure_setup_code(&state).await?;
 
     let api = Router::new()
         .route("/status", get(auth::status))
+        .route("/theme.css", get(admin::theme_css))
+        .route("/me/theme", axum::routing::put(admin::set_my_theme))
+        .route("/admin/settings", get(admin::get_settings).put(admin::put_settings))
+        .route("/admin/test-mail", post(admin::test_mail))
         .route("/setup", post(auth::setup))
         .route("/login", post(auth::login))
         .route("/logout", post(auth::logout))
@@ -121,6 +129,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/calls", get(api::calls))
         .route("/tasks", get(api::tasks))
         .route("/machines", get(api::machines))
+        .route("/machines/live", post(api::machines_live))
+        .route("/me/prefs", axum::routing::put(admin::set_prefs))
         .route("/events", get(api::events))
         .layer(middleware::from_fn_with_state(state.clone(), auth::guard))
         .layer(SetResponseHeaderLayer::overriding(

@@ -2,19 +2,34 @@
 //! /proc/stat, /proc/meminfo, /proc/uptime and /proc/loadavg show the host.
 
 use std::{
-    collections::VecDeque,
-    sync::{Arc, Mutex},
-    time::Duration,
+    collections::{HashMap, VecDeque},
+    sync::Mutex,
+    time::{Duration, Instant},
 };
 
 use serde_json::{Value, json};
 
-const SAMPLES: usize = 60;
+use crate::{AppState, events::Event};
 
+const SAMPLES: usize = 60;
+/// Never sample faster than this.
+const MIN_INTERVAL: Duration = Duration::from_secs(1);
+
+/// Samples only when asked (a GET or a live watcher), at most once a second.
 #[derive(Default)]
 pub struct HostStats {
-    /// CPU busy share per 5 s sample, 0..1, oldest first.
-    history: Mutex<VecDeque<f64>>,
+    inner: Mutex<Inner>,
+    /// Users with the Machines tab open on "Live", until when.
+    watchers: Mutex<HashMap<String, Instant>>,
+}
+
+#[derive(Default)]
+struct Inner {
+    /// CPU busy share per sample, 0..1, oldest first.
+    history: VecDeque<f64>,
+    last: Option<(u64, u64)>,
+    last_at: Option<Instant>,
+    sampled_at: Option<String>,
 }
 
 fn read(path: &str) -> String {
@@ -71,29 +86,77 @@ fn gb(kb: u64) -> f64 {
 }
 
 impl HostStats {
-    pub fn spawn(self: Arc<Self>) {
+    /// Takes a CPU sample unless the last one is less than a second old.
+    fn sample(&self) {
+        let mut i = self.inner.lock().unwrap();
+        if i.last_at.is_some_and(|t| t.elapsed() < MIN_INTERVAL) {
+            return;
+        }
+        let now = parse_cpu(&read("/proc/stat"));
+        if let (Some((b0, t0)), Some((b1, t1))) = (i.last, now)
+            && t1 > t0
+        {
+            let share = (b1.saturating_sub(b0)) as f64 / (t1 - t0) as f64;
+            i.history.push_back(share.clamp(0.0, 1.0));
+            while i.history.len() > SAMPLES {
+                i.history.pop_front();
+            }
+        }
+        i.last = now;
+        i.last_at = Some(Instant::now());
+        i.sampled_at = Some(crate::util::now());
+    }
+
+    /// Keeps `user_id` on the live feed for the next 15 seconds.
+    pub fn watch(&self, user_id: &str) {
+        self.watchers
+            .lock()
+            .unwrap()
+            .insert(user_id.to_string(), Instant::now() + Duration::from_secs(15));
+    }
+
+    /// Every second, while anyone watches live: sample and push to them.
+    pub fn spawn_live(state: AppState) {
         tokio::spawn(async move {
-            let mut prev = parse_cpu(&read("/proc/stat"));
+            let mut tick = tokio::time::interval(MIN_INTERVAL);
             loop {
-                tokio::time::sleep(Duration::from_secs(5)).await;
-                let now = parse_cpu(&read("/proc/stat"));
-                if let (Some((b0, t0)), Some((b1, t1))) = (prev, now)
-                    && t1 > t0
-                {
-                    let share = (b1.saturating_sub(b0)) as f64 / (t1 - t0) as f64;
-                    let mut h = self.history.lock().unwrap();
-                    h.push_back(share.clamp(0.0, 1.0));
-                    while h.len() > SAMPLES {
-                        h.pop_front();
-                    }
+                tick.tick().await;
+                let users: Vec<String> = {
+                    let mut w = state.host.watchers.lock().unwrap();
+                    w.retain(|_, until| *until > Instant::now());
+                    w.keys().cloned().collect()
+                };
+                if users.is_empty() {
+                    continue;
                 }
-                prev = now;
+                let machines = vec![state.host.snapshot_now(&state)];
+                for u in users {
+                    state.bus.send(&u, Event::Machines { machines: machines.clone() });
+                }
             }
         });
     }
 
+    /// A fresh sample (rate-limited) as the Machines panel shows it.
+    pub fn snapshot_now(&self, state: &AppState) -> Value {
+        self.sample();
+        let os = std::fs::read_to_string("/host/os-release")
+            .ok()
+            .and_then(|t| {
+                t.lines()
+                    .find_map(|l| l.strip_prefix("PRETTY_NAME="))
+                    .map(|v| v.trim_matches('"').to_string())
+            })
+            .unwrap_or_else(|| "Linux".into());
+        let name = state.config.machine_name.as_deref().unwrap_or("This server");
+        self.snapshot(name, &os)
+    }
+
     pub fn snapshot(&self, name: &str, os: &str) -> Value {
-        let history: Vec<f64> = self.history.lock().unwrap().iter().copied().collect();
+        let (history, sampled_at) = {
+            let i = self.inner.lock().unwrap();
+            (i.history.iter().copied().collect::<Vec<f64>>(), i.sampled_at.clone())
+        };
         let (total, avail) = parse_meminfo(&read("/proc/meminfo"));
         let busy = format!(
             "up {}, load {:.2}",
@@ -113,6 +176,7 @@ impl HostStats {
             "busy": busy,
             "history": history,
             "historyKind": "cpu",
+            "sampledAt": sampled_at,
         })
     }
 }

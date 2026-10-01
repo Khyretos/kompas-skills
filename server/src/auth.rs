@@ -145,8 +145,22 @@ pub async fn status(
     headers: HeaderMap,
 ) -> ApiResult<Json<serde_json::Value>> {
     let user = current_user(&state, &headers).await?;
+    let settings = crate::admin::load(&state.db).await?;
+    let (admin, theme, refresh) = match &user {
+        Some(u) => sqlx::query_as::<_, (bool, String, i64)>(
+            "SELECT is_admin, theme, machines_refresh FROM users WHERE id = ?",
+        )
+        .bind(&u.id)
+        .fetch_optional(&state.db)
+        .await?
+        .unwrap_or((false, "system".into(), 5)),
+        None => (false, "system".into(), 5),
+    };
     Ok(Json(json!({
-        "name": "Kreative Kompanion",
+        "name": settings.app_name,
+        "admin": admin,
+        "theme": theme,
+        "machinesRefresh": refresh,
         "version": env!("CARGO_PKG_VERSION"),
         "setupNeeded": !users_exist(&state).await?,
         "user": user.map(|u| u.name),
@@ -192,6 +206,7 @@ pub async fn setup(
         .await?;
     *state.setup_code.lock().unwrap() = None;
     tracing::info!(user = %body.name.trim(), "first account created");
+    crate::admin::ensure_admin(&state.db).await?;
     start_session(&state, &id).await
 }
 
@@ -285,7 +300,7 @@ pub async fn guard(State(state): State<AppState>, mut req: Request, next: Next) 
     let path = path.strip_prefix("/api").unwrap_or(path).to_string();
     let open = matches!(
         path.as_str(),
-        "/status" | "/setup" | "/login" | "/auth/oidc/start" | "/auth/oidc/callback"
+        "/status" | "/theme.css" | "/setup" | "/login" | "/auth/oidc/start" | "/auth/oidc/callback"
     );
 
     if !matches!(*req.method(), Method::GET | Method::HEAD | Method::OPTIONS) {

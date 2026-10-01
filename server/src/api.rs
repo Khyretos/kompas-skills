@@ -620,16 +620,14 @@ pub async fn tasks(
 }
 /// The server's own machine; runners on other PCs come in milestone 3.
 pub async fn machines(State(s): State<AppState>) -> Json<Vec<Value>> {
-    let os = std::fs::read_to_string("/host/os-release")
-        .ok()
-        .and_then(|t| {
-            t.lines()
-                .find_map(|l| l.strip_prefix("PRETTY_NAME="))
-                .map(|v| v.trim_matches('"').to_string())
-        })
-        .unwrap_or_else(|| "Linux".into());
-    let name = s.config.machine_name.as_deref().unwrap_or("This server");
-    Json(vec![s.host.snapshot(name, &os)])
+    Json(vec![s.host.snapshot_now(&s)])
+}
+
+/// Heartbeat from a Machines tab set to "Live": stats are pushed over the
+/// event stream every second for the next 15 s.
+pub async fn machines_live(State(s): State<AppState>, Extension(u): Extension<User>) -> StatusCode {
+    s.host.watch(&u.id);
+    StatusCode::NO_CONTENT
 }
 
 // ---- Live events ----

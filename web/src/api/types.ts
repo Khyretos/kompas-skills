@@ -117,6 +117,7 @@ export interface MachineStats {
   busy?: string; // "Steam is running"
   history: number[]; // recent total power draw in W (or CPU share 0..1 when historyKind is "cpu"), oldest first
   historyKind?: "watts" | "cpu";
+  sampledAt?: string; // ISO time of the newest sample
 }
 
 export interface GpuStats {
@@ -158,6 +159,24 @@ export interface ServerStatus {
   version: string;
   setupNeeded: boolean;
   user: string | null;
+  admin?: boolean;
+  theme?: ThemeChoice;
+  machinesRefresh?: number; // seconds; 1 = live
   /** How people can sign in; absent on older servers (password only). */
   signIn?: { password: boolean; oidc: string | null };
+}
+
+export type ThemeChoice = "system" | "light" | "dark";
+
+export interface AdminSettings {
+  appName: string;
+  smtpHost: string;
+  smtpPort: number;
+  smtpTls: "starttls" | "tls" | "none";
+  smtpUser: string;
+  smtpFrom: string;
+  colorBrand: string;
+  colorLinkDark: string;
+  colorLinkLight: string;
+  colorAccent: string;
 }

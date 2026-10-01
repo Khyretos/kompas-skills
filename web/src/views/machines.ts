@@ -57,7 +57,15 @@ function machine(m: MachineStats): SafeHtml {
     </li>`;
 }
 
-export function renderMachines(machines: MachineStats[], day?: DaySummary): SafeHtml {
+/** Refresh steps in seconds; 1 is "Live" (pushed by the server). */
+export const REFRESH_STEPS = [1, 2, 5, 15, 30, 60, 300];
+const stepLabel = (s: number) => (s === 1 ? "Live" : s < 60 ? `every ${s} s` : `every ${s / 60} min`);
+const clock = (iso?: string) =>
+  iso ? new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "not yet";
+
+export function renderMachines(machines: MachineStats[], day: DaySummary | undefined, refresh: number): SafeHtml {
+  const step = Math.max(0, REFRESH_STEPS.indexOf(refresh));
+  const newest = machines.map((m) => m.sampledAt).filter(Boolean).sort().pop();
   return html`
     <div class="task-groups">
       ${day ? html`
@@ -72,6 +80,12 @@ export function renderMachines(machines: MachineStats[], day?: DaySummary): Safe
         </section>` : ""}
       <section class="group">
         <h3 class="label">Computers</h3>
+        <div class="refresh">
+          <label for="machines-refresh">Refresh: <strong>${stepLabel(REFRESH_STEPS[step])}</strong></label>
+          <input type="range" id="machines-refresh" min="0" max="${REFRESH_STEPS.length - 1}" step="1" value="${step}"
+            aria-valuetext="${stepLabel(REFRESH_STEPS[step])}">
+          <span class="muted small" aria-live="off">Updated ${clock(newest)}</span>
+        </div>
         <ul class="machines">${machines.map(machine)}</ul>
       </section>
     </div>`;

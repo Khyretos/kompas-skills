@@ -17,6 +17,10 @@ pub enum Event {
         text: String,
         done: bool,
     },
+    /// Live machine stats for users watching the Machines tab on "Live".
+    Machines {
+        machines: Vec<serde_json::Value>,
+    },
 }
 
 /// One channel for everyone; each listener only passes on its own user's events.

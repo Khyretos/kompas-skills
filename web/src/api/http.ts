@@ -2,7 +2,7 @@
 // a session cookie. Live updates arrive as server-sent events.
 import type { KompanionApi, ServerEvent } from "./client";
 import type {
-  Chat, DaySummary, MachineStats, Message, ModelProvider, Project, RoleAssignment, Server, ServerStatus, Task,
+  AdminSettings, ThemeChoice, Chat, DaySummary, MachineStats, Message, ModelProvider, Project, RoleAssignment, Server, ServerStatus, Task,
 } from "./types";
 
 export class ApiError extends Error {
@@ -54,6 +54,12 @@ export class HttpApi implements KompanionApi {
   }
   login(name: string, password: string) { return this.request<void>("POST", "/login", { name, password }); }
   logout() { return this.request<void>("POST", "/logout"); }
+  setMachinesRefresh(seconds: number) { return this.request<void>("PUT", "/me/prefs", { machinesRefresh: seconds }); }
+  watchMachines() { return this.request<void>("POST", "/machines/live"); }
+  setTheme(theme: ThemeChoice) { return this.request<void>("PUT", "/me/theme", { theme }); }
+  getAdmin() { return this.request<{ settings: AdminSettings; smtpPasswordSet: boolean }>("GET", "/admin/settings"); }
+  saveAdmin(settings: AdminSettings) { return this.request<AdminSettings>("PUT", "/admin/settings", settings); }
+  testMail(to: string) { return this.request<void>("POST", "/admin/test-mail", { to }); }
 
   listProjects() { return this.request<Project[]>("GET", "/projects"); }
   listChats() { return this.request<Chat[]>("GET", "/chats"); }

@@ -1,9 +1,13 @@
 import { Store } from "./core/store";
-import type { DaySummary, MachineStats, Chat, Message, ModelProvider, Project, RoleAssignment, Server, Task } from "./api/types";
+import type { AdminSettings, ThemeChoice, DaySummary, MachineStats, Chat, Message, ModelProvider, Project, RoleAssignment, Server, Task } from "./api/types";
 
 export interface AppState {
   server?: Server;
   userName?: string; // signed-in user
+  isAdmin: boolean;
+  theme: ThemeChoice;
+  machinesRefresh: number; // seconds between Machines updates; 1 = live
+  admin?: { settings: AdminSettings; smtpPasswordSet: boolean }; // loaded when an admin opens settings
   projects: Project[];
   chats: Chat[];
   activeChatId?: string;
@@ -37,6 +41,9 @@ export const store = new Store<AppState>({
   settingsOpen: false,
   pane: "main",
   expandedProjects: new Set(),
+  isAdmin: false,
+  theme: "system",
+  machinesRefresh: 5,
 });
 
 export function activeChat(s: AppState): Chat | undefined {

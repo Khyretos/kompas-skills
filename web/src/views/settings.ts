@@ -2,8 +2,9 @@
 // swapping a model here keeps everything Kompanion has learned.
 import { html, type SafeHtml } from "../core/html";
 import type { AppState } from "../state";
-import type { Role } from "../api/types";
+import type { AdminSettings, Role } from "../api/types";
 import { icon } from "./icons";
+import { renderAdmin } from "./admin";
 
 const roleInfo: Record<Role, { name: string; text: string }> = {
   orchestrator: { name: "Orchestrator", text: "Talks with you, plans and splits the work." },
@@ -11,14 +12,20 @@ const roleInfo: Record<Role, { name: string; text: string }> = {
   reviewer: { name: "Reviewer and teacher", text: "Checks results and writes lessons into the skills." },
 };
 
+const DEFAULTS: AdminSettings = {
+  appName: "", smtpHost: "", smtpPort: 587, smtpTls: "starttls", smtpUser: "", smtpFrom: "",
+  colorBrand: "#5c398e", colorLinkDark: "#cca9ff", colorLinkLight: "#7b2fb5", colorAccent: "#bf4eff",
+};
+
 export function renderSettings(s: AppState): SafeHtml {
   const options = s.providers.flatMap((p) => p.models.map((m) => ({ p, m, value: `${p.id}::${m.id}` })));
   return html`
     <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="settings-h">
       <div class="sheet-head">
-        <h2 id="settings-h">Models and roles</h2>
+        <h2 id="settings-h">Settings</h2>
         <button class="icon-btn" data-action="close-settings" aria-label="Close">${icon("close")}</button>
       </div>
+      ${renderAdmin(s.admin?.settings ?? DEFAULTS, s.admin?.smtpPasswordSet ?? false, s.theme, s.isAdmin && !!s.admin)}
       <section>
         <h3 class="label">Roles</h3>
         <p class="muted">Any model can fill any role. Skills and lessons belong to the role, so switching a model keeps them.</p>

@@ -1,7 +1,7 @@
 // A fake server so the UI can be built and tried before the real one exists.
 // Everything here is example data.
 import type { KompanionApi, ServerEvent } from "./client";
-import type { DaySummary, MachineStats, Chat, Message, ModelProvider, Project, RoleAssignment, Server, Task } from "./types";
+import type { AdminSettings, DaySummary, MachineStats, Chat, Message, ModelProvider, Project, RoleAssignment, Server, Task } from "./types";
 
 const now = Date.now();
 const ago = (min: number) => new Date(now - min * 60_000).toISOString();
@@ -24,6 +24,11 @@ const chats: Chat[] = [
   { id: "c-nohboard", title: "Wayland input capture", projectId: "p-nohboard", updatedAt: ago(60 * 24 * 4) },
   { id: "c-loose", title: "Which local model next?", updatedAt: ago(60 * 3) },
 ];
+
+const adminSettings: AdminSettings = {
+  appName: "Kreative Kompanion", smtpHost: "", smtpPort: 587, smtpTls: "starttls", smtpUser: "", smtpFrom: "",
+  colorBrand: "#5c398e", colorLinkDark: "#cca9ff", colorLinkLight: "#7b2fb5", colorAccent: "#bf4eff",
+};
 
 const messages: Message[] = [
   {
@@ -282,10 +287,16 @@ export class MockApi implements KompanionApi {
     return { url: clean, name: new URL(clean).hostname, version: "0.1.0" };
   }
   async status() {
-    return { name: "Kreative Kompanion (demo)", version: "0.1.0", setupNeeded: false, user: "Kees" };
+    return { name: "Kreative Kompanion (demo)", version: "0.1.0", setupNeeded: false, user: "Kees", admin: true, theme: "system" as const };
   }
   async setup() {}
   async logout() {}
+  async setTheme() {}
+  async setMachinesRefresh() {}
+  async watchMachines() {}
+  async getAdmin() { return { settings: structuredClone(adminSettings), smtpPasswordSet: false }; }
+  async saveAdmin(s: AdminSettings) { Object.assign(adminSettings, s); return structuredClone(adminSettings); }
+  async testMail() { throw new Error("The demo can't send mail."); }
   async login() {}
   async listProjects() { return structuredClone(projects); }
   async listChats() {

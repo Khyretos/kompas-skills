@@ -3,14 +3,16 @@ import { HttpApi } from "./api/http";
 import { $, html, mount, onAction } from "./core/html";
 import { MockApi } from "./api/mock";
 import type { KompanionApi, ServerEvent } from "./api/client";
-import type { Role, Server } from "./api/types";
+import type { AdminSettings, Role, Server, ThemeChoice } from "./api/types";
 import { store, type AppState } from "./state";
 import { showConnect } from "./views/connect";
 import { renderSidebar } from "./views/sidebar";
 import { composer, fillMessage, messageViews, renderEmpty, renderHeader, renderMessage, type MessageView } from "./views/conversation";
 import { KeyedList } from "./core/keyed";
 import { paneTabs, renderTasks } from "./views/tasks";
-import { renderMachines } from "./views/machines";
+import { renderMachines, REFRESH_STEPS } from "./views/machines";
+
+let savePrefs: ReturnType<typeof setTimeout> | undefined;
 import { html as h } from "./core/html";
 import { renderSettings } from "./views/settings";
 
@@ -89,7 +91,12 @@ async function start(server: Server): Promise<void> {
     api.listProjects(), api.listChats(), api.listTasks(), api.listProviders(), api.listRoles(),
     api.listMachines(), api.today(), api.status(),
   ]);
-  store.set({ server, projects, chats, tasks, providers, roles, machines, today, userName: status.user ?? undefined });
+  store.set({
+    server: { ...server, name: status.name || server.name }, projects, chats, tasks, providers, roles, machines, today,
+    userName: status.user ?? undefined, isAdmin: !!status.admin, theme: status.theme ?? "system",
+    machinesRefresh: status.machinesRefresh ?? 5,
+  });
+  applyTheme(status.theme ?? "system");
   wire(shellRoot);
   await openChat(chats[0]?.id);
 }
@@ -117,7 +124,7 @@ function render(s: AppState, prev: AppState): void {
   mount($("#right"), s.rightTab === "tasks" ? renderTasks(s) : h`
     <div class="pane-head">${paneTabs(s)}
       <button class="icon-btn only-narrow" data-action="pane" data-pane="main" aria-label="Close">✕</button></div>
-    ${renderMachines(s.machines, s.today)}`);
+    ${renderMachines(s.machines, s.today, s.machinesRefresh)}`);
 
   const box = $("#messages");
   const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
@@ -205,7 +212,16 @@ function wire(shell: HTMLElement): void {
     scope: (el) => store.set({ taskScope: el.dataset.scope as AppState["taskScope"] }),
     pane: (el) => store.set({ pane: el.dataset.pane as AppState["pane"] }),
     answer: (el) => api.answer(el.dataset.task ?? "", el.dataset.option ?? "").catch(showError),
-    settings: () => store.set({ settingsOpen: true, pane: "main" }),
+    settings: () => {
+      store.set({ settingsOpen: true, pane: "main" });
+      if (store.get().isAdmin) api.getAdmin().then((admin) => store.set({ admin }), showError);
+    },
+    "test-mail": () => {
+      const to = (document.getElementById("test-to") as HTMLInputElement | null)?.value.trim() ?? "";
+      if (!to) return adminMessage("Fill in an address to send the test to.", true);
+      adminMessage("Sending…");
+      api.testMail(to).then(() => adminMessage(`Test mail sent to ${to}.`), (e) => adminMessage(String(e.message ?? e), true));
+    },
     // Ends this app's session. Keycloak keeps its own session, so "Sign in
     // with Kreative Kompas" afterwards may not ask for a password again.
     logout: () => api.logout().then(() => location.replace("/"), showError),
@@ -213,6 +229,14 @@ function wire(shell: HTMLElement): void {
   });
 
   shell.addEventListener("change", async (ev) => {
+    const radio = ev.target as HTMLInputElement;
+    if (radio.name === "theme") {
+      const theme = radio.value as ThemeChoice;
+      applyTheme(theme);
+      store.set({ theme });
+      api.setTheme(theme).catch(showError);
+      return;
+    }
     const sel = ev.target as HTMLSelectElement;
     if (!sel.dataset.role || !sel.value) return;
     const [providerId, modelId] = sel.value.split("::");
@@ -240,6 +264,8 @@ function wire(shell: HTMLElement): void {
     if (c && title && title !== c.title) changeChat(id, { title });
   };
   shell.addEventListener("submit", (ev) => {
+    const admin = (ev.target as HTMLElement).closest("#admin-form") as HTMLFormElement | null;
+    if (admin) { ev.preventDefault(); saveAdmin(admin); return; }
     const form = (ev.target as HTMLElement).closest("form.rename") as HTMLFormElement | null;
     if (form) { ev.preventDefault(); saveRename(form); }
   });
@@ -247,10 +273,29 @@ function wire(shell: HTMLElement): void {
     const form = (ev.target as HTMLElement).closest("form.rename") as HTMLFormElement | null;
     if (form && store.get().renamingChatId) saveRename(form);
   });
-  // Live stats of the server's machine.
+  // Machines tab: poll at the chosen rate, or on "Live" let the server push
+  // over the event stream (renewing the 15 s watch). Nothing while hidden.
+  let lastPoll = 0, lastWatch = 0;
   setInterval(() => {
-    if (store.get().rightTab === "machines") api.listMachines().then((machines) => store.set({ machines })).catch(() => {});
-  }, 5000);
+    const s = store.get();
+    if (s.rightTab !== "machines" || document.hidden) return;
+    const now = Date.now();
+    if (s.machinesRefresh === 1) {
+      if (now - lastWatch > 10_000) { lastWatch = now; api.watchMachines().catch(() => {}); }
+    } else if (now - lastPoll >= s.machinesRefresh * 1000) {
+      lastPoll = now;
+      api.listMachines().then((machines) => store.set({ machines })).catch(() => {});
+    }
+  }, 1000);
+  shell.addEventListener("input", (ev) => {
+    const el = ev.target as HTMLInputElement;
+    if (el.id !== "machines-refresh") return;
+    const seconds = REFRESH_STEPS[Number(el.value)] ?? 5;
+    lastPoll = 0; lastWatch = 0; // apply at once
+    store.set({ machinesRefresh: seconds });
+    clearTimeout(savePrefs);
+    savePrefs = setTimeout(() => api.setMachinesRefresh(seconds).catch(showError), 400);
+  });
 
   const form = $("#composer");
   const prompt = $("#prompt") as HTMLTextAreaElement;
@@ -277,6 +322,42 @@ function wire(shell: HTMLElement): void {
   prompt.addEventListener("keydown", (ev) => {
     if (ev.key === "Enter" && !ev.shiftKey && !ev.isComposing) { ev.preventDefault(); submit(); }
   });
+}
+
+/** "system" follows the device; otherwise force light or dark. */
+function applyTheme(theme: ThemeChoice): void {
+  if (theme === "system") delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = theme;
+}
+
+function adminMessage(text: string, error = false): void {
+  const el = document.getElementById("admin-msg");
+  if (!el) return;
+  el.textContent = text;
+  el.classList.toggle("error", error);
+}
+
+async function saveAdmin(form: HTMLFormElement): Promise<void> {
+  const f = new FormData(form);
+  const v = (k: string) => String(f.get(k) ?? "").trim();
+  const settings: AdminSettings = {
+    appName: v("appName"), smtpHost: v("smtpHost"), smtpPort: Number(v("smtpPort")) || 587,
+    smtpTls: v("smtpTls") as AdminSettings["smtpTls"], smtpUser: v("smtpUser"), smtpFrom: v("smtpFrom"),
+    colorBrand: v("colorBrand"), colorLinkDark: v("colorLinkDark"), colorLinkLight: v("colorLinkLight"), colorAccent: v("colorAccent"),
+  };
+  adminMessage("Saving…");
+  try {
+    const saved = await api.saveAdmin(settings);
+    const s = store.get();
+    store.set({ admin: { settings: saved, smtpPasswordSet: s.admin?.smtpPasswordSet ?? false } });
+    if (s.server) store.set({ server: { ...s.server, name: saved.appName } });
+    // Reload the colours from the server.
+    const link = document.getElementById("theme-css") as HTMLLinkElement | null;
+    if (link) link.href = `api/theme.css?v=${Date.now()}`;
+    requestAnimationFrame(() => adminMessage("Saved."));
+  } catch (e) {
+    adminMessage(e instanceof Error ? e.message : String(e), true);
+  }
 }
 
 async function changeChat(id: string, change: { title?: string; pinned?: boolean; archived?: boolean }): Promise<void> {
