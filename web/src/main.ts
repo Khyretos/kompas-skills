@@ -20,42 +20,40 @@ declare const __DEMO__: boolean;
 let api: KompanionApi;
 let root = $("#app");
 
-/**
- * Served by a Kompanion server: always use it, and say so when it doesn't
- * answer. Example data only in the shareable preview, a local file, or ?demo.
- */
+/** Served by a Kompanion server: use it. Opened as a file, or with ?demo: demo mode. */
 async function boot(): Promise<void> {
-  const demo = __DEMO__ || location.protocol === "file:" || new URLSearchParams(location.search).has("demo");
-  if (demo) {
-    api = new MockApi();
-    showConnect(root, api, (server) => start({ ...server, demo: true }));
-    return;
+  const demo = !location.protocol.startsWith("http") || new URLSearchParams(location.search).has("demo");
+  if (!demo) {
+    // Never fall back to example data on a real server: retry, then say so.
+    const http = new HttpApi();
+    for (let attempt = 1; ; attempt++) {
+      try {
+        const status = await http.status();
+        api = http;
+        const server = { url: location.origin, name: location.hostname, version: status.version };
+        if (status.user) return start(server);
+        return showSignIn(root, api, status, () => fresh().then(() => start(server)));
+      } catch {
+        if (attempt >= 3) return showUnreachable(root, () => void boot());
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+    }
   }
-  const http = new HttpApi();
-  try {
-    const status = await http.status();
-    api = http;
-    const server = { url: location.origin, name: location.hostname, version: status.version };
-    if (status.user) return start(server);
-    return showSignIn(root, api, status, () => fresh().then(() => start(server)));
-  } catch (e) {
-    showUnreachable(e instanceof Error ? e.message : String(e));
-  }
+  document.body.classList.add("demo");
+  api = new MockApi();
+  showConnect(root, api, (server) => start(server));
 }
 
-function showUnreachable(reason: string): void {
-  mount(root, html`
+function showUnreachable(el: HTMLElement, retry: () => void): void {
+  mount(el, html`
     <main class="connect">
       <div class="connect-card">
-        <h1>Kompanion isn't answering</h1>
-        <p class="muted">The page loaded, but the server behind it didn't respond. It may be restarting.</p>
-        <p class="error" role="alert">${reason}</p>
-        <button class="btn primary" data-action="retry">Try again</button>
+        <h1>Kreative Kompanion</h1>
+        <p class="error" role="alert">Can't reach the Kompanion server right now. It may be restarting.</p>
+        <button class="btn primary" type="button" id="retry">Try again</button>
       </div>
     </main>`);
-  root.addEventListener("click", (ev) => {
-    if ((ev.target as HTMLElement).closest('[data-action="retry"]')) location.reload();
-  }, { once: true });
+  $("#retry", el).addEventListener("click", retry, { once: true });
 }
 
 /** Replace #app with a clean element (drops the previous screen's listeners). */
