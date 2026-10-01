@@ -40,6 +40,7 @@ export interface Chat {
   title: string;
   projectId?: string; // undefined = loose chat
   updatedAt: string;
+  pinned?: boolean;
 }
 
 export interface Message {
@@ -114,7 +115,8 @@ export interface MachineStats {
   gpus: GpuStats[];
   kompanionShare: number; // share of CPU used by Kompanion workspaces, 0..1
   busy?: string; // "Steam is running"
-  history: number[]; // recent total power draw in W, oldest first
+  history: number[]; // recent total power draw in W (or CPU share 0..1 when historyKind is "cpu"), oldest first
+  historyKind?: "watts" | "cpu";
 }
 
 export interface GpuStats {

@@ -4,6 +4,8 @@
 # Where to listen. Put a reverse proxy with HTTPS in front for access from outside.
 bind = "0.0.0.0:8080"
 database = "/data/kompanion.db"
+# Name of this server in the Machines panel (its OS comes from /host/os-release if mounted).
+# machine_name = "my-server"
 web_dir = "/app/web"
 # Public origin(s) the web app is served from; state-changing requests from
 # other origins are refused.

@@ -4,6 +4,7 @@ import { html, mount, onAction, $ } from "../core/html";
 import type { KompanionApi } from "../api/client";
 import type { Server } from "../api/types";
 import { icon } from "./icons";
+import logo from "../assets/kk-logo.svg";
 
 export function showConnect(root: HTMLElement, api: KompanionApi, onConnected: (s: Server) => void): void {
   let found: Server[] | undefined;
@@ -26,7 +27,7 @@ export function showConnect(root: HTMLElement, api: KompanionApi, onConnected: (
       <main class="connect">
         <div class="connect-card">
           <div class="brand">
-            <span class="brand-mark">${icon("spark")}</span>
+            <img class="brand-logo" src="${logo}" alt="" width="44" height="44">
             <div><h1>Kreative Kompanion</h1><p class="muted">Connect to your Kompanion server</p></div>
           </div>
           <section aria-labelledby="found-h">

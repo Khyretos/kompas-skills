@@ -3,7 +3,7 @@
 import { $, html, mount } from "../core/html";
 import type { KompanionApi } from "../api/client";
 import type { ServerStatus } from "../api/types";
-import { icon } from "./icons";
+import logo from "../assets/kk-logo.svg";
 
 const SSO_ERRORS: Record<string, string> = {
   "no-account": "Single sign-on worked, but no Kompanion account belongs to you yet. Ask the owner to add you.",
@@ -25,12 +25,12 @@ export function showSignIn(root: HTMLElement, api: KompanionApi, status: ServerS
       <main class="connect">
         <form class="connect-card" id="signin">
           <div class="brand">
-            <span class="brand-mark">${icon("spark")}</span>
+            <img class="brand-logo" src="${logo}" alt="" width="44" height="44">
             <div><h1>Kreative Kompanion</h1>
               <p class="muted">${setupNeeded ? "Create the first account" : "Sign in to continue"}</p></div>
           </div>
           ${sso && !setupNeeded ? html`
-            <a class="btn primary" href="/api/auth/oidc/start">Sign in with ${sso}</a>
+            <a class="btn primary sso" href="/api/auth/oidc/start"><img src="${logo}" alt="" width="20" height="20">Sign in with ${sso}</a>
             ${password ? html`<p class="hint">Or use your Kompanion name and password:</p>` : ""}` : ""}
           ${password ? html`
           ${setupNeeded ? html`

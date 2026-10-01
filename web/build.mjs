@@ -15,6 +15,7 @@ const options = {
   minify: !serve,
   sourcemap: serve,
   logLevel: "info",
+  loader: { ".svg": "dataurl" }, // logos as data: URLs (CSP allows img data:)
 };
 
 await mkdir("dist", { recursive: true });

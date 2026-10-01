@@ -16,6 +16,9 @@ pub struct Config {
     /// Set the Secure flag on cookies. Only turn off for plain-http testing on localhost.
     #[serde(default = "yes")]
     pub secure_cookies: bool,
+    /// Name shown for this server in the Machines panel.
+    #[serde(default)]
+    pub machine_name: Option<String>,
     #[serde(default, rename = "provider")]
     pub providers: Vec<ProviderConfig>,
     #[serde(default)]

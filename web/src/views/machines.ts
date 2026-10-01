@@ -5,9 +5,9 @@ import type { DaySummary, MachineStats } from "../api/types";
 const pct = (n: number) => `${Math.round(n * 100)}%`;
 const fmtTokens = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)} M` : `${Math.round(n / 1000)}k`);
 
-function sparkline(values: number[]): SafeHtml {
+function sparkline(values: number[], fixedMax?: number): SafeHtml {
   if (values.length < 2) return html``;
-  const w = 120, h = 32, max = Math.max(...values) * 1.1, min = 0;
+  const w = 120, h = 32, max = fixedMax ?? (Math.max(...values) * 1.1 || 1), min = 0;
   const pts = values.map((v, i) => [(i / (values.length - 1)) * w, h - ((v - min) / (max - min)) * h]);
   const line = pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
   const [lx, ly] = pts[pts.length - 1];
@@ -25,6 +25,7 @@ function bar(value: number, label: string): SafeHtml {
 }
 
 function machine(m: MachineStats): SafeHtml {
+  const cpuKind = m.historyKind === "cpu";
   const watts = m.history[m.history.length - 1];
   if (!m.online) {
     return html`<li class="machine off"><div class="machine-head"><span class="dot" aria-hidden="true"></span>
@@ -35,14 +36,14 @@ function machine(m: MachineStats): SafeHtml {
       <div class="machine-head">
         <span class="dot ok" aria-hidden="true"></span>
         <strong>${m.name}</strong><span class="muted small">${m.os}</span>
-        <span class="watts">${watts} W</span>
+        <span class="watts">${cpuKind ? `${pct(m.cpu)} CPU` : watts === undefined ? "" : `${watts} W`}</span>
       </div>
-      ${sparkline(m.history)}
-      ${m.busy ? html`<p class="busy">${m.busy}, so heavy tasks ask first.</p>` : ""}
+      ${sparkline(m.history, cpuKind ? 1 : undefined)}
+      ${m.busy ? html`<p class="busy">${cpuKind ? m.busy : `${m.busy}, so heavy tasks ask first.`}</p>` : ""}
       <dl class="stats">
         <div><dt>CPU</dt><dd>${bar(m.cpu, "CPU")}<span>${pct(m.cpu)}</span></dd></div>
         <div><dt>RAM</dt><dd>${bar(m.ramUsedGb / m.ramTotalGb, "RAM")}<span>${m.ramUsedGb}/${m.ramTotalGb} GB</span></dd></div>
-        <div><dt>Kompanion</dt><dd>${bar(m.kompanionShare, "Kompanion share")}<span>${pct(m.kompanionShare)} of CPU</span></dd></div>
+        ${cpuKind ? "" : html`<div><dt>Kompanion</dt><dd>${bar(m.kompanionShare, "Kompanion share")}<span>${pct(m.kompanionShare)} of CPU</span></dd></div>`}
       </dl>
       ${m.gpus.map((g) => html`
         <div class="gpu">

@@ -43,6 +43,8 @@ pub struct Chat {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub project_id: Option<String>,
     pub updated_at: String,
+    #[sqlx(default)]
+    pub pinned: bool,
 }
 
 #[derive(Debug, Clone, Serialize, sqlx::FromRow)]
@@ -91,7 +93,7 @@ pub async fn chats(
     Extension(u): Extension<User>,
 ) -> ApiResult<Json<Vec<Chat>>> {
     let rows = sqlx::query_as(
-        "SELECT id, title, project_id, updated_at FROM chats WHERE user_id = ? ORDER BY updated_at DESC",
+        "SELECT id, title, project_id, updated_at, pinned FROM chats\n         WHERE user_id = ? AND archived = 0 ORDER BY pinned DESC, updated_at DESC",
     )
     .bind(&u.id)
     .fetch_all(&s.db)
@@ -125,6 +127,7 @@ pub async fn create_chat(
         title,
         project_id: b.project_id,
         updated_at: util::now(),
+        pinned: false,
     };
     sqlx::query(
         "INSERT INTO chats (id, project_id, title, updated_at, user_id) VALUES (?, ?, ?, ?, ?)",
@@ -426,6 +429,68 @@ async fn user_roles(s: &AppState, user_id: &str) -> ApiResult<Vec<RoleAssignment
 }
 
 /// Whether `id` in `table` (projects, chats or tasks) belongs to this user.
+#[derive(Deserialize)]
+pub struct ChatChange {
+    title: Option<String>,
+    pinned: Option<bool>,
+    archived: Option<bool>,
+}
+
+/// Rename, pin or archive a chat (the chat menu).
+pub async fn update_chat(
+    State(s): State<AppState>,
+    Extension(u): Extension<User>,
+    Path(id): Path<String>,
+    Json(b): Json<ChatChange>,
+) -> ApiResult<StatusCode> {
+    if !owns(&s, "chats", &id, &u).await? {
+        return Err(ApiError::NotFound);
+    }
+    if let Some(t) = b.title {
+        let t: String = t.trim().chars().take(120).collect();
+        if t.is_empty() {
+            return Err(ApiError::BadRequest("Give the chat a title.".into()));
+        }
+        sqlx::query("UPDATE chats SET title = ? WHERE id = ?")
+            .bind(t)
+            .bind(&id)
+            .execute(&s.db)
+            .await?;
+    }
+    if let Some(p) = b.pinned {
+        sqlx::query("UPDATE chats SET pinned = ? WHERE id = ?")
+            .bind(p)
+            .bind(&id)
+            .execute(&s.db)
+            .await?;
+    }
+    if let Some(a) = b.archived {
+        sqlx::query("UPDATE chats SET archived = ? WHERE id = ?")
+            .bind(a)
+            .bind(&id)
+            .execute(&s.db)
+            .await?;
+    }
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// Delete a chat and its messages.
+pub async fn delete_chat(
+    State(s): State<AppState>,
+    Extension(u): Extension<User>,
+    Path(id): Path<String>,
+) -> ApiResult<StatusCode> {
+    let done = sqlx::query("DELETE FROM chats WHERE id = ? AND user_id = ?")
+        .bind(&id)
+        .bind(&u.id)
+        .execute(&s.db)
+        .await?;
+    if done.rows_affected() == 0 {
+        return Err(ApiError::NotFound);
+    }
+    Ok(StatusCode::NO_CONTENT)
+}
+
 async fn owns(s: &AppState, table: &str, id: &str, u: &User) -> ApiResult<bool> {
     let sql = match table {
         "projects" => "SELECT 1 FROM projects WHERE id = ? AND user_id = ?",
@@ -553,8 +618,18 @@ pub async fn tasks(
             .collect(),
     ))
 }
-pub async fn machines() -> Json<Vec<Value>> {
-    Json(vec![])
+/// The server's own machine; runners on other PCs come in milestone 3.
+pub async fn machines(State(s): State<AppState>) -> Json<Vec<Value>> {
+    let os = std::fs::read_to_string("/host/os-release")
+        .ok()
+        .and_then(|t| {
+            t.lines()
+                .find_map(|l| l.strip_prefix("PRETTY_NAME="))
+                .map(|v| v.trim_matches('"').to_string())
+        })
+        .unwrap_or_else(|| "Linux".into());
+    let name = s.config.machine_name.as_deref().unwrap_or("This server");
+    Json(vec![s.host.snapshot(name, &os)])
 }
 
 // ---- Live events ----
