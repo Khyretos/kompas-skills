@@ -1,19 +1,41 @@
+<p align="center">
+  <img src="docs/branding/banner.png" alt="Kreative Kompanion: your AI, your machines" width="100%">
+</p>
+
 # Kreative Kompanion
 
 A self-hosted, FOSS "Claude-like" companion: one orchestrator you talk to per
 project, tasks that run on your own computers, local models doing the work and
 a stronger model reviewing and teaching them. See `docs/architecture.md`.
 
+## Screenshots
+
+| | |
+|---|---|
+| ![Sign-in with single sign-on](docs/screenshots/01-sign-in.png) | ![Connect to a server](docs/screenshots/02-connect.png) |
+| Sign-in with single sign-on (Keycloak or any OIDC provider) | Connect by link or find the server on your network |
+| ![Dashboard](docs/screenshots/03-dashboard.png) | ![Task timeline with call inspector](docs/screenshots/04-task-timeline.png) |
+| Projects, the orchestrator chat and running tasks | Every model call: prompt, context, answer, tokens, energy |
+| ![Machines](docs/screenshots/05-machines.png) | ![Models and roles](docs/screenshots/06-models-and-roles.png) |
+| CPU, RAM, GPU load and wattage of every machine | Any model in any role: local, DeepSeek, Claude |
+| ![Light theme](docs/screenshots/07-light-theme.png) | <img src="docs/screenshots/08-phone.png" alt="Phone" width="45%"> |
+| Kompas Day theme | On a phone |
+
+Screens other than sign-in show demo data. The banner source is
+`docs/branding/banner.html`; `docs/branding/render-banner.mjs` renders it.
+
 ## Status
 
-Milestone 1 in progress:
+Milestone 1 done, milestone 2 in progress:
 
-- `server/` (Rust, axum, SQLite): sign-in, chats, streaming answers from any
-  OpenAI-compatible or Anthropic model, model roles, and a full log of every
-  model call (`GET /api/calls`).
+- `server/` (Rust, axum, SQLite): sign-in with password or OIDC single
+  sign-on, separate data per user, chats, streaming answers from any
+  OpenAI-compatible or Anthropic model, model roles, a full log of every
+  model call (`GET /api/calls`), tasks, and `kompanion-server import` to bring
+  projects and tasks in from another planner.
 - `web/` (vanilla TypeScript): talks to the server when served by it, and falls
   back to a demo with example data when opened on its own.
-- Not yet: tasks, runners, machines (milestones 2 and 3), OIDC sign-in.
+- Not yet: runners and machines (milestone 2), task execution (milestone 3).
 
 ## Run it
 
