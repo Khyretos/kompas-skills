@@ -166,6 +166,8 @@ pub async fn status(
         "user": user.map(|u| u.name),
         "logoVersion": crate::admin::logo_version(&state.db).await?,
         "windshift": if state.windshift { "connected" } else { "not configured" },
+        "windshiftWarning": crate::windshift::LAST_ERROR.lock().unwrap().as_ref()
+            .map(|(at, why)| format!("The last sync at {} failed: {why}", &at[..16.min(at.len())])),
         "signIn": {
             "password": state.config.password_login(),
             "oidc": state.config.oidc.as_ref().map(|o| o.label.clone()),

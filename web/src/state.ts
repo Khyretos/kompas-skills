@@ -7,6 +7,7 @@ export interface AppState {
   isAdmin: boolean;
   logoVersion?: string | null;
   notifications?: NotificationPrefs; // loaded when Settings opens
+  windshiftWarning?: string | null;
   windshift?: string; // "connected" | "not configured" (set in the server's compose file only)
   theme: ThemeChoice;
   machinesRefresh: number; // seconds between Machines updates; 1 = live

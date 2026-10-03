@@ -89,11 +89,12 @@ impl Windshift {
     }
 
     fn url(&self, path: &str) -> String {
+        // (All calls have a 30 s timeout; the sync runs in the background only.)
         format!("{}/rest/api/v2{path}", self.base)
     }
 
     async fn get(&self, path: &str) -> Result<Value> {
-        let r = self.http.get(self.url(path)).bearer_auth(&self.token).send().await?;
+        let r = self.http.get(self.url(path)).bearer_auth(&self.token).timeout(Duration::from_secs(30)).send().await?;
         let status = r.status();
         anyhow::ensure!(status.is_success(), "GET {path}: {status}");
         Ok(r.json().await?)
@@ -158,17 +159,27 @@ impl Windshift {
     }
 }
 
+/// The last sync problem (time and a short reason), shown as a warning in
+/// Settings; never in a chat.
+pub static LAST_ERROR: std::sync::Mutex<Option<(String, String)>> = std::sync::Mutex::new(None);
+
 /// Runs the sync after 10 s and then every five minutes.
 pub fn spawn(db: SqlitePool, ws: std::sync::Arc<Windshift>) {
     tokio::spawn(async move {
         tokio::time::sleep(Duration::from_secs(10)).await;
         loop {
             match sync_once(&db, &ws).await {
-                Ok((pulled, pushed)) if pulled + pushed > 0 => {
-                    tracing::info!(pulled, pushed, "Windshift sync")
+                Ok((pulled, pushed)) => {
+                    *LAST_ERROR.lock().unwrap() = None;
+                    if pulled + pushed > 0 {
+                        tracing::info!(pulled, pushed, "Windshift sync")
+                    }
                 }
-                Ok(_) => {}
-                Err(e) => tracing::warn!("Windshift sync failed: {e:#}"),
+                Err(e) => {
+                    tracing::warn!("Windshift sync failed: {e:#}");
+                    let reason = crate::llm::readable_error(&format!("{e:#}"));
+                    *LAST_ERROR.lock().unwrap() = Some((util::now(), reason));
+                }
             }
             tokio::time::sleep(Duration::from_secs(300)).await;
         }

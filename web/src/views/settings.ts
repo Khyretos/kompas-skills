@@ -46,6 +46,7 @@ export function renderSettings(s: AppState): SafeHtml {
       ${s.isAdmin ? html`<section>
         <h3 class="label">Connections</h3>
         <p>Windshift: <span class="chip ${s.windshift === "connected" ? "good" : ""}">${s.windshift ?? "not configured"}</span></p>
+        ${s.windshiftWarning ? html`<p class="warn small" role="status">${s.windshiftWarning}</p>` : ""}
         <p class="muted small">Set in the server's compose file (WINDSHIFT_URL, WINDSHIFT_TOKEN); it can't be changed here.</p>
       </section>` : ""}
       <section>
