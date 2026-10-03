@@ -1,154 +1,70 @@
 use super::*;
-use crate::grants::{Grants, Right};
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
+use crate::grants::Grants;
 
-#[test]
-fn test_grants_load() {
-    let dir = std::env::temp_dir().join(format!("kk-{}-{}", std::process::id(), line!()));
-    let _ = std::fs::create_dir_all(&dir).unwrap();
-    let grants_file = dir.join("grants.json");
+const NOW: &str = "2026-10-03T20:00:00Z";
 
-    let grants_json = r#"[{"target":"/tmp/test","rights":["read","write"],"granted_by":"admin","granted_at":"2026-10-03T18:00:00Z","expires":"2026-10-04T18:00:00Z"}]"#;
-    std::fs::write(&grants_file, grants_json).unwrap();
+/// A temp dir with "inside/" granted `rights` and a sibling "outside/".
+fn setup(tag: u32, rights: &str) -> (std::path::PathBuf, Grants) {
+    let base = std::env::temp_dir().join(format!("kk-tools-{}-{tag}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    std::fs::create_dir_all(base.join("inside/sub")).unwrap();
+    std::fs::create_dir_all(base.join("outside")).unwrap();
+    let base = std::fs::canonicalize(&base).unwrap();
+    std::fs::write(base.join("inside/a.txt"), "hello").unwrap();
+    std::fs::write(base.join("outside/b.txt"), "secret").unwrap();
+    let file = base.join("grants.json");
+    std::fs::write(
+        &file,
+        format!(r#"[{{"target":"{}","rights":[{rights}],"granted_by":"k","granted_at":"2026-10-03T18:00:00Z"}}]"#, base.join("inside").display()),
+    )
+    .unwrap();
+    let g = Grants::load(&file).unwrap();
+    (base, g)
+}
 
-    let canonical_dir = dir.canonicalize().unwrap();
-    let grants = Grants::load(&canonical_dir).unwrap();
-    assert_eq!(grants.grants.len(), 1);
-    assert_eq!(grants.grants[0].target, "/tmp/test");
-    assert_eq!(grants.grants[0].rights, vec![Right::Read, Right::Write]);
-    assert_eq!(grants.grants[0].granted_by, "admin");
+fn p(base: &std::path::Path, rel: &str) -> String {
+    base.join(rel).display().to_string()
 }
 
 #[test]
-fn test_grants_allows() {
-    let dir = std::env::temp_dir().join(format!("kk-{}-{}", std::process::id(), line!()));
-    let _ = std::fs::create_dir_all(&dir).unwrap();
-    let grants_file = dir.join("grants.json");
-
-    let grants_json = r#"[{"target":"/tmp/test","rights":["read","write"],"granted_by":"admin","granted_at":"2026-10-03T18:00:00Z","expires":"2026-10-04T18:00:00Z"}]"#;
-    std::fs::write(&grants_file, grants_json).unwrap();
-
-    let canonical_dir = dir.canonicalize().unwrap();
-    let grants = Grants::load(&canonical_dir).unwrap();
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs().to_string();
-
-    assert!(grants.allows(&PathBuf::from("/tmp/test"), &Right::Read, &now));
-    assert!(grants.allows(&PathBuf::from("/tmp/test/file.txt"), &Right::Read, &now));
-    assert!(!grants.allows(&PathBuf::from("/tmp/other"), &Right::Read, &now));
-    assert!(!grants.allows(&PathBuf::from("/tmp/test/../other"), &Right::Read, &now));
+fn read_inside_outside_and_escape() {
+    let (b, g) = setup(1, r#""read""#);
+    let ok = run(&g, &Tool::ReadFile { path: p(&b, "inside/a.txt") }, NOW);
+    assert!(ok.ok && ok.output.contains("hello"), "{}", ok.output);
+    assert!(!run(&g, &Tool::ReadFile { path: p(&b, "outside/b.txt") }, NOW).ok);
+    assert!(!run(&g, &Tool::ReadFile { path: p(&b, "inside/../outside/b.txt") }, NOW).ok);
+    let _ = std::fs::remove_dir_all(&b);
 }
 
 #[test]
-fn test_grants_add_and_revoke() {
-    let dir = std::env::temp_dir().join(format!("kk-{}-{}", std::process::id(), line!()));
-    let _ = std::fs::create_dir_all(&dir).unwrap();
-    let grants_file = dir.join("grants.json");
-
-    let grants_json = r#"[{"target":"/tmp/test","rights":["read"],"granted_by":"admin","granted_at":"2026-10-03T18:00:00Z","expires":"2026-10-04T18:00:00Z"}]"#;
-    std::fs::write(&grants_file, grants_json).unwrap();
-
-    let canonical_dir = dir.canonicalize().unwrap();
-    let mut grants = Grants::load(&canonical_dir).unwrap();
-
-    let new_grant = Grant {
-        target: "/tmp/test".to_string(),
-        rights: vec![Right::Write],
-        granted_by: "user".to_string(),
-        granted_at: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs().to_string(),
-        expires: None,
-    };
-
-    grants.add(new_grant).unwrap();
-    assert!(grants.allows(&PathBuf::from("/tmp/test"), &Right::Write, &now));
-
-    let revoke_result = grants.revoke("tmp/test");
-    assert!(revoke_result.unwrap());
-    assert!(!grants.allows(&PathBuf::from("/tmp/test"), &Right::Write, &now));
+fn write_needs_write() {
+    let (b, g) = setup(2, r#""read""#);
+    assert!(!run(&g, &Tool::WriteFile { path: p(&b, "inside/new.txt"), content: "x".into() }, NOW).ok);
+    let (b2, g2) = setup(3, r#""read","write""#);
+    let w = run(&g2, &Tool::WriteFile { path: p(&b2, "inside/new.txt"), content: "x".into() }, NOW);
+    assert!(w.ok, "{}", w.output);
+    assert_eq!(std::fs::read_to_string(b2.join("inside/new.txt")).unwrap(), "x");
+    let _ = std::fs::remove_dir_all(&b);
+    let _ = std::fs::remove_dir_all(&b2);
 }
 
 #[test]
-fn test_run_read_file() {
-    let dir = std::env::temp_dir().join(format!("kk-{}-{}", std::process::id(), line!()));
-    let _ = std::fs::create_dir_all(&dir).unwrap();
-    let grants_file = dir.join("grants.json");
-
-    let grants_json = r#"[{"target":"/tmp/test","rights":["read"],"granted_by":"admin","granted_at":"2026-10-03T18:00:00Z","expires":"2026-10-04T18:00:00Z"}]"#;
-    std::fs::write(&grants_file, grants_json).unwrap();
-
-    let canonical_dir = dir.canonicalize().unwrap();
-    let grants = Grants::load(&canonical_dir).unwrap();
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs().to_string();
-
-    let test_file = dir.join("test.txt");
-    std::fs::write(&test_file, "Hello, world!").unwrap();
-
-    let outcome = run(&grants, &Tool::ReadFile { path: test_file.to_string_lossy().to_string() }, &now);
-    assert!(outcome.ok);
-    assert_eq!(outcome.output, "Hello, world!");
+fn list_dir_marks_folders() {
+    let (b, g) = setup(4, r#""read""#);
+    let l = run(&g, &Tool::ListDir { path: p(&b, "inside") }, NOW);
+    assert!(l.ok && l.output.contains("sub/") && l.output.contains("a.txt"), "{}", l.output);
+    let _ = std::fs::remove_dir_all(&b);
 }
 
 #[test]
-fn test_run_write_file() {
-    let dir = std::env::temp_dir().join(format!("kk-{}-{}", std::process::id(), line!()));
-    let _ = std::fs::create_dir_all(&dir).unwrap();
-    let grants_file = dir.join("grants.json");
-
-    let grants_json = r#"[{"target":"/tmp/test","rights":["write"],"granted_by":"admin","granted_at":"2026-10-03T18:00:00Z","expires":"2026-10-04T18:00:00Z"}]"#;
-    std::fs::write(&grants_file, grants_json).unwrap();
-
-    let canonical_dir = dir.canonicalize().unwrap();
-    let grants = Grants::load(&canonical_dir).unwrap();
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs().to_string();
-
-    let test_file = dir.join("test.txt");
-    let outcome = run(&grants, &Tool::WriteFile { path: test_file.to_string_lossy().to_string(), content: "Hello, world!".to_string() }, &now);
-    assert!(outcome.ok);
-    assert!(test_file.exists());
-    assert_eq!(std::fs::read_to_string(&test_file).unwrap(), "Hello, world!");
-}
-
-#[test]
-fn test_run_list_dir() {
-    let dir = std::env::temp_dir().join(format!("kk-{}-{}", std::process::id(), line!()));
-    let _ = std::fs::create_dir_all(&dir).unwrap();
-    let grants_file = dir.join("grants.json");
-
-    let grants_json = r#"[{"target":"/tmp/test","rights":["read"],"granted_by":"admin","granted_at":"2026-10-03T18:00:00Z","expires":"2026-10-04T18:00:00Z"}]"#;
-    std::fs::write(&grants_file, grants_json).unwrap();
-
-    let canonical_dir = dir.canonicalize().unwrap();
-    let grants = Grants::load(&canonical_dir).unwrap();
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs().to_string();
-
-    let sub_dir = dir.join("sub");
-    let _ = std::fs::create_dir(&sub_dir).unwrap();
-
-    let outcome = run(&grants, &Tool::ListDir { path: dir.to_string_lossy().to_string() }, &now);
-    assert!(outcome.ok);
-    assert!(outcome.output.contains("sub/"));
-}
-
-#[test]
-fn test_run_shell() {
-    let dir = std::env::temp_dir().join(format!("kk-{}-{}", std::process::id(), line!()));
-    let _ = std::fs::create_dir_all(&dir).unwrap();
-    let grants_file = dir.join("grants.json");
-
-    let grants_json = r#"[{"target":"/tmp/test","rights":["shell"],"granted_by":"admin","granted_at":"2026-10-03T18:00:00Z","expires":"2026-10-04T18:00:00Z"}]"#;
-    std::fs::write(&grants_file, grants_json).unwrap();
-
-    let canonical_dir = dir.canonicalize().unwrap();
-    let grants = Grants::load(&canonical_dir).unwrap();
-    let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs().to_string();
-
-    let outcome = run(&grants, &Tool::Shell { cwd: dir.to_string_lossy().to_string(), command: "echo hi".to_string() }, &now);
-    assert!(outcome.ok);
-    assert!(outcome.output.contains("hi"));
-    assert!(outcome.output.ends_with("exit: 0"));
-
-    let outcome = run(&grants, &Tool::Shell { cwd: dir.to_string_lossy().to_string(), command: "exit 3".to_string() }, &now);
-    assert!(!outcome.ok);
-    assert!(outcome.output.ends_with("exit: 3"));
+fn shell_needs_shell_and_reports_exit() {
+    let (b, g) = setup(5, r#""read""#);
+    assert!(!run(&g, &Tool::Shell { cwd: p(&b, "inside"), command: "echo hi".into() }, NOW).ok);
+    let (b2, g2) = setup(6, r#""shell""#);
+    let ok = run(&g2, &Tool::Shell { cwd: p(&b2, "inside"), command: "echo hi".into() }, NOW);
+    assert!(ok.ok && ok.output.contains("hi") && ok.output.ends_with("exit: 0"), "{}", ok.output);
+    let bad = run(&g2, &Tool::Shell { cwd: p(&b2, "inside"), command: "exit 3".into() }, NOW);
+    assert!(!bad.ok && bad.output.ends_with("exit: 3"), "{}", bad.output);
+    let _ = std::fs::remove_dir_all(&b);
+    let _ = std::fs::remove_dir_all(&b2);
 }

@@ -76,3 +76,4 @@ Full write-up: kreative-kompas-vscode-theme `docs/ai-capability/vscode-theme-dra
 - Feed the previous draft plus numbered findings into the next prompt; that fixed most files in one round.
 - (2026-10-03) Fix rounds on a large file (300 lines) at 8k context can return a different, smaller file with a new API (grants.rs lost `allows`/`add`/`revoke`). Always repeat the exact API block in a fix prompt and reject a fix whose public items differ. After two failed rounds Claude fixed it (see lesson worker/rust #11).
 - (2026-10-03) Tests: invents constructors (`Grants::new`) and methods (`is_empty`) on types it was told about; give tests their own file and the exact API list.
+- (2026-10-03) Test files: three fix rounds for the runner tests and each round broke something new (wrong constructors, wrong field types, then missing temp dirs, then compile errors again). Claude wrote them. For tests, give it one complete example test to copy.

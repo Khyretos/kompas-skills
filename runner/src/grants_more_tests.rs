@@ -1,100 +1,54 @@
 use super::*;
-use std::fs;
-use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::path::Path;
+
+fn grants_with(json: &str, tag: u32) -> (std::path::PathBuf, Grants) {
+    let dir = std::env::temp_dir().join(format!("kk-grants-{}-{tag}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let file = dir.join("grants.json");
+    std::fs::write(&file, json).unwrap();
+    let g = Grants::load(&file).unwrap();
+    (dir, g)
+}
+
+const NOW: &str = "2026-10-03T20:00:00Z";
 
 #[test]
-fn test_grants_add_and_revoke() {
-    let dir = std::env::temp_dir().join(format!("kk-{}-{}", std::process::id(), line!()));
-    let _ = fs::create_dir_all(&dir).map_err(|e| e.to_string());
-    let dir = dir.canonicalize().unwrap();
-
-    let mut grants = Grants::load(&dir).unwrap();
-    let grant = Grant {
-        target: "/a/b".to_string(),
-        rights: vec![Right::Read, Right::Write],
-        granted_by: "test".to_string(),
-        granted_at: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
-        expires: None,
-    };
-    grants.add(grant).unwrap();
-
-    assert!(grants.allows(&dir.join("a/b"), &Right::Read, &SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs().to_string()));
-    assert!(grants.allows(&dir.join("a/b"), &Right::Write, &SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs().to_string()));
-    assert!(!grants.allows(&dir.join("a/bc/file"), &Right::Read, &SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs().to_string()));
-
-    let revoked = grants.revoke("/a/b").unwrap();
-    assert!(revoked);
-    assert!(!grants.allows(&dir.join("a/b"), &Right::Read, &SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs().to_string()));
-    assert!(!grants.revoke("/a/b").unwrap());
+fn prefix_is_component_wise() {
+    let (dir, g) = grants_with(r#"[{"target":"/a/b","rights":["read"],"granted_by":"k","granted_at":"2026-10-03T18:00:00Z"}]"#, 1);
+    assert!(g.allows(Path::new("/a/b/file"), &Right::Read, NOW));
+    assert!(!g.allows(Path::new("/a/bc/file"), &Right::Read, NOW));
+    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]
-fn test_expired_grants() {
-    let dir = std::env::temp_dir().join(format!("kk-{}-{}", std::process::id(), line!()));
-    let _ = fs::create_dir_all(&dir).map_err(|e| e.to_string());
-    let dir = dir.canonicalize().unwrap();
-
-    let mut grants = Grants::load(&dir).unwrap();
-    let grant = Grant {
-        target: "/a/b".to_string(),
-        rights: vec![Right::Read],
-        granted_by: "test".to_string(),
-        granted_at: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
-        expires: Some(SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() - 100),
-    };
-    grants.add(grant).unwrap();
-
-    let grant2 = Grant {
-        target: "/a/b".to_string(),
-        rights: vec![Right::Read],
-        granted_by: "test".to_string(),
-        granted_at: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() + 100,
-        expires: None,
-    };
-    grants.add(grant2).unwrap();
-
-    assert!(!grants.allows(&dir.join("a/b"), &Right::Read, &SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs().to_string()));
-    assert!(grants.allows(&dir.join("a/b"), &Right::Read, &(SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() + 200).to_string()));
+fn system_grant_is_not_a_file_wildcard() {
+    let (dir, g) = grants_with(r#"[{"target":"system","rights":["read"],"granted_by":"k","granted_at":"2026-10-03T18:00:00Z"}]"#, 2);
+    assert!(!g.allows(Path::new("/etc/passwd"), &Right::Read, NOW));
+    assert!(g.allows_system(&Right::Read, NOW));
+    assert!(!g.allows_system(&Right::Shell, NOW));
+    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]
-fn test_grants_prefix_check() {
-    let dir = std::env::temp_dir().join(format!("kk-{}-{}", std::process::id(), line!()));
-    let _ = fs::create_dir_all(&dir).map_err(|e| e.to_string());
-    let dir = dir.canonicalize().unwrap();
-
-    let mut grants = Grants::load(&dir).unwrap();
-    let grant = Grant {
-        target: "/a/b".to_string(),
-        rights: vec![Right::Read],
-        granted_by: "test".to_string(),
-        granted_at: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
-        expires: None,
-    };
-    grants.add(grant).unwrap();
-
-    assert!(grants.allows(&dir.join("a/b"), &Right::Read, &SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs().to_string()));
-    assert!(!grants.allows(&dir.join("a/bc/file"), &Right::Read, &SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs().to_string()));
-    assert!(!grants.allows(&dir.join("a/bc"), &Right::Read, &SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs().to_string()));
+fn expired_grant_is_skipped_not_final() {
+    let (dir, g) = grants_with(
+        r#"[{"target":"/a","rights":["read"],"granted_by":"k","granted_at":"2026-10-01T18:00:00Z","expires":"2026-10-02T00:00:00Z"},
+            {"target":"/a/b","rights":["read"],"granted_by":"k","granted_at":"2026-10-03T18:00:00Z"}]"#,
+        3,
+    );
+    assert!(g.allows(Path::new("/a/b/x"), &Right::Read, NOW));
+    assert!(!g.allows(Path::new("/a/c"), &Right::Read, NOW));
+    let _ = std::fs::remove_dir_all(&dir);
 }
 
 #[test]
-fn test_system_grants() {
-    let dir = std::env::temp_dir().join(format!("kk-{}-{}", std::process::id(), line!()));
-    let _ = fs::create_dir_all(&dir).map_err(|e| e.to_string());
-    let dir = dir.canonicalize().unwrap();
-
-    let mut grants = Grants::load(&dir).unwrap();
-    let grant = Grant {
-        target: "system".to_string(),
-        rights: vec![Right::Read],
-        granted_by: "test".to_string(),
-        granted_at: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
-        expires: None,
-    };
-    grants.add(grant).unwrap();
-
-    assert!(grants.allows_system(&Right::Read, &SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs().to_string()));
-    assert!(!grants.allows(&dir.join("any/path"), &Right::Read, &SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs().to_string()));
+fn revoke_once_and_file_round_trips() {
+    let (dir, mut g) = grants_with(r#"[{"target":"/a","rights":["read"],"granted_by":"k","granted_at":"2026-10-03T18:00:00Z"}]"#, 4);
+    g.add(Grant { target: "/b".into(), rights: vec![Right::Write], granted_by: "k".into(), granted_at: NOW.into(), expires: None }).unwrap();
+    assert!(g.revoke("/a").unwrap());
+    assert!(!g.revoke("/a").unwrap());
+    let again = Grants::load(&dir.join("grants.json")).unwrap();
+    assert_eq!(again.list, g.list);
+    let _ = std::fs::remove_dir_all(&dir);
 }

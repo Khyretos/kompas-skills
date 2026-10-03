@@ -84,3 +84,7 @@ Source: soucouyant benchmark, ~/Docker/docs/ai-capability/soucouyant-model-bench
   for other callers and ask them to pause; a swap stalls their jobs and spoils the timings.
 - A model that doesn't fit is split by layers onto the CPU (qwen3.6:35b-a3b: 45% CPU, 26 tok/s, ~20 GB RAM).
   Check `ollama ps` says 100% GPU before trusting a speed number.
+
+## 5. CI jobs never use the host toolchain (2026-10-03)
+
+Every job runs in a container image (rust:1, rust:1-alpine, node:22); a broken system update on the runner host must not break builds.
