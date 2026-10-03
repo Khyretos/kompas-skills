@@ -174,7 +174,8 @@ async fn main() -> anyhow::Result<()> {
     let app = Router::new()
         .nest("/api", api)
         .fallback_service(web)
-        .layer(SetResponseHeaderLayer::overriding(
+        // A route may set a stricter policy of its own (the uploaded logo).
+        .layer(SetResponseHeaderLayer::if_not_present(
             header::CONTENT_SECURITY_POLICY,
             HeaderValue::from_static(CSP),
         ))
