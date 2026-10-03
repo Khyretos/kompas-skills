@@ -3,20 +3,20 @@ export function initResize(shell: HTMLElement): void {
   const MIN = 260;
 
   const storageKey = "kk.layout";
-  let layout: { left?: number; right?: number; leftCollapsed?: boolean; rightCollapsed?: boolean } = {};
-  let savedLayout: typeof layout | null = null;
+  type Layout = { left?: number; right?: number; leftCollapsed?: boolean; rightCollapsed?: boolean };
+  let layout: Layout = {};
 
   function load(): void {
     try {
       const raw = localStorage.getItem(storageKey);
       if (!raw) return;
-      savedLayout = JSON.parse(raw);
+      layout = JSON.parse(raw);
     } catch {
-      savedLayout = null;
+      // ignore parse errors
     }
   }
 
-  function save(layout: typeof layout): void {
+  function save(): void {
     try {
       localStorage.setItem(storageKey, JSON.stringify(layout));
     } catch {
@@ -36,10 +36,9 @@ export function initResize(shell: HTMLElement): void {
   function setWidth(side: Side, px: number): void {
     const w = clamp(side, px);
     const prop = `--${side}-size`;
-    shell.style.removeProperty(prop);
     shell.style.setProperty(prop, `${w}px`);
     layout[side] = w;
-    save(layout);
+    save();
     updateAriaValues(side);
   }
 
@@ -54,7 +53,7 @@ export function initResize(shell: HTMLElement): void {
       shell.style.removeProperty(prop);
     }
     layout[`${side}Collapsed`] = on;
-    save(layout);
+    save();
     updateCollapseBtn(side);
   }
 
@@ -112,13 +111,11 @@ export function initResize(shell: HTMLElement): void {
   }
 
   function applySavedLayout(): void {
-    if (!savedLayout) return;
-    if (typeof savedLayout.left === "number") setWidth("left", savedLayout.left);
-    else delete layout.left;
-    if (typeof savedLayout.right === "number") setWidth("right", savedLayout.right);
-    else delete layout.right;
-    if (typeof savedLayout.leftCollapsed === "boolean") setCollapsed("left", savedLayout.leftCollapsed);
-    if (typeof savedLayout.rightCollapsed === "boolean") setCollapsed("right", savedLayout.rightCollapsed);
+    if (!layout.left && !layout.right && !layout.leftCollapsed && !layout.rightCollapsed) return;
+    if (typeof layout.left === "number") setWidth("left", layout.left);
+    if (typeof layout.right === "number") setWidth("right", layout.right);
+    if (typeof layout.leftCollapsed === "boolean") setCollapsed("left", layout.leftCollapsed);
+    if (typeof layout.rightCollapsed === "boolean") setCollapsed("right", layout.rightCollapsed);
   }
 
   function handlePointerDown(e: PointerEvent): void {
@@ -178,7 +175,7 @@ export function initResize(shell: HTMLElement): void {
       setCollapsed(side, !shell.hasAttribute(`data-${side}-collapsed`));
     }
     updateAriaValues(side);
-    save(layout);
+    save();
   }
 
   function handleDblClick(e: MouseEvent): void {
@@ -187,7 +184,7 @@ export function initResize(shell: HTMLElement): void {
       const side = handle.dataset.side as Side;
       shell.style.removeProperty(`--${side}-size`);
       delete layout[side];
-      save(layout);
+      save();
       updateAriaValues(side);
     }
   }
@@ -201,7 +198,6 @@ export function initResize(shell: HTMLElement): void {
   }
 
   load();
-  applySavedLayout();
 
   const handles = [makeHandle("left"), makeHandle("right")];
   const buttons = [makeCollapse("left"), makeCollapse("right")];
@@ -221,10 +217,11 @@ export function initResize(shell: HTMLElement): void {
     b.addEventListener("click", handleCollapseClick);
   });
 
+  applySavedLayout();
+
   window.addEventListener("resize", () => {
-    if (savedLayout) {
-      if (typeof savedLayout.left === "number" && !shell.hasAttribute("data-left-collapsed")) setWidth("left", savedLayout.left);
-      if (typeof savedLayout.right === "number" && !shell.hasAttribute("data-right-collapsed")) setWidth("right", savedLayout.right);
-    }
+    if (!layout.left && !layout.right) return;
+    if (typeof layout.left === "number" && !shell.hasAttribute("data-left-collapsed")) setWidth("left", layout.left);
+    if (typeof layout.right === "number" && !shell.hasAttribute("data-right-collapsed")) setWidth("right", layout.right);
   });
 }

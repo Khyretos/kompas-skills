@@ -256,7 +256,7 @@ async function reload(): Promise<void> {
 }
 
 function wire(shell: HTMLElement): void {
-  initResize(shell);
+  initResize($(".shell"));
   store.subscribe(render);
   store.flush();
   api.onEvent(applyEvent);
