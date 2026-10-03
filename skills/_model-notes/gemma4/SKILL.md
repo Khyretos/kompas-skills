@@ -21,3 +21,4 @@ As translation judge (kk-localize, 2026-10-03), replacing qwen3:14b:
 - Stricter than qwen3:14b on German style and grammar, with fair reasons ("Beweis" is too literal for "proof"; a German sentence without a main verb); milder on short Japanese captions.
 - About 0.4-0.55 s per score through the OpenAI endpoint with `reasoning_effort: "none"`.
 - Back-translation prompts say "give one translation, nothing else"; parse scores strictly (first JSON object, integer 1-5, one retry) and never cache an unparsable answer.
+- (2026-10-03, Kompanion F5) No `query!` macros when given a positive example (good). But: kept binding `serde_json::Value` as an SQLite column through two fix rounds; wrote a security bug (fixed "dummy" machine id in a handler); used made-up fields (`grants.grants`). Needs the exact types of every field in the prompt.

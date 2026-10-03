@@ -45,7 +45,7 @@ fn now() -> String {
         .as_secs() as i64;
     let (y, m, d) = civil(since_epoch);
     // Simple RFC 3339: YYYY-MM-DDTHH:MM:SSZ (UTC)
-    // Note: This is a simplified version for the requirement of "only std"
+    // Note: This is a simplified function for the requirement of "only std"
     // and "small civil-date function".
     format!("{}-{:02}-{:02}T00:00:00Z", y, m, d)
 }
@@ -141,7 +141,7 @@ fn main() {
             "job_id": "grants",
             "ok": true,
             "output": "",
-            "grants": grants.grants
+            "grants": grants.list
         }),
     );
 
@@ -191,7 +191,7 @@ fn main() {
                                 _ => {
                                     if let Ok(tool) = serde_json::from_value::<tools::Tool>(tool_val.clone()) {
                                         let res = tools::run(&grants, &tool, &now());
-                                        output = res.as_str().unwrap_or("").to_string();
+                                        output = res.output;
                                         if output.starts_with("not granted") {
                                             refused = true;
                                         } else {
@@ -213,7 +213,7 @@ fn main() {
                                     "ok": ok,
                                     "output": output,
                                     "refused": refused,
-                                    "grants": grants.grants
+                                    "grants": grants.list
                                 }),
                             );
                         }
