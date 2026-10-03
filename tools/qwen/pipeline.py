@@ -34,7 +34,8 @@ def ask(system, user, max_tokens):
         v = json.load(r)
     choice = v["choices"][0]
     if choice.get("finish_reason") == "length":
-        print(f"WARNING: answer cut off ({v.get('usage', {})})", file=sys.stderr, flush=True)
+        # Never write a cut-off answer over a file.
+        raise RuntimeError(f"answer cut off at the context limit ({v.get('usage', {})})")
     return choice["message"]["content"], time.time() - t, v.get("usage", {}).get("completion_tokens", 0)
 
 def strip(text):
@@ -49,6 +50,7 @@ def main():
     jobs = json.load(open(sys.argv[1]))
     log = open(sys.argv[2] if len(sys.argv) > 2 else os.devnull, "a")
     for job in jobs:
+      try:
         rules = skills(job["role"])
         ctx = "".join(f"\n--- {c} ---\n{open(os.path.join(REPO, c)).read()}" for c in job.get("context", []))
         system = "You write exact, compiling code for this repository. Follow these rules strictly:\n\n" + rules
@@ -73,6 +75,8 @@ def main():
                "lines": strip(final).count("\n"), "at": time.strftime("%Y-%m-%dT%H:%M:%S")}
         log.write(json.dumps(rec) + "\n"); log.flush()
         print(json.dumps(rec), flush=True)
+      except RuntimeError as e:
+        print(json.dumps({"name": job["name"], "error": str(e)}), flush=True)
 
 if __name__ == "__main__":
     main()
