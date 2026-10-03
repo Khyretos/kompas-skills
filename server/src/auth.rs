@@ -164,6 +164,7 @@ pub async fn status(
         "version": env!("CARGO_PKG_VERSION"),
         "setupNeeded": !users_exist(&state).await?,
         "user": user.map(|u| u.name),
+        "logoVersion": crate::admin::logo_version(&state.db).await?,
         "windshift": if state.windshift { "connected" } else { "not configured" },
         "signIn": {
             "password": state.config.password_login(),
@@ -305,7 +306,7 @@ pub async fn guard(State(state): State<AppState>, mut req: Request, next: Next) 
     }
     let open = matches!(
         path.as_str(),
-        "/status" | "/theme.css" | "/setup" | "/login" | "/auth/oidc/start" | "/auth/oidc/callback"
+        "/status" | "/theme.css" | "/logo" | "/setup" | "/login" | "/auth/oidc/start" | "/auth/oidc/callback"
     );
 
     if !matches!(*req.method(), Method::GET | Method::HEAD | Method::OPTIONS) {

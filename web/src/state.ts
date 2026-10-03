@@ -5,6 +5,7 @@ export interface AppState {
   server?: Server;
   userName?: string; // signed-in user
   isAdmin: boolean;
+  logoVersion?: string | null;
   notifications?: NotificationPrefs; // loaded when Settings opens
   windshift?: string; // "connected" | "not configured" (set in the server's compose file only)
   theme: ThemeChoice;

@@ -22,6 +22,8 @@ export interface KompanionApi {
   getAdmin(): Promise<{ settings: AdminSettings; smtpPasswordSet: boolean }>;
   saveAdmin(settings: AdminSettings): Promise<AdminSettings>;
   testMail(to: string): Promise<void>;
+  uploadLogo(file: File): Promise<void>;
+  removeLogo(): Promise<void>;
 
   listProjects(): Promise<Project[]>;
   listChats(): Promise<Chat[]>;

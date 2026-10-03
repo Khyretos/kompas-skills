@@ -35,14 +35,24 @@ impl Default for Prefs {
     }
 }
 
+/// The user's switches; the address defaults to the account's email (from
+/// single sign-on), so notifications work without any setup.
 async fn prefs(db: &SqlitePool, user_id: &str) -> sqlx::Result<Prefs> {
-    Ok(sqlx::query_as(
+    let mut p: Prefs = sqlx::query_as(
         "SELECT email, on_needs_input, on_failed, on_done, daily_summary FROM notification_prefs WHERE user_id = ?",
     )
     .bind(user_id)
     .fetch_optional(db)
     .await?
-    .unwrap_or_default())
+    .unwrap_or_default();
+    if p.email.is_empty() {
+        let account: Option<(Option<String>,)> = sqlx::query_as("SELECT email FROM users WHERE id = ?")
+            .bind(user_id)
+            .fetch_optional(db)
+            .await?;
+        p.email = account.and_then(|a| a.0).unwrap_or_default();
+    }
+    Ok(p)
 }
 
 pub async fn get_prefs(State(s): State<AppState>, Extension(u): Extension<User>) -> ApiResult<Json<Prefs>> {

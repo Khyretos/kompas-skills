@@ -5,7 +5,7 @@ import { relTime } from "../core/time";
 import type { AppState } from "../state";
 import type { Chat, Task } from "../api/types";
 import { icon } from "./icons";
-import logo from "../assets/kk-logo.svg";
+import { logoUrl } from "../core/logo";
 
 const TASKS_SHOWN = 6;
 
@@ -47,7 +47,7 @@ export function renderSidebar(s: AppState): SafeHtml {
   return html`
     <div class="pane-head">
       <div class="server" title="${s.server?.url ?? ""}">
-        <img class="server-logo" src="${logo}" alt="" width="28" height="28">
+        <img class="server-logo" src="${logoUrl(s.logoVersion)}" alt="" width="28" height="28">
         <span><strong>${s.server?.name ?? ""}</strong><small><span class="dot ok" aria-hidden="true"></span> Connected</small></span>
       </div>
       <button class="icon-btn only-phone" data-action="pane" data-pane="main" aria-label="Close">${icon("close")}</button>

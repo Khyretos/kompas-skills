@@ -18,15 +18,16 @@ export class HttpApi implements KompanionApi {
   constructor(private base = "") {}
 
   private async request<T>(method: string, path: string, body?: unknown): Promise<T> {
+    const raw = body instanceof Blob;
     const res = await fetch(`${this.base}/api${path}`, {
       method,
       credentials: "same-origin",
       headers: {
-        ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+        ...(body === undefined ? {} : { "Content-Type": raw ? (body as Blob).type || "application/octet-stream" : "application/json" }),
         // Required by the server for anything that changes state (CSRF guard).
         "X-Kompanion": "1",
       },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: body === undefined ? undefined : raw ? (body as Blob) : JSON.stringify(body),
     });
     if (!res.ok) {
       let message = `The server answered ${res.status}.`;
@@ -63,6 +64,8 @@ export class HttpApi implements KompanionApi {
   setTheme(theme: ThemeChoice) { return this.request<void>("PUT", "/me/theme", { theme }); }
   getAdmin() { return this.request<{ settings: AdminSettings; smtpPasswordSet: boolean }>("GET", "/admin/settings"); }
   saveAdmin(settings: AdminSettings) { return this.request<AdminSettings>("PUT", "/admin/settings", settings); }
+  uploadLogo(file: File) { return this.request<void>("PUT", "/admin/logo", file); }
+  removeLogo() { return this.request<void>("DELETE", "/admin/logo"); }
   testMail(to: string) { return this.request<void>("POST", "/admin/test-mail", { to }); }
 
   listProjects() { return this.request<Project[]>("GET", "/projects"); }

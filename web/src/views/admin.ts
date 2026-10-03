@@ -68,6 +68,13 @@ export function renderAdmin(a: AdminSettings, smtpPasswordSet: boolean, theme: "
             </div>
           </div>
 
+          <h3 class="label">Logo</h3>
+          <div class="field">
+            <label for="logo-file">Upload a logo (PNG or SVG, at most 256 KB)</label>
+            <input type="file" id="logo-file" accept="image/png,image/svg+xml">
+            <button type="button" class="btn small" data-action="remove-logo">Use the built-in logo</button>
+          </div>
+
           <h3 class="label">Colours</h3>
           <p class="muted small">Colours that make text hard to read are refused (WCAG AA).</p>
           <div class="field">

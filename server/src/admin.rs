@@ -320,3 +320,96 @@ mod tests {
         assert!(p.iter().any(|m| m.contains("not a colour")));
     }
 }
+
+// ---- Logo (admin upload, shown on sign-in, sidebar and the SSO button) ----
+
+const LOGO_MAX: usize = 256 * 1024;
+
+fn logo_type(bytes: &[u8]) -> Option<&'static str> {
+    if bytes.starts_with(b"\x89PNG\r\n\x1a\n") {
+        return Some("image/png");
+    }
+    let head = String::from_utf8_lossy(&bytes[..bytes.len().min(1024)]).to_lowercase();
+    let head = head.trim_start_matches('\u{feff}').trim_start();
+    if (head.starts_with("<svg") || head.starts_with("<?xml")) && head.contains("<svg") {
+        return Some("image/svg+xml");
+    }
+    None
+}
+
+pub async fn put_logo(
+    State(s): State<AppState>,
+    Extension(u): Extension<User>,
+    body: axum::body::Bytes,
+) -> ApiResult<StatusCode> {
+    require_admin(&s, &u).await?;
+    if body.len() > LOGO_MAX {
+        return Err(ApiError::BadRequest("The logo is too big (256 KB at most).".into()));
+    }
+    let Some(kind) = logo_type(&body) else {
+        return Err(ApiError::BadRequest("Upload a PNG or SVG file.".into()));
+    };
+    use base64::Engine;
+    let data = base64::engine::general_purpose::STANDARD.encode(&body);
+    for (k, v) in [("logoType", kind.to_string()), ("logoData", data), ("logoVersion", crate::util::now())] {
+        sqlx::query("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+            .bind(k)
+            .bind(serde_json::to_string(&v).unwrap_or_default())
+            .execute(&s.db)
+            .await?;
+    }
+    Ok(StatusCode::NO_CONTENT)
+}
+
+pub async fn delete_logo(State(s): State<AppState>, Extension(u): Extension<User>) -> ApiResult<StatusCode> {
+    require_admin(&s, &u).await?;
+    sqlx::query("DELETE FROM settings WHERE key IN ('logoType', 'logoData', 'logoVersion')")
+        .execute(&s.db)
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn setting(db: &SqlitePool, key: &str) -> sqlx::Result<Option<String>> {
+    let row: Option<(String,)> = sqlx::query_as("SELECT value FROM settings WHERE key = ?").bind(key).fetch_optional(db).await?;
+    Ok(row.and_then(|r| serde_json::from_str(&r.0).ok()))
+}
+
+/// Version stamp of the custom logo, if any (for cache busting in the app).
+pub async fn logo_version(db: &SqlitePool) -> sqlx::Result<Option<String>> {
+    setting(db, "logoVersion").await
+}
+
+/// The custom logo. SVGs are served with a sandboxing policy, so opening one
+/// directly can't run scripts; inside the app they are only used as <img>.
+pub async fn get_logo(State(s): State<AppState>) -> ApiResult<axum::response::Response> {
+    let (Some(kind), Some(data)) = (setting(&s.db, "logoType").await?, setting(&s.db, "logoData").await?) else {
+        return Err(ApiError::NotFound);
+    };
+    use base64::Engine;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(data)
+        .map_err(|_| ApiError::NotFound)?;
+    Ok((
+        [
+            (header::CONTENT_TYPE, kind),
+            (header::CACHE_CONTROL, "no-cache".into()),
+            (header::CONTENT_SECURITY_POLICY, "default-src 'none'; style-src 'unsafe-inline'; sandbox".into()),
+            (header::X_CONTENT_TYPE_OPTIONS, "nosniff".into()),
+        ],
+        bytes,
+    )
+        .into_response())
+}
+
+#[cfg(test)]
+mod logo_tests {
+    use super::logo_type;
+
+    #[test]
+    fn accepts_png_and_svg_only() {
+        assert_eq!(logo_type(b"\x89PNG\r\n\x1a\nrest"), Some("image/png"));
+        assert_eq!(logo_type(b"<?xml version=\"1.0\"?>\n<svg xmlns=\"x\"/>"), Some("image/svg+xml"));
+        assert_eq!(logo_type(b"<html><script>alert(1)</script>"), None);
+        assert_eq!(logo_type(b"GIF89a"), None);
+    }
+}

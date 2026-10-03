@@ -3,7 +3,7 @@
 import { $, html, mount } from "../core/html";
 import type { KompanionApi } from "../api/client";
 import type { ServerStatus } from "../api/types";
-import logo from "../assets/kk-logo.svg";
+import { logoUrl } from "../core/logo";
 
 const SSO_ERRORS: Record<string, string> = {
   "no-account": "Single sign-on worked, but no Kompanion account belongs to you yet. Ask the owner to add you.",
@@ -11,6 +11,7 @@ const SSO_ERRORS: Record<string, string> = {
 };
 
 export function showSignIn(root: HTMLElement, api: KompanionApi, status: ServerStatus, done: () => void): void {
+  const logo = logoUrl(status.logoVersion);
   const setupNeeded = status.setupNeeded;
   const sso = status.signIn?.oidc ?? null;
   const password = setupNeeded || (status.signIn?.password ?? true);

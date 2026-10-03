@@ -128,6 +128,13 @@ async fn main() -> anyhow::Result<()> {
         .route("/me/theme", axum::routing::put(admin::set_my_theme))
         .route("/admin/settings", get(admin::get_settings).put(admin::put_settings))
         .route("/admin/test-mail", post(admin::test_mail))
+        .route(
+            "/admin/logo",
+            axum::routing::put(admin::put_logo)
+                .delete(admin::delete_logo)
+                .layer(axum::extract::DefaultBodyLimit::max(300 * 1024)),
+        )
+        .route("/logo", get(admin::get_logo))
         .route("/setup", post(auth::setup))
         .route("/login", post(auth::login))
         .route("/logout", post(auth::logout))

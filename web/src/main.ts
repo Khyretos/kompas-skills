@@ -95,7 +95,7 @@ async function start(server: Server): Promise<void> {
   store.set({
     server: { ...server, name: status.name || server.name }, projects, chats, tasks, providers, roles, machines, today,
     userName: status.user ?? undefined, isAdmin: !!status.admin, theme: status.theme ?? "system",
-    machinesRefresh: status.machinesRefresh ?? 5, windshift: status.windshift,
+    machinesRefresh: status.machinesRefresh ?? 5, windshift: status.windshift, logoVersion: status.logoVersion,
   });
   applyTheme(status.theme ?? "system");
   wire(shellRoot);
@@ -135,7 +135,7 @@ function render(s: AppState, prev: AppState): void {
   shell.dataset.pane = s.pane;
 
   if (changed(s, prev, ["chats", "projects", "tasks", "activeChatId", "activeProjectId", "expandedProjects",
-    "chatMenuId", "renamingChatId", "server", "userName"])) {
+    "chatMenuId", "renamingChatId", "server", "userName", "logoVersion"])) {
     remount($("#left"), renderSidebar(s));
   }
   if (s.renamingChatId && s.renamingChatId !== prev.renamingChatId) {
@@ -177,7 +177,7 @@ function render(s: AppState, prev: AppState): void {
 
   const settings = $("#settings");
   settings.hidden = !s.settingsOpen;
-  if (s.settingsOpen && changed(s, prev, ["settingsOpen", "providers", "roles", "admin", "theme", "isAdmin", "notifications", "windshift"])) {
+  if (s.settingsOpen && changed(s, prev, ["settingsOpen", "providers", "roles", "admin", "theme", "isAdmin", "notifications", "windshift", "logoVersion"])) {
     remount(settings, renderSettings(s));
   }
   firstRender = false;
@@ -284,6 +284,10 @@ function wire(shell: HTMLElement): void {
       api.getNotifications().then((notifications) => store.set({ notifications }), showError);
       if (store.get().isAdmin) api.getAdmin().then((admin) => store.set({ admin }), showError);
     },
+    "remove-logo": () => {
+      if (!confirm("Go back to the built-in logo?")) return;
+      api.removeLogo().then(() => store.set({ logoVersion: null }), showError);
+    },
     "test-mail": () => {
       const to = (document.getElementById("test-to") as HTMLInputElement | null)?.value.trim() ?? "";
       if (!to) return adminMessage("Fill in an address to send the test to.", true);
@@ -298,6 +302,15 @@ function wire(shell: HTMLElement): void {
 
   shell.addEventListener("change", async (ev) => {
     const radio = ev.target as HTMLInputElement;
+    if (radio.id === "logo-file" && radio.files?.[0]) {
+      const file = radio.files[0];
+      adminMessage("Uploading…");
+      api.uploadLogo(file).then(() => api.status()).then((st) => {
+        store.set({ logoVersion: st.logoVersion });
+        adminMessage("Logo saved.");
+      }, (e) => adminMessage(e instanceof Error ? e.message : String(e), true));
+      return;
+    }
     if (radio.name === "theme") {
       const theme = radio.value as ThemeChoice;
       applyTheme(theme);
