@@ -7,7 +7,7 @@ async function openDemo(page: Page): Promise<void> {
 }
 
 test.describe("Layout", () => {
-
+  test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
       try {
         if (!sessionStorage.getItem("kk-test")) {

@@ -26,3 +26,6 @@
     `.locator(sel)`, `.first()` or `.filter({ hasText })`. Counts use `toHaveCount(n)` or
     `expect(await l.count()).toBeGreaterThan(0)`. "Gone" is
     `expect(page.locator("li", { hasText: t })).toHaveCount(0)`.
+14. When you remove lines with an edit block, SEARCH for exactly those lines. Never include the
+    line that opens the surrounding block (`test.beforeEach(async ({ page }) => {`) unless the
+    REPLACE keeps it.
