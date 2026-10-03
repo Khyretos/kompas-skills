@@ -46,3 +46,4 @@
 {"name": "fix runner/src/proc.rs", "out": "runner/src/proc.rs", "gpu_seconds": 46.1, "tokens": 1275, "lines": 121, "review": "skipped", "at": "2026-10-03T23:54:05"}
 {"name": "fix runner/src/sysinfo.rs", "out": "runner/src/sysinfo.rs", "gpu_seconds": 31.6, "tokens": 854, "lines": 102, "review": "skipped", "at": "2026-10-03T23:54:36"}
 {"name": "fix runner/src/tools.rs", "out": "runner/src/tools.rs", "gpu_seconds": 60.9, "tokens": 1672, "lines": 156, "review": "skipped", "at": "2026-10-03T23:55:37"}
+{"name": "edit.rs test fixes", "out": "runner/src/edit.rs", "gpu_seconds": 70.7, "tokens": 2029, "lines": 186, "review": "skipped", "at": "2026-10-03T23:59:29"}

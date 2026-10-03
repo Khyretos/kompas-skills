@@ -45,3 +45,6 @@
 22. To iterate an `Option` or `Result` of an iterator, use `.into_iter().flatten()`
     (`fs::read_dir(p).into_iter().flatten()`). `Option<ReadDir>` has no `.flatten()`.
     Compare `&&str` with `String` by dereferencing: `list.iter().any(|a| *a == s)`.
+23. Rust runs tests in parallel. Each test that touches files needs its own folder: put the
+    test name in it (`temp_dir().join(format!("kk-edit-{name}-{}", process::id()))`). When
+    tests share one folder, one test's cleanup deletes another's files.
