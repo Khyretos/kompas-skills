@@ -44,3 +44,11 @@ Full write-up: kreative-kompas-vscode-theme `docs/ai-capability/vscode-theme-dra
   mis-maps terminal ANSI and diff colours. Give it the exact key list to fill.
 - (2026-10-03) DOM code (code blocks): typechecked first try and avoided innerHTML, but skipped the no-language case with `continue`, forgot button labels, and moved a node before replacing it (`appendChild(pre)` then `replaceChild(..., pre)` throws). Ask it to "insert the wrapper before the node, then move the node in".
 - (2026-10-03) fdinfo reader (Rust): wrong aggregation key, no dedupe, could not parse "123 ns" or a PCI slot with colons, dropped the requested tests. Rewritten. The GPU panel view (TS) was good: only cosmetic fixes.
+
+## Config files from a role table (2026-10-03, DMS theme + kitty colours)
+
+- Given an example file plus an explicit role-to-colour table, it transcribes accurately (dark variant: no errors).
+- Keys the table doesn't cover get copied from the example file (light-variant containers came from dankViolet).
+  List every key with a value, or review those keys specifically.
+- It doesn't think about what a colour is *for*: `cursor_text_color` = cursor colour (text under the cursor
+  becomes invisible), lilac `#cca9ff` as secondary on a light background (1.7:1). Contrast-check pairs after it.
