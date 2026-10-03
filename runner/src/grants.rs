@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
-pub enum Right { Read, Write, Shell }
+pub enum Right { Read, Write, Shell, Packages, Services, Desktop, Root }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Grant {

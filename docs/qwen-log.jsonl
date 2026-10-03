@@ -32,3 +32,13 @@
 {"name": "fix web/src/views/access.ts", "out": "web/src/views/access.ts", "gpu_seconds": 30.8, "tokens": 896, "lines": 111, "review": "skipped", "at": "2026-10-03T22:59:16"}
 {"name": "grants.json created at start", "out": "runner/src/grants.rs", "gpu_seconds": 238.9, "tokens": 6687, "lines": 321, "at": "2026-10-03T23:21:37"}
 {"name": "fix grants test cleanup", "out": "runner/src/grants.rs", "gpu_seconds": 110.4, "tokens": 3348, "lines": 321, "review": "skipped", "at": "2026-10-03T23:23:38"}
+{"name": "F6a proc.rs", "out": "runner/src/proc.rs", "gpu_seconds": 71.9, "tokens": 2089, "lines": 120, "at": "2026-10-03T23:28:41"}
+{"name": "F6a systools.rs", "out": "runner/src/systools.rs", "gpu_seconds": 352.9, "tokens": 9979, "lines": 678, "at": "2026-10-03T23:34:34"}
+{"name": "F6b proc.rs fix", "out": "runner/src/proc.rs", "gpu_seconds": 80.6, "tokens": 2120, "lines": 122, "at": "2026-10-03T23:37:02"}
+{"name": "F6b edit.rs", "out": "runner/src/edit.rs", "gpu_seconds": 145.9, "tokens": 3963, "lines": 181, "at": "2026-10-03T23:39:28"}
+{"name": "F6b systools.rs", "out": "runner/src/systools.rs", "gpu_seconds": 177.5, "tokens": 4887, "lines": 239, "at": "2026-10-03T23:42:26"}
+{"name": "F6b sysinfo.rs", "out": "runner/src/sysinfo.rs", "gpu_seconds": 65.2, "tokens": 1809, "lines": 110, "at": "2026-10-03T23:43:31"}
+{"name": "F6c edit.rs fix", "out": "runner/src/edit.rs", "gpu_seconds": 76.9, "tokens": 1999, "lines": 186, "review": "skipped", "at": "2026-10-03T23:45:38"}
+{"name": "F6c systools.rs fix", "out": "runner/src/systools.rs", "gpu_seconds": 83.1, "tokens": 2465, "lines": 243, "review": "skipped", "at": "2026-10-03T23:47:01"}
+{"name": "F6c sysinfo.rs fix", "out": "runner/src/sysinfo.rs", "gpu_seconds": 27.7, "tokens": 851, "lines": 101, "review": "skipped", "at": "2026-10-03T23:47:29"}
+{"name": "F6d tools.rs wiring", "out": "runner/src/tools.rs", "gpu_seconds": 113.5, "tokens": 3324, "lines": 155, "at": "2026-10-03T23:49:35"}

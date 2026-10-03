@@ -1,8 +1,5 @@
-use std::fs::{self, canonicalize, File, metadata};
-use std::io::{BufRead, BufReader, BufWriter, Write};
-use std::path::{Path, PathBuf};
-use std::process::{Command, Child};
-use std::time::{Duration, Instant};
+use std::fs::{self, canonicalize};
+use std::path::Path;
 use serde::{Deserialize, Serialize};
 use crate::grants::{Grants, Right};
 
@@ -13,6 +10,11 @@ pub enum Tool {
     WriteFile { path: String, content: String },
     ListDir { path: String },
     Shell { cwd: String, command: String },
+    EditFile { path: String, old: String, new: String },
+    Service { action: String, #[serde(default)] unit: Option<String> },
+    Package { manager: String, action: String, names: Vec<String> },
+    Reload { what: String },
+    SystemInfo,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -33,7 +35,7 @@ pub fn run(grants: &Grants, tool: &Tool, now: &str) -> Outcome {
             }
 
             if canonical_path.is_file() {
-                let metadata = match metadata(&canonical_path) {
+                let metadata = match fs::metadata(&canonical_path) {
                     Ok(m) => m,
                     Err(_) => return Outcome { ok: false, output: format!("not granted: {:?} on {}", Right::Read, canonical_path.display()) },
                 };
@@ -69,7 +71,7 @@ pub fn run(grants: &Grants, tool: &Tool, now: &str) -> Outcome {
             }
 
             let canonical_path = canonical_parent.join(path.file_name().unwrap_or_default());
-            let mut file = match File::create(&canonical_path) {
+            let mut file = match fs::File::create(&canonical_path) {
                 Ok(f) => f,
                 Err(_) => return Outcome { ok: false, output: format!("not granted: {:?} on {}", Right::Write, canonical_path.display()) },
             };
@@ -138,53 +140,13 @@ pub fn run(grants: &Grants, tool: &Tool, now: &str) -> Outcome {
                 return Outcome { ok: false, output: format!("not granted: {:?} on {}", Right::Shell, canonical_cwd.display()) };
             }
 
-            let mut child = match Command::new("sh")
-                .arg("-c")
-                .arg(command)
-                .current_dir(&canonical_cwd)
-                .stdin(std::process::Stdio::null())
-                .stdout(std::process::Stdio::piped())
-                .stderr(std::process::Stdio::piped())
-                .spawn()
-            {
-                Ok(c) => c,
-                Err(e) => return Outcome { ok: false, output: format!("could not start the command: {e}") },
-            };
-            // Drain both pipes in threads so a chatty command can't block on a full pipe.
-            let drain = |pipe: Option<Box<dyn std::io::Read + Send>>| {
-                std::thread::spawn(move || {
-                    let mut buf = Vec::new();
-                    if let Some(mut p) = pipe {
-                        let _ = std::io::Read::read_to_end(&mut std::io::Read::take(&mut p, 64 * 1024), &mut buf);
-                    }
-                    buf
-                })
-            };
-            let out_t = drain(child.stdout.take().map(|p| Box::new(p) as Box<dyn std::io::Read + Send>));
-            let err_t = drain(child.stderr.take().map(|p| Box::new(p) as Box<dyn std::io::Read + Send>));
-            let start = Instant::now();
-            let code = loop {
-                match child.try_wait() {
-                    Ok(Some(status)) => break status.code().unwrap_or(-1),
-                    Ok(None) if start.elapsed() < Duration::from_secs(60) => std::thread::sleep(Duration::from_millis(50)),
-                    Ok(None) => {
-                        let _ = child.kill();
-                        let _ = child.wait();
-                        break -1;
-                    }
-                    Err(_) => break -1,
-                }
-            };
-            let mut bytes = out_t.join().unwrap_or_default();
-            bytes.extend(err_t.join().unwrap_or_default());
-            bytes.truncate(64 * 1024);
-            let mut output = String::from_utf8_lossy(&bytes).into_owned();
-            if !output.is_empty() && !output.ends_with('\n') {
-                output.push('\n');
-            }
-            output.push_str(&format!("exit: {code}"));
-            Outcome { ok: code == 0, output }
+            crate::proc::run_cmd("sh", &["-c".to_string(), command.clone()], Some(&canonical_cwd), &[], 60)
         },
+        Tool::EditFile { path, old, new } => crate::edit::edit_file(grants, path, old, new, now),
+        Tool::Service { action, unit } => crate::systools::service(grants, action, unit.as_deref(), now),
+        Tool::Package { manager, action, names } => crate::systools::package(grants, manager, action, names, now),
+        Tool::Reload { what } => crate::systools::reload(grants, what, now),
+        Tool::SystemInfo => crate::sysinfo::system_info(),
     }
 }
 

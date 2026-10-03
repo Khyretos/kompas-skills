@@ -17,3 +17,28 @@
     that deletes the whole system temp dir. Make a unique subdir
     (`temp_dir().join(format!("kk-<test>-{}", std::process::id()))`), use it, and remove only that
     subdir; or remove just the one file with `fs::remove_file`.
+
+13. Context files are for reading signatures. Never copy them into your output: write only the
+    file you were asked for, and call the other modules through `use crate::...`.
+14. `?` only works in functions that return `Result` or `Option`. In a function returning
+    `Outcome`, use `let Some(x) = ... else { return Outcome { .. } };` or `match`.
+15. Build a command as one argv list: the program is `argv[0]`, the args are `&argv[1..]`.
+    Never pass the program name as both the program and the first argument.
+16. Every element of a `Vec<String>` must be a `String`. Mixing `"--needed"` (a `&str`) in does not
+    compile. Use a helper: `fn argv(parts: &[&str]) -> Vec<String> { parts.iter().map(|s| s.to_string()).collect() }`.
+17. An edit replaces only the matched text: `content.replacen(old, new, 1)`. Never write `new`
+    as the whole file; that destroys the rest of the file.
+18. Process plumbing: `Command::current_dir` takes a path, not an `Option`
+    (`if let Some(d) = cwd { cmd.current_dir(d); }`). `ChildStdout` and `ChildStderr` are
+    different types, so box them as `Box<dyn Read + Send>` for one drain closure.
+    `std::io::Take` has no public `new`; use `Read::take(reader, n)`.
+
+19. `Option::and_then` needs a closure that returns an `Option`. For a plain value, use `.map`
+    (`fs::read_to_string(p).ok().map(|s| s.trim().to_string())`). `?` inside a closure
+    only works when the closure itself returns `Option` or `Result`.
+20. Tests call functions with exactly their signature (`&[String]`, so `&["htop".to_string()]`,
+    not `vec![...]`), and only use APIs that exist. `Grants` has no `Default`; an empty
+    `Grants` comes from `Grants::load` on a path that does not exist. An empty file is
+    invalid JSON.
+21. When you read a file, keep the value: `let Ok(before) = fs::read_to_string(&f) else { ... }`.
+    Calling `read_to_string` only to check `is_err()` leaves the String empty.

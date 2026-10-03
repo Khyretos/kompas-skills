@@ -85,3 +85,8 @@ Full write-up: kreative-kompas-vscode-theme `docs/ai-capability/vscode-theme-dra
 - (2026-10-03) Fix rounds on a large file (300 lines) at 8k context can return a different, smaller file with a new API (grants.rs lost `allows`/`add`/`revoke`). Always repeat the exact API block in a fix prompt and reject a fix whose public items differ. After two failed rounds Claude fixed it (see lesson worker/rust #11).
 - (2026-10-03) Tests: invents constructors (`Grants::new`) and methods (`is_empty`) on types it was told about; give tests their own file and the exact API list.
 - (2026-10-03) Test files: three fix rounds for the runner tests and each round broke something new (wrong constructors, wrong field types, then missing temp dirs, then compile errors again). Claude wrote them. For tests, give it one complete example test to copy.
+
+- Qwen3.5-9B (OVMS Coder), 2026-10-03: it failed the proc.rs fix twice. It boxed an
+  `Option` as `Box<dyn Read>`, threw away the result of `take`, dropped the `cwd`
+  parameter, and kept a misplaced line after being told to move it. For process and
+  pipe plumbing, give it the exact code skeleton in the prompt, or write that part yourself.

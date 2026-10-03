@@ -13,6 +13,10 @@
 
 mod grants;
 mod tools;
+mod proc;
+mod edit;
+mod systools;
+mod sysinfo;
 
 use machine_stats::Sampler;
 use serde::Deserialize;
