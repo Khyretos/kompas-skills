@@ -91,3 +91,4 @@ Full write-up: kreative-kompas-vscode-theme `docs/ai-capability/vscode-theme-dra
   `Option` as `Box<dyn Read>`, threw away the result of `take`, dropped the `cwd`
   parameter, and kept a misplaced line after being told to move it. For process and
   pipe plumbing, give it the exact code skeleton in the prompt, or write that part yourself.
+- (2026-10-04, qwen3.5:9b-q8_0) Theme rewritten from a working example theme (Trilium, Catppuccin structure) plus a full variable-to-value list: 263 lines, one wrong value (kept the example's variable on one rule instead of the given one). Rebuilding on top of the owner's old CSS (Owncast) kept the layout intact but dropped "doubled :root:root". Giving it a known-good example file beats describing the app.
