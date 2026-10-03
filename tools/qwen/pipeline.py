@@ -118,7 +118,22 @@ def patch_job(job, log):
     text = open(out).read()
     system = "You edit code in this repository with exact, compiling changes. Follow these rules strictly:\n\n" + skills(job["role"])
     ctx = "".join(f"\n--- {c} ---\n{open(os.path.join(REPO, c)).read()}" for c in job.get("context", []) if c != job["out"])
-    prompt = job["prompt"] + "\n\n" + PATCH_RULES + (("\n\nOther files, for reference only:" + ctx) if ctx else "") + f"\n\nThe file to edit, `{job['out']}`:\n```\n{text}```"
+    shown = text
+    if job.get("focus"):
+        # Big files: show only the lines around these regexes (OVMS Coder cuts prompts at ~8k tokens).
+        lines = text.split("\n")
+        keep = set()
+        for pat in job["focus"]:
+            for i, l in enumerate(lines):
+                if re.search(pat, l):
+                    keep.update(range(max(0, i - 6), min(len(lines), i + 25)))
+        out_lines, last = [], -2
+        for i in sorted(keep):
+            if i != last + 1:
+                out_lines.append("// ...")
+            out_lines.append(lines[i]); last = i
+        shown = "\n".join(out_lines) + "\n// ...\n"
+    prompt = job["prompt"] + "\n\n" + PATCH_RULES + (("\n\nOther files, for reference only:" + ctx) if ctx else "") + f"\n\nThe file to edit, `{job['out']}`" + (" (excerpts; `// ...` marks skipped lines, never copy it)" if job.get("focus") else "") + f":\n```\n{shown}```"
     secs = toks = 0
     for attempt in range(2):
         answer, s, t = ask(system, prompt, job.get("max_tokens", 3000))

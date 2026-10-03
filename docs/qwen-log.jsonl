@@ -68,3 +68,6 @@
 {"name": "T1 playwright config", "out": "web/playwright.config.ts", "gpu_seconds": 11.7, "tokens": 190, "lines": 13, "review": "skipped", "at": "2026-10-04T00:49:52"}
 {"name": "T1 live tests", "out": "web/tests/live.spec.ts", "gpu_seconds": 77.9, "tokens": 1245, "lines": 64, "at": "2026-10-04T00:51:10"}
 {"name": "T2 live tests fixes", "out": "web/tests/live.spec.ts", "mode": "patch", "gpu_seconds": 33.6, "tokens": 862, "lines": 4, "attempts": 1, "at": "2026-10-04T00:52:04"}
+{"name": "L1 resize.ts", "out": "web/src/core/resize.ts", "gpu_seconds": 205.5, "tokens": 4533, "lines": 231, "at": "2026-10-04T00:58:36"}
+{"name": "L2 resize.ts fixes", "out": "web/src/core/resize.ts", "gpu_seconds": 60.3, "tokens": 2267, "lines": 230, "review": "skipped", "at": "2026-10-04T01:02:07"}
+{"name": "L3 layout tests", "out": "web/tests/layout.spec.ts", "gpu_seconds": 70.0, "tokens": 2172, "lines": 114, "at": "2026-10-04T01:03:34"}

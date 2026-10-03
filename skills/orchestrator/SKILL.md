@@ -9,3 +9,6 @@ Lessons for the orchestrator role. Numbered and dated, newest last.
 - Keep each draft under about 250 lines of output. At 600+ lines the 9B model drops the spec,
   invents code, and copies context files into the output. Split big modules into small files,
   and put signatures in the prompt rather than whole context files.
+- OVMS Coder cuts prompts at about 8k tokens (prompt_tokens 8194 is the sign). For files over
+  about 20k characters, use patch mode with `"focus": [regex, ...]` so only the relevant lines
+  are sent. Fully literal edits (exact code given in the prompt) are applied by the orchestrator.

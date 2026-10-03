@@ -1,6 +1,7 @@
 import { showSignIn } from "./views/signin";
 import { HttpApi } from "./api/http";
 import { $, html, mount, onAction, restoreBusy } from "./core/html";
+import { initResize } from "./core/resize";
 import { MockApi } from "./api/mock";
 import type { KompanionApi, ServerEvent } from "./api/client";
 import type { AdminSettings, Role, Server, TaskState, ThemeChoice } from "./api/types";
@@ -255,6 +256,7 @@ async function reload(): Promise<void> {
 }
 
 function wire(shell: HTMLElement): void {
+  initResize(shell);
   store.subscribe(render);
   store.flush();
   api.onEvent(applyEvent);

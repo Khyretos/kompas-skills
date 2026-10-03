@@ -150,7 +150,7 @@ input[type="url"]:focus, select:focus, textarea:focus { outline: none; border-co
 
 /* Shell */
 .shell {
-  height: 100%; display: grid; grid-template-columns: var(--left-w) minmax(0, 1fr) var(--right-w);
+  height: 100%; display: grid; grid-template-columns: var(--left-size, var(--left-w)) minmax(0, 1fr) var(--right-size, var(--right-w));
   position: relative; overflow: hidden;
 }
 .pane { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
@@ -158,7 +158,7 @@ input[type="url"]:focus, select:focus, textarea:focus { outline: none; border-co
 .right { background: var(--surface); border-left: 1px solid var(--line); }
 .center { background: var(--bg); }
 .pane-head { display: flex; align-items: center; gap: 0.5rem; min-height: 3rem; }
-.right .pane-head { padding: 0.75rem 0.75rem 0.5rem 1rem; border-bottom: 1px solid var(--line); }
+.right .pane-head { padding: 0.6rem 0.6rem 0.5rem 0.75rem; border-bottom: 1px solid var(--line); flex-wrap: wrap; row-gap: 0.4rem; }
 .right .pane-head h2 { font-size: 1rem; flex: 1; }
 .scrim { display: none; }
 .only-phone, .only-narrow { display: none; }
@@ -395,7 +395,7 @@ li.task.dragging { opacity: 0.5; }
 
 /* Narrow: tasks slide over */
 @media (max-width: 1100px) {
-  .shell { grid-template-columns: var(--left-w) minmax(0, 1fr); }
+  .shell { grid-template-columns: var(--left-size, var(--left-w)) minmax(0, 1fr); }
   .only-narrow { display: inline-grid; }
   .right {
     position: absolute; inset: 0 0 0 auto; width: min(var(--right-w), 92vw); z-index: 20;
@@ -435,10 +435,10 @@ li.task.dragging { opacity: 0.5; }
 .msg .body th, .msg .body td { border: 1px solid var(--line); padding: 0.3rem 0.6rem; }
 
 /* Right pane tabs */
-.tabs { display: flex; gap: 0.25rem; flex: 1; }
+.tabs { display: flex; flex-wrap: wrap; gap: 0.15rem; flex: 1 1 auto; min-width: 0; }
 .tabs [role="tab"] {
-  display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.6rem; border-radius: 6px;
-  font-weight: 600; font-size: 0.95rem; color: var(--muted);
+  display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.3rem 0.45rem; border-radius: 6px;
+  font-weight: 600; font-size: 0.9rem; white-space: nowrap; color: var(--muted);
 }
 .tabs [role="tab"][aria-selected="true"] { color: var(--fg); background: var(--surface-2); }
 
@@ -572,3 +572,33 @@ button[aria-busy="true"]::after {
 /* Rows the computer hasn't confirmed yet. */
 .pending { opacity: 0.6; }
 @media (prefers-reduced-motion: reduce) { button[aria-busy="true"]::after { animation-duration: 2.4s; } }
+
+/* Side panels: the header wraps instead of clipping; narrow panels put the
+   Project|All toggle on its own line. */
+.left, .right { container-type: inline-size; }
+@container (max-width: 25rem) {
+  .right .pane-head .seg { order: 3; flex-basis: 100%; justify-content: flex-start; }
+}
+
+/* Resizing and collapsing the side panels (core/resize.ts). */
+.resize-handle {
+  position: absolute; top: 0; bottom: 0; width: 8px; z-index: 5; cursor: col-resize;
+  touch-action: none; background: transparent; transition: background 0.15s;
+}
+.resize-handle[data-side="left"] { left: calc(var(--left-size, var(--left-w)) - 4px); }
+.resize-handle[data-side="right"] { right: calc(var(--right-size, var(--right-w)) - 4px); }
+.resize-handle:hover, .resize-handle:focus-visible, .shell.dragging .resize-handle { background: var(--accent); outline: none; }
+.shell.dragging { cursor: col-resize; user-select: none; }
+.collapse-btn {
+  position: absolute; top: 50%; z-index: 6; width: 1.25rem; height: 2.5rem; margin-top: -1.25rem;
+  border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--muted);
+  display: grid; place-items: center; font-size: 0.9rem; line-height: 1; padding: 0;
+}
+.collapse-btn:hover, .collapse-btn:focus-visible { color: var(--accent); border-color: var(--accent); }
+.collapse-btn[data-side="left"] { left: calc(var(--left-size, var(--left-w)) - 0.6rem); }
+.collapse-btn[data-side="right"] { right: calc(var(--right-size, var(--right-w)) - 0.6rem); }
+.shell[data-left-collapsed="true"] .left, .shell[data-right-collapsed="true"] .right { visibility: hidden; }
+.shell[data-left-collapsed="true"] .resize-handle[data-side="left"],
+.shell[data-right-collapsed="true"] .resize-handle[data-side="right"] { display: none; }
+@media (max-width: 1100px) { .resize-handle[data-side="right"], .collapse-btn[data-side="right"] { display: none; } }
+@media (max-width: 760px) { .resize-handle, .collapse-btn { display: none; } }
