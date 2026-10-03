@@ -11,7 +11,9 @@ jobs:
     container:
       image: rust:1
     steps:
-      - uses: https://code.forgejo.org/actions/checkout@v4
+      - name: Check out (plain git; this image has no Node for actions/checkout)
+        run: |
+          git init -q . && git -c http.extraHeader="Authorization: token ${{ github.token }}" fetch -q --depth 1 "${{ github.server_url }}/${{ github.repository }}" "${{ github.sha }}" && git checkout -q FETCH_HEAD
       - name: Test the shared stats crate and the server
         run: |
           (cd machine-stats && cargo test)
@@ -35,16 +37,17 @@ jobs:
     container:
       image: rust:1-alpine
     steps:
-      - uses: https://code.forgejo.org/actions/checkout@v4
+      - name: Tools
+        run: apk add --no-cache git musl-dev
+      - name: Check out (plain git; this image has no Node for actions/checkout)
+        run: |
+          git init -q . && git -c http.extraHeader="Authorization: token ${{ github.token }}" fetch -q --depth 1 "${{ github.server_url }}/${{ github.repository }}" "${{ github.sha }}" && git checkout -q FETCH_HEAD
       - name: Build the static runner binary
         run: |
-          apk add --no-cache musl-dev
           cd runner && cargo build --release
           cp target/release/kompanion-runner ../kompanion-runner-x86_64-linux-musl
-      - uses: https://code.forgejo.org/forgejo/upload-artifact@v4
-        with:
-          name: kompanion-runner-x86_64-linux-musl
-          path: kompanion-runner-x86_64-linux-musl
+      - name: Show the binary
+        run: ls -l kompanion-runner-x86_64-linux-musl && sha256sum kompanion-runner-x86_64-linux-musl
 
   image:
     runs-on: soucouyant
@@ -52,6 +55,10 @@ jobs:
     container:
       image: docker:cli
     steps:
-      - uses: https://code.forgejo.org/actions/checkout@v4
+      - name: Tools
+        run: apk add --no-cache git
+      - name: Check out (plain git; this image has no Node for actions/checkout)
+        run: |
+          git init -q . && git -c http.extraHeader="Authorization: token ${{ github.token }}" fetch -q --depth 1 "${{ github.server_url }}/${{ github.repository }}" "${{ github.sha }}" && git checkout -q FETCH_HEAD
       - name: Build the container image
         run: docker build -t kreative-kompanion:ci .
