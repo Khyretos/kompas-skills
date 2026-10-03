@@ -16,6 +16,7 @@ As translation judge (kk-localize, 2026-10-03):
 - Its suggested fixes can be wrong ("wachtwijzer", "gedediceerde"): use its critique to steer a repair by another model, never paste its suggestion in.
 - Misses the wrong sense of one-word labels (nl "Fundering" for Foundation, "Over" for About): those still need overrides or a human check.
 - Scoring speed: about 2.5 min for 420 short strings, one request at a time.
+- Gave 5 to a wrong sense even with a back-translation beside it (nl "Services healthy" → "Diensten voor een gezonde levensstijl", healthy lifestyle). A judge doesn't replace reading the short labels.
 
 ## Qwen3.5-9B int4 (OVMS on kireserver, A770; served as "Coder")
 
@@ -28,6 +29,8 @@ As translation judge (kk-localize, 2026-10-03):
 - Weak in Irish: its review made correct LibreTranslate drafts worse (crúcaí → "húic agus tiománaí").
 - Leaves one-word labels in English in Japanese ("About") and picks the wrong sense without context.
 - (2026-10-03) A positive example of the exact query style in the prompt worked: the project-context function came back with runtime queries and no macros. Remaining slips: `query_as` without a type annotation, and tuple rows accessed as `row.field`. Ask for "annotate `let rows: Vec<(String, String)> = ...`" explicitly.
+- Writes notes about the translation into the output instead of only the translation (cs "Poznámka: Pro daný kontext…"), and turns junk input (a fragment of template code) into a whole invented paragraph. Reject outputs far longer than the input.
+
 ## Colour themes / palettes (2026-10-03, VS Code theme)
 
 Full write-up: kreative-kompas-vscode-theme `docs/ai-capability/vscode-theme-drafting.md`.
