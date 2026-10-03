@@ -4,8 +4,18 @@
 // (see OpenCode CVE-2026-22813, Open WebUI CVE-2025-46719).
 import { Marked } from "marked";
 import DOMPurify from "dompurify";
+import { enhanceCodeBlocks } from "./codeblocks";
 
 const md = new Marked({ gfm: true, breaks: true, async: false });
+
+DOMPurify.addHook("uponSanitizeAttribute", (node, data) => {
+  // Keep only "language-xyz" classes on code elements (for highlighting).
+  if (data.attrName === "class") {
+    data.keepAttr = node.tagName === "CODE" ? /^language-[\w+-]+$/.test(data.attrValue) :
+      node.tagName === "SPAN" && /^(hljs-[\w-]+\s*)+$/.test(data.attrValue);
+    data.forceKeepAttr = data.keepAttr;
+  }
+});
 
 DOMPurify.addHook("afterSanitizeAttributes", (node) => {
   if (node.tagName === "A") {
@@ -26,5 +36,7 @@ const config = {
 /** Untrusted markdown in, safe DOM fragment out. */
 export function renderMarkdown(src: string): DocumentFragment {
   const raw = md.parse(src) as string;
-  return DOMPurify.sanitize(raw, config);
+  const frag = DOMPurify.sanitize(raw, config);
+  enhanceCodeBlocks(frag);
+  return frag;
 }

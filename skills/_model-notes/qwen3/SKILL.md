@@ -39,3 +39,4 @@ Full write-up: kreative-kompas-vscode-theme `docs/ai-capability/vscode-theme-dra
 - Made selection and current line the same colour; ask for each state as a separately named colour.
 - Invents/uses deprecated theme keys (`tab.unselectedOddBackground`, `scrollbar.background`, ...) and
   mis-maps terminal ANSI and diff colours. Give it the exact key list to fill.
+- (2026-10-03) DOM code (code blocks): typechecked first try and avoided innerHTML, but skipped the no-language case with `continue`, forgot button labels, and moved a node before replacing it (`appendChild(pre)` then `replaceChild(..., pre)` throws). Ask it to "insert the wrapper before the node, then move the node in".

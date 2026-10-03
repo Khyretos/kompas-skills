@@ -5,6 +5,7 @@ import { MockApi } from "./api/mock";
 import type { KompanionApi, ServerEvent } from "./api/client";
 import type { AdminSettings, Role, Server, TaskState, ThemeChoice } from "./api/types";
 import { renderMarkdown } from "./core/markdown";
+import { onCodeAction } from "./core/codeblocks";
 import { store, type AppState } from "./state";
 import { showConnect } from "./views/connect";
 import { renderSidebar } from "./views/sidebar";
@@ -221,6 +222,8 @@ function wire(shell: HTMLElement): void {
   api.onEvent(applyEvent);
 
   onAction(shell, {
+    "code-copy": (el) => onCodeAction(el),
+    "code-wrap": (el) => onCodeAction(el),
     "open-chat": (el) => openChat(el.dataset.id),
     "new-chat": (el) => store.set({
       activeChatId: undefined, messages: [], pane: "main", chatMenuId: undefined,
