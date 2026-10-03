@@ -27,7 +27,7 @@ const chats: Chat[] = [
 
 const adminSettings: AdminSettings = {
   appName: "Kreative Kompanion", smtpHost: "", smtpPort: 587, smtpTls: "starttls", smtpUser: "", smtpFrom: "", smtpReplyTo: "",
-  colorBrand: "#5c398e", colorLinkDark: "#cca9ff", colorLinkLight: "#7b2fb5", colorAccent: "#bf4eff",
+  colorBrand: "#5c398e", colorLinkDark: "#f3941f", colorLinkLight: "#8f4700", colorAccent: "#f3941f",
 };
 
 const messages: Message[] = [

@@ -66,9 +66,9 @@ impl Settings {
             smtp_port: 587,
             smtp_tls: "starttls".into(),
             color_brand: "#5c398e".into(),
-            color_link_dark: "#cca9ff".into(),
-            color_link_light: "#7b2fb5".into(),
-            color_accent: "#bf4eff".into(),
+            color_link_dark: "#f3941f".into(),
+            color_link_light: "#8f4700".into(),
+            color_accent: "#f3941f".into(),
             ..Default::default()
         }
     }
@@ -240,13 +240,13 @@ pub async fn theme_css(State(s): State<AppState>) -> ApiResult<impl IntoResponse
     // Only colours that parse are written, so nothing else can reach the CSS.
     let c = |v: &str, fallback: &str| if parse_hex(v).is_some() { v.to_string() } else { fallback.to_string() };
     let css = format!(
-        ":root{{--brand:{b};--link:{ld};--accent:{a}}}\n\
-         @media (prefers-color-scheme: light){{:root:not([data-theme=\"dark\"]){{--link:{ll};--accent:{ll}}}}}\n\
-         :root[data-theme=\"light\"]{{--link:{ll};--accent:{ll}}}\n",
+        ":root{{--brand:{b};--link:{ld};--accent:{a};--accent-strong:{ld}}}\n\
+         @media (prefers-color-scheme: light){{:root:not([data-theme=\"dark\"]){{--link:{ll};--accent:{ll};--accent-strong:{ll}}}}}\n\
+         :root[data-theme=\"light\"]{{--link:{ll};--accent:{ll};--accent-strong:{ll}}}\n",
         b = c(&st.color_brand, "#5c398e"),
-        ld = c(&st.color_link_dark, "#cca9ff"),
-        ll = c(&st.color_link_light, "#7b2fb5"),
-        a = c(&st.color_accent, "#bf4eff"),
+        ld = c(&st.color_link_dark, "#f3941f"),
+        ll = c(&st.color_link_light, "#8f4700"),
+        a = c(&st.color_accent, "#f3941f"),
     );
     Ok(([(header::CONTENT_TYPE, "text/css; charset=utf-8"), (header::CACHE_CONTROL, "no-cache")], css))
 }
