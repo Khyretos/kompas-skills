@@ -282,6 +282,21 @@ async fn answer(s: AppState, user_id: String, chat_id: String, role: RoleAssignm
         role: "system".into(),
         content: ORCHESTRATOR_PROMPT.into(),
     }];
+    // A project chat knows its project: description, tasks with states and steps.
+    let project: Option<(Option<String>,)> = sqlx::query_as("SELECT project_id FROM chats WHERE id = ?")
+        .bind(&chat_id)
+        .fetch_optional(&s.db)
+        .await
+        .unwrap_or_default();
+    if let Some((Some(pid),)) = project {
+        let ctx = crate::project_ctx::project_context(&s.db, &pid, &user_id, 8_000).await.unwrap_or_default();
+        if !ctx.is_empty() {
+            convo.push(ChatMessage {
+                role: "system".into(),
+                content: format!("This chat belongs to a project. What you know about it:\n\n{ctx}"),
+            });
+        }
+    }
     convo.extend(history.into_iter().map(|(author, text)| ChatMessage {
         role: if author == "user" {
             "user".into()
@@ -483,6 +498,9 @@ async fn user_roles(s: &AppState, user_id: &str) -> ApiResult<Vec<RoleAssignment
 #[derive(Deserialize)]
 pub struct ChatChange {
     title: Option<String>,
+    /// Move the chat into this project ("" makes it a loose chat again).
+    #[serde(rename = "projectId")]
+    project_id: Option<String>,
     pinned: Option<bool>,
     archived: Option<bool>,
 }
@@ -504,6 +522,16 @@ pub async fn update_chat(
         }
         sqlx::query("UPDATE chats SET title = ? WHERE id = ?")
             .bind(t)
+            .bind(&id)
+            .execute(&s.db)
+            .await?;
+    }
+    if let Some(pid) = b.project_id {
+        if !pid.is_empty() && !owns(&s, "projects", &pid, &u).await? {
+            return Err(ApiError::NotFound);
+        }
+        sqlx::query("UPDATE chats SET project_id = ? WHERE id = ?")
+            .bind(if pid.is_empty() { None } else { Some(pid) })
             .bind(&id)
             .execute(&s.db)
             .await?;

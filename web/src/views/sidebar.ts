@@ -10,7 +10,7 @@ import { logoUrl } from "../core/logo";
 const TASKS_SHOWN = 6;
 
 export function renderSidebar(s: AppState): SafeHtml {
-  const chatRow = (c: Chat) => {
+  const chatRow = (c: Chat, showProject = false) => {
     const active = c.id === s.activeChatId;
     const menuOpen = s.chatMenuId === c.id;
     const main = s.renamingChatId === c.id
@@ -18,6 +18,7 @@ export function renderSidebar(s: AppState): SafeHtml {
           <input name="title" value="${c.title}" aria-label="Chat title" maxlength="120" required autofocus></form>`
       : html`<button class="nav-item" data-action="open-chat" data-id="${c.id}" ${active ? html`aria-current="page"` : ""}>
           <span class="nav-title">${c.title}</span>
+          ${showProject && c.projectId ? html`<span class="chip project-badge">${s.projects.find((p) => p.id === c.projectId)?.name ?? ""}</span>` : ""}
           <span class="nav-meta">${relTime(c.updatedAt)}</span>
         </button>`;
     return html`
@@ -29,6 +30,12 @@ export function renderSidebar(s: AppState): SafeHtml {
           <div class="menu" role="menu">
             <button role="menuitem" data-action="chat-pin" data-id="${c.id}">${icon("pin")} ${c.pinned ? "Unpin" : "Pin"}</button>
             <button role="menuitem" data-action="chat-rename" data-id="${c.id}">${icon("edit")} Rename</button>
+            ${s.movingChatId === c.id ? html`
+              <div class="submenu" role="group" aria-label="Move to project">
+                ${s.projects.map((p) => html`<button role="menuitem" data-action="chat-move" data-id="${c.id}" data-project="${p.id}"
+                  ${p.id === c.projectId ? "disabled" : ""}>${icon("folder")} ${p.name}</button>`)}
+                ${c.projectId ? html`<button role="menuitem" data-action="chat-move" data-id="${c.id}" data-project="">No project</button>` : ""}
+              </div>` : html`<button role="menuitem" data-action="chat-move-open" data-id="${c.id}">${icon("folder")} Move to project…</button>`}
             <button role="menuitem" data-action="chat-archive" data-id="${c.id}">${icon("archive")} Archive</button>
             <button role="menuitem" class="danger" data-action="chat-delete" data-id="${c.id}">${icon("trash")} Delete</button>
           </div>` : ""}
@@ -42,7 +49,8 @@ export function renderSidebar(s: AppState): SafeHtml {
 
   const pinned = s.chats.filter((c) => c.pinned);
   const projects = [...s.projects].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  const loose = s.chats.filter((c) => !c.projectId && !c.pinned);
+  // The Chats list shows every chat (project chats with a badge), newest first.
+  const loose = s.chats.filter((c) => !c.pinned);
 
   return html`
     <div class="pane-head">
@@ -91,7 +99,7 @@ export function renderSidebar(s: AppState): SafeHtml {
         })}
       </ul>
       <h2 class="label">Chats</h2>
-      <ul class="loose">${loose.map(chatRow)}</ul>
+      <ul class="loose">${loose.map((c) => chatRow(c, true))}</ul>
     </nav>
     <div class="account">
       <button class="nav-item settings-link" data-action="settings">${icon("gear")} Settings</button>

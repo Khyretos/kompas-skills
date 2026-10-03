@@ -8,3 +8,7 @@ Check in this order; stop at the first failing layer and send it back.
 4. Security: per-user scoping on every query, no secrets in logs, prompts, mails or URLs; input limits; no `format!` into SQL.
 5. Readability: contrast ≥ 4.5:1 for text, 3:1 for UI parts, in light and dark.
 6. Every finding becomes a lesson in the role's `SKILL.md`, with a test where possible.
+
+## Lessons
+
+7. (2026-10-03) Never let a model grade its own output. In kk-localize, Qwen3.5-9B repaired "Our fork" to "Onze vork" (a kitchen fork) on a wrong critique and then scored its own repair 5. Score with a different model (qwen3:14b judged the 9B's translations), keep a repair only when that judge scores it higher, and still read a small random sample yourself: the judge misses wrong senses of one-word labels.

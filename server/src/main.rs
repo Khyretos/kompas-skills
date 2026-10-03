@@ -11,6 +11,7 @@ mod llm;
 mod mail;
 mod notify;
 mod oidc;
+mod project_ctx;
 mod tasks;
 mod util;
 mod windshift;

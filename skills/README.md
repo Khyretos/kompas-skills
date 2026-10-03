@@ -7,6 +7,7 @@ about). Layout:
 
 - `orchestrator/`: planning tasks into steps with a "done when".
 - `worker/rust/`, `worker/web/`: how to write code that passes review here.
+- `worker/localization/`: translating the website (kk-localize): what to protect, what needs context, what to hold.
 - `runner/`: running tools on PCs within the access grants.
 - `shared/`: facts every role needs (house rules, brand, FOSS only).
 - `reviewer/`: what to check, in order.

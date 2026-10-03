@@ -328,7 +328,7 @@ export class MockApi implements KompanionApi {
     return structuredClone(chat);
   }
 
-  async updateChat(chatId: string, change: { title?: string; pinned?: boolean; archived?: boolean }) {
+  async updateChat(chatId: string, change: { title?: string; pinned?: boolean; archived?: boolean; projectId?: string }) {
     const i = chats.findIndex((c) => c.id === chatId);
     if (i < 0) return;
     if (change.archived) chats.splice(i, 1);

@@ -30,6 +30,7 @@ export interface AppState {
   expandedProjects: Set<string>; // projects open in the sidebar
   activeProjectId?: string; // project picked in the sidebar (tasks pane, new chats)
   chatMenuId?: string; // chat whose options menu is open
+  movingChatId?: string; // chat whose "Move to project" list is open
   renamingChatId?: string; // chat being renamed in place
   editingTaskId?: string; // task open in the editor ("new" for a new one)
 }

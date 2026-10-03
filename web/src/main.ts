@@ -135,7 +135,7 @@ function render(s: AppState, prev: AppState): void {
   shell.dataset.pane = s.pane;
 
   if (changed(s, prev, ["chats", "projects", "tasks", "activeChatId", "activeProjectId", "expandedProjects",
-    "chatMenuId", "renamingChatId", "server", "userName", "logoVersion"])) {
+    "chatMenuId", "movingChatId", "renamingChatId", "server", "userName", "logoVersion"])) {
     remount($("#left"), renderSidebar(s));
   }
   if (s.renamingChatId && s.renamingChatId !== prev.renamingChatId) {
@@ -261,6 +261,11 @@ function wire(shell: HTMLElement): void {
         projects: store.get().projects.map((p) => (p.id === id ? { ...p, kind: "internal" } : p)),
       }), showError);
     },
+    "chat-move-open": (el) => store.set({ movingChatId: el.dataset.id }),
+    "chat-move": (el) => {
+      store.set({ movingChatId: undefined });
+      changeChat(el.dataset.id ?? "", { projectId: el.dataset.project ?? "" });
+    },
     "chat-menu": (el) => store.set({ chatMenuId: store.get().chatMenuId === el.dataset.id ? undefined : el.dataset.id }),
     "chat-pin": (el) => {
       const c = store.get().chats.find((x) => x.id === el.dataset.id);
@@ -333,7 +338,7 @@ function wire(shell: HTMLElement): void {
   // A click anywhere outside an open chat menu closes it.
   document.addEventListener("click", (ev) => {
     const t = ev.target as HTMLElement;
-    if (store.get().chatMenuId && !t.closest(".menu, .chat-more")) store.set({ chatMenuId: undefined });
+    if (store.get().chatMenuId && !t.closest(".menu, .chat-more")) store.set({ chatMenuId: undefined, movingChatId: undefined });
   });
   // Rename in place: Enter saves, leaving the field saves too.
   const saveRename = (form: HTMLFormElement) => {
@@ -534,7 +539,7 @@ async function moveTask(id: string, dir: number): Promise<void> {
   } catch (e) { showError(e); }
 }
 
-async function changeChat(id: string, change: { title?: string; pinned?: boolean; archived?: boolean }): Promise<void> {
+async function changeChat(id: string, change: { title?: string; pinned?: boolean; archived?: boolean; projectId?: string }): Promise<void> {
   store.set({ chatMenuId: undefined });
   try {
     await api.updateChat(id, change);

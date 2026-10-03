@@ -37,7 +37,7 @@ export interface KompanionApi {
   setRole(assignment: RoleAssignment, projectId?: string): Promise<void>;
 
   createChat(title: string, projectId?: string): Promise<Chat>;
-  updateChat(chatId: string, change: { title?: string; pinned?: boolean; archived?: boolean }): Promise<void>;
+  updateChat(chatId: string, change: { title?: string; pinned?: boolean; archived?: boolean; projectId?: string }): Promise<void>;
   deleteChat(chatId: string): Promise<void>;
   createTask(t: { projectId: string; title: string; description: string; state?: TaskState }): Promise<Task>;
   updateTask(id: string, change: { title?: string; description?: string; state?: TaskState }): Promise<Task>;
