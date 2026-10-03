@@ -10,6 +10,11 @@ Measured 2026-10-01..03 (details: ~/Docker/docs/ai-capability/qwen3-14b-soucouya
 - Invents paths, hosts and settings when the prompt doesn't contain them; put the real config in the prompt.
 - Sometimes copies an instruction from the prompt into its output; strip lines like "ensure no additional ...".
 
+- (2026-10-03) Benchmarked against gemma4:12b, qwen3.5:9b, gpt-oss:20b and qwen3.6:35b-a3b on soucouyant
+  (~/Docker/docs/ai-capability/soucouyant-model-benchmark-2026-10.md): 60 tok/s, 14.0 GB card total at 16k;
+  at 32k it no longer fits (1.5 GB on the CPU). No vision. Its Python duration parser kept the space in the
+  unit (" ns"); it broke "≤40 words" (44) and translated "een hard hoofd in hebben" as "I'm determined".
+  gemma4:12b-it-qat matched or beat it on every test.
 - (2026-10-03) Use one model tag per Ollama host. A context-size variant (`qwen3:14b-16k`) is a separate model: requests alternating between it and `qwen3:14b` make Ollama unload and reload on almost every switch (about 44 s per request instead of under 1 s). Pick the 16k tag everywhere if any caller needs 16k context.
 
 As translation judge (kk-localize, 2026-10-03):
@@ -21,6 +26,10 @@ As translation judge (kk-localize, 2026-10-03):
 - Gave 5 to a wrong sense even with a back-translation beside it (nl "Services healthy" → "Diensten voor een gezonde levensstijl", healthy lifestyle). A judge doesn't replace reading the short labels.
 
 ## Qwen3.5-9B int4 (OVMS on kireserver, A770; served as "Coder")
+
+- (2026-10-03) Same model as `qwen3.5:9b` on Ollama: there it again translated "Our fork" as "Onze vork",
+  "Services healthy" as "Diensten gezond" and "kat uit de boom kijken" literally, even with context per string.
+  Fast (84 tok/s on the RX 9070 XT) and good at vision and tool calls; don't use it for Dutch without a judge.
 
 - (2026-10-03) Long bash/ImageMagick scripts: wordy comments eat the 2000-token budget and the script gets cut off midway; ask for "script only, no comments" or raise `max_tokens`. Details: ~/Docker/docs/ai-capability/peertube-images-2026-10.md.
 - About 30 tok/s generation for one request; a running job slows Open WebUI chat from about 1.7 s to 3.2 s per answer, so batch work runs at night with concurrency 1.
