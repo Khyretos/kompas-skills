@@ -77,6 +77,11 @@ pub async fn check_chat_auth(http: &reqwest::Client, p: &ProviderConfig) -> Resu
     if !matches!(p.kind, ProviderKind::OpenaiCompatible) {
         return Ok(()); // Anthropic already needs the key to list models.
     }
+    if p.api_key_env.is_none() {
+        // Keyless servers (Ollama): nothing to check, and no request that could
+        // make the server load a model. Probes only ever list models.
+        return Ok(());
+    }
     let resp = authorize(http.post(join(&p.base_url, "chat/completions")), p)
         .json(&json!({ "model": "", "messages": [], "max_tokens": 1 }))
         .timeout(Duration::from_secs(10))

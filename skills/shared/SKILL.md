@@ -88,3 +88,7 @@ Source: soucouyant benchmark, ~/Docker/docs/ai-capability/soucouyant-model-bench
 ## 5. CI jobs never use the host toolchain (2026-10-03)
 
 Every job runs in a container image (rust:1, rust:1-alpine, node:22); a broken system update on the runner host must not break builds.
+
+## 6. One model tag at a time on a shared GPU (2026-10-03)
+
+Every request naming a different tag makes Ollama swap models (~45 s each). Drafting scripts, Kompanion roles and other tools on the same Ollama must use the same tag; after a switch, update the defaults first, then start jobs. Health checks only list models (`/v1/models`, `/api/tags`, `/api/ps`), never generate.
