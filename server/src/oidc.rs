@@ -264,7 +264,9 @@ async fn finish(state: &AppState, headers: &HeaderMap, q: CallbackQuery) -> Resu
         .ok_or(Fail::NoAccount)?;
     tracing::info!(user = %user_id, "signed in with single sign-on");
     if let Some(role) = &cfg.admin_role {
-        set_admin(state, &user_id, roles.iter().any(|r| r == role)).await?;
+        let has = roles.iter().any(|r| r == role);
+        tracing::info!(user = %user_id, admin_role = %role, present = has, roles = roles.len(), "admin role check");
+        set_admin(state, &user_id, has).await?;
     }
     Ok(auth::create_session_with(state, &user_id, Some(&raw_id_token))
         .await
@@ -307,7 +309,7 @@ async fn set_admin(state: &AppState, user_id: &str, admin: bool) -> anyhow::Resu
     Ok(())
 }
 
-/// The provider's sign-out URL for this ID token.
+/// The provider's sign-out URL for this ID token, back to the app afterwards.
 pub async fn end_session_url(state: &AppState, id_token: &str, headers: &axum::http::HeaderMap) -> Option<String> {
     let cfg = state.config.oidc.as_ref()?;
     let doc: serde_json::Value = state
@@ -320,15 +322,20 @@ pub async fn end_session_url(state: &AppState, id_token: &str, headers: &axum::h
         .await
         .ok()?;
     let end = doc["end_session_endpoint"].as_str()?;
-    // No post_logout_redirect_uri: it would have to be registered on the
-    // provider's client; without it the provider shows its own signed-out page.
+    // Back to the app's sign-in page (registered on the provider's client).
+    let back = cfg.redirect_url.split("/api/").next().unwrap_or("").to_string() + "/";
     let _ = headers;
     let enc = |s: &str| -> String {
         s.bytes()
             .map(|b| if b.is_ascii_alphanumeric() || b"-_.~".contains(&b) { (b as char).to_string() } else { format!("%{b:02X}") })
             .collect()
     };
-    Some(format!("{end}?id_token_hint={}", enc(id_token)))
+    Some(format!(
+        "{end}?id_token_hint={}&post_logout_redirect_uri={}&client_id={}",
+        enc(id_token),
+        enc(&back),
+        enc(&cfg.client_id)
+    ))
 }
 
 #[cfg(test)]
