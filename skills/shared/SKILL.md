@@ -106,3 +106,7 @@ A batch job that calls a model on a machine people also use by day (kk-localize'
   the same tag (`FROM <tag>` + parameters, `ollama create <tag>`) so callers keep one name. On soucouyant
   gemma4:12b-it-qat went from ~290% to ~32% of one core with no speed loss (67 tok/s, 2,700 tok/s prompt).
 - Only for models that are fully on the GPU: a partly offloaded model needs its CPU threads.
+
+## 8. Language priority: English, Spanish, Dutch (2026-10-03, from Kees)
+
+Kees's languages, in order: English, Spanish, Dutch. Every other language is for reach. Every system he runs should offer at least English and Spanish. On the website, Spanish and Dutch are tier 1: always published, listed right after English, audited in full (natural, neutral Spanish; natural Dutch; the CV in the first person), and if they fail the automatic publish rule the last good version stays and the failure is fixed with pins.
