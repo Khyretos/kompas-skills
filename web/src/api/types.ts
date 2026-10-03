@@ -195,3 +195,11 @@ export interface AdminSettings {
   colorLinkLight: string;
   colorAccent: string;
 }
+
+export interface NotificationPrefs {
+  email: string;
+  onNeedsInput: boolean;
+  onFailed: boolean;
+  onDone: boolean;
+  dailySummary: boolean;
+}

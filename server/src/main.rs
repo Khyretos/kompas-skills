@@ -9,6 +9,7 @@ mod hoststats;
 mod import;
 mod llm;
 mod mail;
+mod notify;
 mod oidc;
 mod tasks;
 mod util;
@@ -113,6 +114,7 @@ async fn main() -> anyhow::Result<()> {
         windshift: windshift.is_some(),
     };
     hoststats::HostStats::spawn_live(state.clone());
+    notify::spawn_daily(state.db.clone());
     if let Some(ws) = windshift {
         tracing::info!("Windshift sync on");
         windshift::spawn(state.db.clone(), ws);
@@ -150,6 +152,7 @@ async fn main() -> anyhow::Result<()> {
             "/machines/{id}/stats",
             post(hoststats::report).layer(axum::extract::DefaultBodyLimit::max(64 * 1024)),
         )
+        .route("/me/notifications", get(notify::get_prefs).put(notify::put_prefs))
         .route("/me/prefs", axum::routing::put(admin::set_prefs))
         .route("/events", get(api::events))
         .layer(middleware::from_fn_with_state(state.clone(), auth::guard))

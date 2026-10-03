@@ -232,6 +232,7 @@ pub async fn update(
     }
     if let Some(st) = b.state.filter(|st| *st != before.state) {
         changed.insert("state".into(), json!({ "from": before.state, "to": st }));
+        crate::notify::task_changed(s.db.clone(), u.id.clone(), before.title.clone(), before.state.clone(), st);
     }
     if !changed.is_empty() {
         history(&s.db, &id, &u.id, "changed", Value::Object(changed)).await?;

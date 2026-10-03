@@ -177,7 +177,7 @@ function render(s: AppState, prev: AppState): void {
 
   const settings = $("#settings");
   settings.hidden = !s.settingsOpen;
-  if (s.settingsOpen && changed(s, prev, ["settingsOpen", "providers", "roles", "admin", "theme", "isAdmin"])) {
+  if (s.settingsOpen && changed(s, prev, ["settingsOpen", "providers", "roles", "admin", "theme", "isAdmin", "notifications", "windshift"])) {
     remount(settings, renderSettings(s));
   }
   firstRender = false;
@@ -281,6 +281,7 @@ function wire(shell: HTMLElement): void {
     answer: (el) => api.answer(el.dataset.task ?? "", el.dataset.option ?? "").catch(showError),
     settings: () => {
       store.set({ settingsOpen: true, pane: "main" });
+      api.getNotifications().then((notifications) => store.set({ notifications }), showError);
       if (store.get().isAdmin) api.getAdmin().then((admin) => store.set({ admin }), showError);
     },
     "test-mail": () => {
@@ -340,6 +341,17 @@ function wire(shell: HTMLElement): void {
     }
     const taskForm = (ev.target as HTMLElement).closest("#task-editor") as HTMLFormElement | null;
     if (taskForm) { ev.preventDefault(); submitTask(taskForm); return; }
+    const nf = (ev.target as HTMLElement).closest("#notify-form") as HTMLFormElement | null;
+    if (nf) {
+      ev.preventDefault();
+      const f = new FormData(nf);
+      const p = { email: String(f.get("email") ?? "").trim(), onNeedsInput: f.has("onNeedsInput"), onFailed: f.has("onFailed"),
+        onDone: f.has("onDone"), dailySummary: f.has("dailySummary") };
+      const msg = nf.querySelector("#notify-msg");
+      api.setNotifications(p).then(() => { if (msg) msg.textContent = "Saved."; },
+        (e) => { if (msg) msg.textContent = e instanceof Error ? e.message : String(e); });
+      return;
+    }
     const admin = (ev.target as HTMLElement).closest("#admin-form") as HTMLFormElement | null;
     if (admin) { ev.preventDefault(); saveAdmin(admin); return; }
     const form = (ev.target as HTMLElement).closest("form.rename") as HTMLFormElement | null;

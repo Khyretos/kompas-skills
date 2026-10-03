@@ -2,7 +2,7 @@
 // a session cookie. Live updates arrive as server-sent events.
 import type { KompanionApi, ServerEvent } from "./client";
 import type {
-  AdminSettings, ThemeChoice, TaskState, Chat, DaySummary, MachineStats, Message, ModelProvider, Project, RoleAssignment, Server, ServerStatus, Task,
+  AdminSettings, NotificationPrefs, ThemeChoice, TaskState, Chat, DaySummary, MachineStats, Message, ModelProvider, Project, RoleAssignment, Server, ServerStatus, Task,
 } from "./types";
 
 export class ApiError extends Error {
@@ -54,6 +54,8 @@ export class HttpApi implements KompanionApi {
   }
   login(name: string, password: string) { return this.request<void>("POST", "/login", { name, password }); }
   logout() { return this.request<void>("POST", "/logout"); }
+  getNotifications() { return this.request<NotificationPrefs>("GET", "/me/notifications"); }
+  setNotifications(p: NotificationPrefs) { return this.request<void>("PUT", "/me/notifications", p); }
   setMachinesRefresh(seconds: number) { return this.request<void>("PUT", "/me/prefs", { machinesRefresh: seconds }); }
   pairMachine(name: string) { return this.request<{ id: string; name: string; token: string }>("POST", "/machines", { name }); }
   unpairMachine(id: string) { return this.request<void>("DELETE", `/machines/${encodeURIComponent(id)}`); }

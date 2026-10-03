@@ -1,7 +1,7 @@
 // The app talks to a Kompanion server only through this interface.
 // `MockApi` implements it for the draft; `HttpApi` (next milestone) will call
 // the real server over HTTPS + server-sent events.
-import type { TaskState, AdminSettings, ThemeChoice, DaySummary, MachineStats, ServerStatus, Chat, Message, Project, RoleAssignment, ModelProvider, Server, Task } from "./types";
+import type { NotificationPrefs, TaskState, AdminSettings, ThemeChoice, DaySummary, MachineStats, ServerStatus, Chat, Message, Project, RoleAssignment, ModelProvider, Server, Task } from "./types";
 
 export interface KompanionApi {
   discover(): Promise<Server[]>;
@@ -12,6 +12,8 @@ export interface KompanionApi {
   logout(): Promise<void>;
   setTheme(theme: ThemeChoice): Promise<void>;
   setMachinesRefresh(seconds: number): Promise<void>;
+  getNotifications(): Promise<NotificationPrefs>;
+  setNotifications(p: NotificationPrefs): Promise<void>;
   /** Keeps the live machine feed on for about 15 s. */
   watchMachines(): Promise<void>;
   /** Pairs a PC; the token is returned only this once. */

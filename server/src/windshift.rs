@@ -230,6 +230,9 @@ pub async fn sync_once(db: &SqlitePool, ws: &Windshift) -> Result<(usize, usize)
                             "lost": { "title": t.title, "description": t.description, "state": t.state } }))
                         .await?;
                     }
+                    crate::notify::task_changed(
+                        db.clone(), user_id.clone(), item.title.clone(), t.state.clone(), to_kompanion(&status).into(),
+                    );
                     sqlx::query(
                         "UPDATE tasks SET title = ?, description = ?, state = ?, remote_updated_at = ?,
                          sync_dirty = 0, updated_at = ? WHERE id = ?",

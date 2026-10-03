@@ -26,6 +26,23 @@ export function renderSettings(s: AppState): SafeHtml {
         <button class="icon-btn" data-action="close-settings" aria-label="Close">${icon("close")}</button>
       </div>
       ${renderAdmin(s.admin?.settings ?? DEFAULTS, s.admin?.smtpPasswordSet ?? false, s.theme, s.isAdmin && !!s.admin)}
+      ${s.notifications ? html`<form class="admin-form" id="notify-form">
+        <h3 class="label">Notifications</h3>
+        <div class="field">
+          <label for="notify-email">Mail me at</label>
+          <input type="email" id="notify-email" name="email" value="${s.notifications.email}" placeholder="you@example.com">
+        </div>
+        <fieldset class="checks">
+          <legend class="sr-only">When</legend>
+          <label><input type="checkbox" name="onNeedsInput" ${s.notifications.onNeedsInput ? "checked" : ""}> A task needs me</label>
+          <label><input type="checkbox" name="onFailed" ${s.notifications.onFailed ? "checked" : ""}> A task failed</label>
+          <label><input type="checkbox" name="onDone" ${s.notifications.onDone ? "checked" : ""}> A task is done</label>
+          <label><input type="checkbox" name="dailySummary" ${s.notifications.dailySummary ? "checked" : ""}> A daily summary (08:00 UTC)</label>
+        </fieldset>
+        <p class="muted small">Mails only name the task and its state, never its contents.</p>
+        <p id="notify-msg" class="small" role="status"></p>
+        <button class="btn primary" type="submit">Save</button>
+      </form>` : ""}
       ${s.isAdmin ? html`<section>
         <h3 class="label">Connections</h3>
         <p>Windshift: <span class="chip ${s.windshift === "connected" ? "good" : ""}">${s.windshift ?? "not configured"}</span></p>

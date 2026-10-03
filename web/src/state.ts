@@ -1,10 +1,11 @@
 import { Store } from "./core/store";
-import type { AdminSettings, ThemeChoice, DaySummary, MachineStats, Chat, Message, ModelProvider, Project, RoleAssignment, Server, Task } from "./api/types";
+import type { NotificationPrefs, AdminSettings, ThemeChoice, DaySummary, MachineStats, Chat, Message, ModelProvider, Project, RoleAssignment, Server, Task } from "./api/types";
 
 export interface AppState {
   server?: Server;
   userName?: string; // signed-in user
   isAdmin: boolean;
+  notifications?: NotificationPrefs; // loaded when Settings opens
   windshift?: string; // "connected" | "not configured" (set in the server's compose file only)
   theme: ThemeChoice;
   machinesRefresh: number; // seconds between Machines updates; 1 = live
