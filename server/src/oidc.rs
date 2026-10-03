@@ -10,6 +10,7 @@
 //! account is only created for people listed in `oidc.allow_new` (or for
 //! everyone when it contains `"*"`).
 
+use openidconnect::OAuth2TokenResponse as _;
 use std::{
     collections::HashMap,
     sync::Mutex,
