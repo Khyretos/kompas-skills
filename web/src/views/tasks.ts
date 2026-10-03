@@ -44,8 +44,9 @@ function question(t: Task): SafeHtml {
 
 function card(t: Task, showProject: string | undefined): SafeHtml {
   const pct = Math.round(t.progress * 100);
+  // Within one project, cards can be dragged to change the order.
   return html`
-    <li class="task s-${t.state}">
+    <li class="task s-${t.state}" ${showProject ? "" : html`draggable="true" data-drag-id="${t.id}"`}>
       <button class="task-main" data-action="open-task" data-id="${t.id}">
         <span class="task-top">
           <span class="chip state">${stateLabel(t.state)}</span>

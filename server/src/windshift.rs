@@ -43,6 +43,7 @@ struct Item {
 #[derive(sqlx::FromRow)]
 struct Task {
     id: String,
+    source: Option<String>,
     title: String,
     description: String,
     state: String,
@@ -127,6 +128,18 @@ impl Windshift {
         Ok(())
     }
 
+    async fn create(&self, workspace_id: i64, title: &str, description: &str) -> Result<Item> {
+        let r = self
+            .http
+            .post(self.url("/items"))
+            .bearer_auth(&self.token)
+            .json(&json!({ "workspace_id": workspace_id, "title": title, "description": description }))
+            .send()
+            .await?;
+        anyhow::ensure!(r.status().is_success(), "create item: {}", r.status());
+        Ok(serde_json::from_value(r.json::<Value>().await?["data"].clone())?)
+    }
+
     async fn transition(&self, id: i64, to: i64) -> Result<()> {
         let r = self
             .http
@@ -196,10 +209,11 @@ pub async fn sync_once(db: &SqlitePool, ws: &Windshift) -> Result<(usize, usize)
             let desc = item.description.clone().unwrap_or_default();
             let status = item.status_builtin_key.clone().unwrap_or_default();
             let task: Option<Task> = sqlx::query_as(
-                "SELECT id, title, description, state, updated_at, remote_updated_at, sync_dirty FROM tasks
-                 WHERE id = ? AND user_id = ?",
+                "SELECT id, source, title, description, state, updated_at, remote_updated_at, sync_dirty FROM tasks
+                 WHERE (id = ? OR source = ?) AND user_id = ?",
             )
             .bind(&task_id)
+            .bind(format!("windshift:{}", item.key))
             .bind(&user_id)
             .fetch_optional(db)
             .await?;
@@ -260,7 +274,7 @@ pub async fn sync_once(db: &SqlitePool, ws: &Windshift) -> Result<(usize, usize)
 
         // Push what changed here.
         let dirty: Vec<Task> = sqlx::query_as(
-            "SELECT id, title, description, state, updated_at, remote_updated_at, sync_dirty FROM tasks
+            "SELECT id, source, title, description, state, updated_at, remote_updated_at, sync_dirty FROM tasks
              WHERE project_id = ? AND user_id = ? AND sync_dirty = 1",
         )
         .bind(&project_id)
@@ -268,9 +282,22 @@ pub async fn sync_once(db: &SqlitePool, ws: &Windshift) -> Result<(usize, usize)
         .fetch_all(db)
         .await?;
         for t in dirty {
-            let key = t.id.trim_start_matches("windshift-");
+            let key = t.source.as_deref().and_then(|s| s.strip_prefix("windshift:")).unwrap_or("");
             let Some(item) = items.iter().find(|i| i.key == key) else {
-                continue; // made in Kompanion; creating Windshift items comes later
+                // Made in Kompanion: create it in Windshift and remember its key.
+                let created = ws.create(w.id, &t.title, &t.description).await?;
+                if to_windshift(&t.state) != 1 {
+                    ws.transition(created.id, to_windshift(&t.state)).await?;
+                }
+                let fresh = ws.item(created.id).await?;
+                sqlx::query("UPDATE tasks SET source = ?, sync_dirty = 0, remote_updated_at = ? WHERE id = ?")
+                    .bind(format!("windshift:{}", fresh.key))
+                    .bind(&fresh.updated_at)
+                    .bind(&t.id)
+                    .execute(db)
+                    .await?;
+                pushed += 1;
+                continue;
             };
             ws.update(item.id, &t.title, &t.description).await?;
             let want = to_windshift(&t.state);

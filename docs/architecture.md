@@ -352,10 +352,10 @@ Done:
 - [x] Sign out, chat menu, expandable projects.
 
 Still open in 1.5:
-- [ ] Admin rights from a Keycloak group (`[oidc] admin_group`), checked at every sign-in.
-- [ ] Sign out of Keycloak too (OIDC end-session), not only of Kompanion.
-- [ ] Tasks made in Kompanion inside a Windshift project are created in Windshift as well (today only existing items sync).
-- [ ] Drag to reorder (today: move up/down).
+- [x] Admin rights from a Keycloak role (`[oidc] admin_role`, realm or client role), checked at every sign-in.
+- [x] Sign out of Keycloak too (OIDC end-session with the session's ID token).
+- [x] Tasks made in Kompanion inside a Windshift project are created in Windshift as well.
+- [x] Drag to reorder (and move up/down).
 
 ### 1.5 Admin and polish (doesn't need tasks, so it comes before them)
 

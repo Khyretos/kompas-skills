@@ -373,6 +373,38 @@ function wire(shell: HTMLElement): void {
     const form = (ev.target as HTMLElement).closest("form.rename") as HTMLFormElement | null;
     if (form && store.get().renamingChatId) saveRename(form);
   });
+  // Drag a task card onto another to put it there (project view only).
+  let dragId = "";
+  shell.addEventListener("dragstart", (ev) => {
+    const li = (ev.target as HTMLElement).closest<HTMLElement>("[data-drag-id]");
+    if (!li) return;
+    dragId = li.dataset.dragId ?? "";
+    ev.dataTransfer?.setData("text/plain", dragId);
+    li.classList.add("dragging");
+  });
+  shell.addEventListener("dragover", (ev) => {
+    if (dragId && (ev.target as HTMLElement).closest("[data-drag-id]")) ev.preventDefault();
+  });
+  shell.addEventListener("dragend", () => {
+    dragId = "";
+    shell.querySelectorAll(".dragging").forEach((x) => x.classList.remove("dragging"));
+  });
+  shell.addEventListener("drop", (ev) => {
+    const target = (ev.target as HTMLElement).closest<HTMLElement>("[data-drag-id]")?.dataset.dragId;
+    if (!dragId || !target || target === dragId) return;
+    ev.preventDefault();
+    const s = store.get();
+    const moved = s.tasks.find((t) => t.id === dragId);
+    if (!moved) return;
+    const ids = s.tasks.filter((t) => t.projectId === moved.projectId)
+      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0)).map((t) => t.id).filter((id) => id !== dragId);
+    ids.splice(ids.indexOf(target), 0, dragId);
+    api.reorderTasks(moved.projectId, ids).then(() => {
+      const pos = new Map(ids.map((x, k) => [x, k]));
+      store.set({ tasks: store.get().tasks.map((t) => (pos.has(t.id) ? { ...t, position: pos.get(t.id) } : t)) });
+    }, showError);
+  });
+
   // Machines tab: poll at the chosen rate, or on "Live" let the server push
   // over the event stream (renewing the 15 s watch). Nothing while hidden.
   let lastPoll = 0, lastWatch = 0;
