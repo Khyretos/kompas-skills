@@ -46,17 +46,17 @@ export function modal(backdrop: HTMLElement, close: () => void): Modal {
   }
 
   // Backdrop click handling (pointerdown/pointerup sequence)
+  // Close only when the press AND the release both land on the backdrop, so
+  // dragging a text selection out of the window doesn't close it.
+  let downOnBackdrop = false
   const handleBackdropPointerDown = (ev: PointerEvent): void => {
-    const downOnBackdrop = ev.target === backdrop
-    if (!downOnBackdrop) {
-      return
-    }
+    downOnBackdrop = ev.target === backdrop
   }
 
   const handleBackdropPointerUp = (ev: PointerEvent): void => {
-    if (ev.target === backdrop) {
-      requestClose()
-    }
+    const close = downOnBackdrop && ev.target === backdrop
+    downOnBackdrop = false
+    if (close) requestClose()
   }
 
   // Form event listeners using delegation on the backdrop
