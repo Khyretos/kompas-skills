@@ -64,7 +64,7 @@ export function renderSidebar(s: AppState): SafeHtml {
     <nav class="nav" aria-label="Projects and chats">
       ${pinned.length ? html`
         <h2 class="label">Pinned</h2>
-        <ul class="loose">${pinned.map(chatRow)}</ul>` : ""}
+        <ul class="loose">${pinned.map((c) => chatRow(c))}</ul>` : ""}
       <h2 class="label">Projects</h2>
       <ul class="projects">
         ${projects.map((p) => {
@@ -85,7 +85,7 @@ export function renderSidebar(s: AppState): SafeHtml {
             </button>
             ${open ? html`
               <ul>
-                ${s.chats.filter((c) => c.projectId === p.id && !c.pinned).map(chatRow)}
+                ${s.chats.filter((c) => c.projectId === p.id && !c.pinned).map((c) => chatRow(c))}
                 ${shown.slice(0, TASKS_SHOWN).map((t) => html`
                   <li class="task-line state-${t.state}" title="${t.title}">
                     <span class="task-dot" aria-hidden="true"></span><span class="nav-title">${t.title}</span>
