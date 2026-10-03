@@ -29,3 +29,8 @@
 14. When you remove lines with an edit block, SEARCH for exactly those lines. Never include the
     line that opens the surrounding block (`test.beforeEach(async ({ page }) => {`) unless the
     REPLACE keeps it.
+15. Every overlay (modal, sheet, dialog) closes three ways: a click on the backdrop outside the
+    window (only when both pointerdown and pointerup land on the backdrop, so dragging a text
+    selection out doesn't close it), a visible × button top-right, and Escape. If a form inside
+    has unsaved edits, ask before closing. Return focus to the element that opened it. Use the
+    shared helper `core/modal.ts`; never write a one-off.

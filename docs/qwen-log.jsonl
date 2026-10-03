@@ -74,3 +74,7 @@
 {"name": "L4 resize.ts compile and state", "out": "web/src/core/resize.ts", "gpu_seconds": 88.8, "tokens": 2225, "lines": 227, "review": "skipped", "at": "2026-10-04T01:07:15"}
 {"name": "L5 resize drag", "out": "web/src/core/resize.ts", "mode": "patch", "gpu_seconds": 26.3, "tokens": 499, "lines": 1, "attempts": 1, "at": "2026-10-04T01:11:38"}
 {"name": "L6 layout test loads", "out": "web/tests/layout.spec.ts", "mode": "patch", "gpu_seconds": 4.9, "tokens": 78, "lines": 2, "attempts": 1, "at": "2026-10-04T01:13:29"}
+{"name": "M1 modal.ts", "out": "web/src/core/modal.ts", "gpu_seconds": 49.4, "tokens": 1438, "lines": 95, "at": "2026-10-04T01:18:35"}
+{"name": "M1 main.ts settings modal", "out": "web/src/main.ts", "mode": "patch", "gpu_seconds": 26.0, "tokens": 730, "lines": 6, "attempts": 1, "at": "2026-10-04T01:19:01"}
+{"name": "M1 settings tests", "out": "web/tests/settings.spec.ts", "gpu_seconds": 57.7, "tokens": 1692, "lines": 97, "at": "2026-10-04T01:19:59"}
+{"name": "M2 modal.ts fixes", "out": "web/src/core/modal.ts", "gpu_seconds": 21.6, "tokens": 626, "lines": 83, "review": "skipped", "at": "2026-10-04T01:20:37"}

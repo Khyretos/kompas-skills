@@ -2,6 +2,7 @@ import { showSignIn } from "./views/signin";
 import { HttpApi } from "./api/http";
 import { $, html, mount, onAction, restoreBusy } from "./core/html";
 import { initResize } from "./core/resize";
+import { modal, type Modal } from "./core/modal";
 import { MockApi } from "./api/mock";
 import type { KompanionApi, ServerEvent } from "./api/client";
 import type { AdminSettings, Role, Server, TaskState, ThemeChoice } from "./api/types";
@@ -15,6 +16,8 @@ import { KeyedList } from "./core/keyed";
 import { paneTabs, renderTasks } from "./views/tasks";
 import { renderMachines, REFRESH_STEPS, setGpuView } from "./views/machines";
 import { grantFromForm, renderAccess, type GrantView } from "./views/access";
+
+let settingsModal: Modal | undefined;
 
 /** Shows a grant change at once, marked pending until the computer confirms it. */
 function markGrant(machineId: string, target: string, pending: "add" | "revoke", g?: Partial<GrantView>): void {
@@ -257,6 +260,7 @@ async function reload(): Promise<void> {
 
 function wire(shell: HTMLElement): void {
   initResize($(".shell"));
+  settingsModal = modal($("#settings"), () => store.set({ settingsOpen: false }));
   store.subscribe(render);
   store.flush();
   api.onEvent(applyEvent);
@@ -350,7 +354,8 @@ function wire(shell: HTMLElement): void {
     scope: (el) => store.set({ taskScope: el.dataset.scope as AppState["taskScope"] }),
     pane: (el) => store.set({ pane: el.dataset.pane as AppState["pane"] }),
     answer: (el) => api.answer(el.dataset.task ?? "", el.dataset.option ?? "").catch(showError),
-    settings: () => {
+    settings: (el) => {
+      settingsModal?.open(el);
       store.set({ settingsOpen: true, pane: "main" });
       api.getNotifications().then((notifications) => store.set({ notifications }), showError);
       if (store.get().isAdmin) api.getAdmin().then((admin) => store.set({ admin }), showError);
@@ -367,7 +372,7 @@ function wire(shell: HTMLElement): void {
     },
     // Ends this app's session, and the Keycloak session too after single sign-on.
     logout: () => api.logout().then((sso) => location.replace(sso ?? "/"), showError),
-    "close-settings": () => store.set({ settingsOpen: false }),
+    "close-settings": () => settingsModal?.requestClose(),
   });
 
   shell.addEventListener("change", async (ev) => {
@@ -399,7 +404,7 @@ function wire(shell: HTMLElement): void {
     if (ev.key !== "Escape") return;
     const s = store.get();
     if (s.renamingChatId || s.chatMenuId) store.set({ renamingChatId: undefined, chatMenuId: undefined });
-    else if (s.settingsOpen) store.set({ settingsOpen: false });
+    else if (s.settingsOpen) settingsModal?.requestClose();
   });
   // A click anywhere outside an open chat menu closes it.
   document.addEventListener("click", (ev) => {
