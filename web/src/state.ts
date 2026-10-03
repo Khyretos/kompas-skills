@@ -11,6 +11,8 @@ export interface AppState {
   windshift?: string; // "connected" | "not configured" (set in the server's compose file only)
   theme: ThemeChoice;
   machinesRefresh: number; // seconds between Machines updates; 1 = live
+  gpuOpen: Set<string>; // GPU panels expanded (this session)
+  gpuPins: string[]; // pinned GPU bars, saved per user
   pairing?: { id: string; name: string; token: string }; // shown once after pairing a PC
   admin?: { settings: AdminSettings; smtpPasswordSet: boolean }; // loaded when an admin opens settings
   projects: Project[];
@@ -51,6 +53,8 @@ export const store = new Store<AppState>({
   isAdmin: false,
   theme: "system",
   machinesRefresh: 5,
+  gpuOpen: new Set(),
+  gpuPins: [],
 });
 
 export function activeChat(s: AppState): Chat | undefined {

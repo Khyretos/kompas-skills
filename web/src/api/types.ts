@@ -140,6 +140,9 @@ export interface GpuStats {
   coreMhz?: number | null;
   memMhz?: number | null;
   fanRpm?: number | null;
+  coreMaxMhz?: number | null;
+  powerCapW?: number | null;
+  engines?: { name: string; busy: number }[];
   use: string; // what it is used for, e.g. "AI: OVMS (Qwen)"
 }
 
@@ -175,6 +178,7 @@ export interface ServerStatus {
   admin?: boolean;
   theme?: ThemeChoice;
   machinesRefresh?: number; // seconds; 1 = live
+  gpuPins?: string[];
   windshift?: "connected" | "not configured";
   windshiftWarning?: string | null;
   logoVersion?: string | null; // set when an admin uploaded a logo

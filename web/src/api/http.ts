@@ -57,6 +57,7 @@ export class HttpApi implements KompanionApi {
   async logout() { return (await this.request<{ redirect?: string | null }>("POST", "/logout")).redirect ?? null; }
   getNotifications() { return this.request<NotificationPrefs>("GET", "/me/notifications"); }
   setNotifications(p: NotificationPrefs) { return this.request<void>("PUT", "/me/notifications", p); }
+  setGpuPins(pins: string[]) { return this.request<void>("PUT", "/me/prefs", { gpuPins: pins }); }
   setMachinesRefresh(seconds: number) { return this.request<void>("PUT", "/me/prefs", { machinesRefresh: seconds }); }
   pairMachine(name: string) { return this.request<{ id: string; name: string; token: string }>("POST", "/machines", { name }); }
   unpairMachine(id: string) { return this.request<void>("DELETE", `/machines/${encodeURIComponent(id)}`); }

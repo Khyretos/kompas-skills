@@ -293,6 +293,7 @@ export class MockApi implements KompanionApi {
   async logout() { return null; }
   async setTheme() {}
   async setMachinesRefresh() {}
+  async setGpuPins() {}
   async getNotifications() { return { email: "", onNeedsInput: true, onFailed: true, onDone: false, dailySummary: false }; }
   async setNotifications() {}
   async watchMachines() {}

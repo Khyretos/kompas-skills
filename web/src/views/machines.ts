@@ -1,6 +1,6 @@
 // Machines tab: live load and power per connected computer, and today's totals.
 import { html, SafeHtml } from "../core/html";
-import type { DaySummary, MachineStats } from "../api/types";
+import type { DaySummary, GpuStats, MachineStats } from "../api/types";
 import { icon } from "./icons";
 
 const pct = (n: number) => `${Math.round(n * 100)}%`;
@@ -24,6 +24,11 @@ function bar(value: number, label: string): SafeHtml {
   return html`<span class="meter" role="meter" aria-valuenow="${Math.round(value * 100)}" aria-valuemin="0" aria-valuemax="100" aria-label="${label}">
     <span style="width:${pct(value)}"></span></span>`;
 }
+
+let openGpus = new Set<string>();
+let pins: string[] = [];
+/** Which GPU panels are open (this session) and which bars are pinned (saved per user). */
+export function setGpuView(open: Set<string>, pinned: string[]): void { openGpus = open; pins = pinned; }
 
 function machine(m: MachineStats): SafeHtml {
   const cpuKind = m.historyKind === "cpu";
@@ -52,23 +57,7 @@ function machine(m: MachineStats): SafeHtml {
       </dl>` : ""}
       ${m.powerHistory && m.powerHistory.length > 1 ? html`
         <div class="power"><span class="muted small">GPU power ${Math.round(m.powerHistory[m.powerHistory.length - 1])} W</span>${sparkline(m.powerHistory)}</div>` : ""}
-      ${m.gpus.map((g) => {
-        const facts = [
-          g.watts != null ? `${Math.round(g.watts)} W` : "",
-          g.tempC != null ? `${Math.round(g.tempC)} °C` : "",
-          g.coreMhz ? `${Math.round(g.coreMhz)} MHz` : "",
-          g.fanRpm != null ? `fan ${Math.round(g.fanRpm)} rpm` : "",
-        ].filter(Boolean).join(" · ");
-        return html`
-        <div class="gpu">
-          <div class="gpu-head"><strong>${g.name}</strong><span class="muted small">${g.use || g.driver || ""}</span></div>
-          <dl class="stats">
-            <div><dt>Load</dt><dd>${g.load != null ? html`${bar(g.load, `${g.name} load`)}<span>${pct(g.load)}</span>` : html`<span class="muted">…</span>`}</dd></div>
-            ${g.vramTotalGb ? html`<div><dt>VRAM</dt><dd>${bar((g.vramUsedGb ?? 0) / g.vramTotalGb, `${g.name} VRAM`)}<span>${(g.vramUsedGb ?? 0).toFixed(1)}/${g.vramTotalGb.toFixed(0)} GB</span></dd></div>` : ""}
-            ${facts ? html`<div><dt>Now</dt><dd><span class="num">${facts}</span></dd></div>` : ""}
-          </dl>
-        </div>`;
-      })}
+      ${m.gpus.map((g) => gpuPanel(m, g, openGpus.has(`${m.id}:${g.pciSlot ?? g.name}`), pins))}
     </li>`;
 }
 
@@ -90,6 +79,114 @@ function pairResult(p: { id: string; name: string; token: string }, server: stri
       <pre>${config}</pre>
       <p class="small">Then start <code>kompanion-runner</code> (see docs/runner-install.md). The computer shows up here within a minute.</p>
       <button class="btn small" data-action="pair-done">Done</button>
+    </div>`;
+}
+
+const ENGINE_NAMES: Record<string, string> = {
+  gfx: "Graphics", render: "Render", compute: "Compute", enc: "Video encode", dec: "Video decode",
+  video: "Video", "video-enhance": "Video enhance", copy: "Copy", vcn: "Video", jpeg: "JPEG",
+};
+
+// Per-GPU panel (drafted by qwen3:14b, reviewed): summary always, bars when
+// open, pinned bars also when closed.
+function gpuPanel(m: MachineStats, g: GpuStats, open: boolean, pins: string[]): SafeHtml {
+  const key = `${m.id}:${g.pciSlot ?? g.name}`;
+  const summary = [
+    g.use || g.driver || "",
+    g.load != null ? pct(g.load) : "",
+    g.tempC != null ? `${Math.round(g.tempC)} °C` : "",
+    g.watts != null ? `${Math.round(g.watts)} W` : "",
+  ].filter(Boolean).join(" · ");
+  const metrics: { id: string; label: string; value: number; text: string }[] = [];
+
+  if (g.load != null) {
+    metrics.push({
+      id: "load",
+      label: "Load",
+      value: g.load,
+      text: `${pct(g.load)}`,
+    });
+  }
+
+  if (g.engines) {
+    for (const engine of g.engines) {
+      const label = ENGINE_NAMES[engine.name] ?? engine.name;
+      if (engine.busy != null) {
+        metrics.push({
+          id: `engine:${engine.name}`,
+          label,
+          value: engine.busy,
+          text: pct(engine.busy),
+        });
+      }
+    }
+  }
+
+  if (g.vramUsedGb != null && g.vramTotalGb != null) {
+    metrics.push({
+      id: "vram",
+      label: "VRAM",
+      value: g.vramUsedGb / g.vramTotalGb,
+      text: `${g.vramUsedGb.toFixed(1)}/${g.vramTotalGb.toFixed(0)} GB`,
+    });
+  }
+
+  if (g.watts != null && g.powerCapW != null) {
+    metrics.push({
+      id: "power",
+      label: "Power",
+      value: g.watts / g.powerCapW,
+      text: `${Math.round(g.watts)}/${Math.round(g.powerCapW)} W`,
+    });
+  }
+
+  if (g.coreMhz != null && g.coreMaxMhz != null) {
+    metrics.push({
+      id: "clock",
+      label: "Clock",
+      value: g.coreMhz / g.coreMaxMhz,
+      text: `${Math.round(g.coreMhz)} MHz`,
+    });
+  }
+
+  if (g.tempC != null) {
+    metrics.push({
+      id: "temp",
+      label: "Temp",
+      value: g.tempC / 100,
+      text: `${Math.round(g.tempC)} °C`,
+    });
+  }
+
+  if (g.fanRpm != null) {
+    metrics.push({
+      id: "fan",
+      label: "Fan",
+      value: Math.min(g.fanRpm / 3500, 1),
+      text: `${Math.round(g.fanRpm)} rpm`,
+    });
+  }
+
+  return html`
+    <div class="gpu">
+      <button class="gpu-head" data-action="gpu-toggle" data-gpu="${key}" aria-expanded="${open}">
+        ${icon(open ? "chevron-down" : "chevron-right")}<strong>${g.name}</strong>
+        <span class="gpu-summary muted small">${summary}</span>
+      </button>
+      ${metrics
+        .filter((m) => open || pins.includes(`${key}/${m.id}`))
+        .map((metric) => {
+          const pinned = pins.includes(`${key}/${metric.id}`);
+          return html`
+            <div class="gpu-bar">
+              <span class="gpu-bar-label">${metric.label}</span>
+              ${bar(metric.value, metric.label)}
+              <span>${metric.text}</span>
+              <button class="icon-btn pin ${pinned ? "on" : ""}" data-action="gpu-pin" data-pin="${key}/${metric.id}" aria-pressed="${pinned}" aria-label="Pin ${metric.label}">
+                ${icon("pin")}
+              </button>
+            </div>`;
+        })}
     </div>`;
 }
 

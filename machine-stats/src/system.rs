@@ -29,6 +29,7 @@ pub struct Sampler {
     disk: String,
     cpu_prev: Option<(u64, u64)>,
     gpu: GpuReader,
+    engines: crate::fdinfo::EngineReader,
     last: Option<Instant>,
 }
 
@@ -36,7 +37,7 @@ impl Sampler {
     /// `root` is where /proc, /sys and os-release live ("/" normally);
     /// `disk` is the mount point whose usage is reported ("/").
     pub fn new(root: &str, disk: &str) -> Self {
-        Sampler { root: root.trim_end_matches('/').to_string(), disk: disk.into(), cpu_prev: None, gpu: GpuReader::default(), last: None }
+        Sampler { root: root.trim_end_matches('/').to_string(), disk: disk.into(), cpu_prev: None, gpu: GpuReader::default(), engines: Default::default(), last: None }
     }
 
     /// Seconds since the previous sample, if any.
@@ -68,7 +69,16 @@ impl Sampler {
             load1: first_number(&fs::read_to_string(p("proc/loadavg")).unwrap_or_default()),
             // Inside a container, the host's os-release is mounted at /host/os-release.
             os: os_name(&p("host/os-release")).or_else(|| os_name(&p("etc/os-release"))).unwrap_or_else(|| "Linux".into()),
-            gpus: self.gpu.read(Path::new(&p("sys"))),
+            gpus: {
+                let mut gpus = self.gpu.read(Path::new(&p("sys")));
+                let mut busy = self.engines.read(Path::new(&p("proc")));
+                for g in &mut gpus {
+                    if let Some(list) = busy.remove(&g.pci_slot) {
+                        g.engines = list.into_iter().map(|(name, busy)| crate::gpu::Engine { name, busy }).collect();
+                    }
+                }
+                gpus
+            },
         }
     }
 }

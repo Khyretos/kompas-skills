@@ -30,6 +30,21 @@ pub struct GpuStats {
     pub core_mhz: Option<f64>,
     pub mem_mhz: Option<f64>,
     pub fan_rpm: Option<f64>,
+    /// Highest core clock, for the clock bar.
+    #[serde(default)]
+    pub core_max_mhz: Option<f64>,
+    /// Power limit in W, for the power bar.
+    #[serde(default)]
+    pub power_cap_w: Option<f64>,
+    /// Busy share per engine (from DRM fdinfo), only engines we could read.
+    #[serde(default)]
+    pub engines: Vec<Engine>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Engine {
+    pub name: String,
+    pub busy: f64,
 }
 
 /// Keeps the previous counters per GPU to turn them into rates.
@@ -138,6 +153,9 @@ impl GpuReader {
             core_mhz: None,
             mem_mhz: None,
             fan_rpm: hwn("fan1_input"),
+            core_max_mhz: None,
+            power_cap_w: None,
+            engines: Vec::new(),
         };
 
         let (energy_uj, idle_ms) = match driver.as_str() {
@@ -149,15 +167,26 @@ impl GpuReader {
                 s.temp_c = hwn("temp1_input").map(|m| m / 1000.0);
                 s.core_mhz = hwn("freq1_input").map(|hz| hz / 1e6);
                 s.mem_mhz = hwn("freq2_input").map(|hz| hz / 1e6);
+                s.power_cap_w = hwn("power1_cap").map(|uw| uw / 1e6);
+                // "2: 2450Mhz *" -> 2450, the last (highest) level.
+                s.core_max_mhz = text(&dev.join("pp_dpm_sclk")).and_then(|t| {
+                    t.lines().filter_map(|l| l.split_whitespace().nth(1)?.trim_end_matches("Mhz").parse::<f64>().ok()).reduce(f64::max)
+                });
                 (None, None)
             }
             "i915" => {
                 s.core_mhz = num(&card.join("gt_act_freq_mhz"));
+                s.core_max_mhz = num(&card.join("gt_max_freq_mhz"));
+                s.power_cap_w = hwn("power1_max").map(|uw| uw / 1e6).filter(|w| *w > 0.0);
                 s.temp_c = hwn("temp1_input").map(|m| m / 1000.0);
                 (hwn("energy1_input"), num(&card.join("gt/gt0/rc6_residency_ms")))
             }
             "xe" => {
                 s.core_mhz = num(&dev.join("tile0/gt0/freq0/act_freq"));
+                s.core_max_mhz = num(&dev.join("tile0/gt0/freq0/max_freq"));
+                s.power_cap_w = hw.as_deref().and_then(|h| {
+                    (1..=4).find_map(|n| num(&h.join(format!("power{n}_max")))).map(|uw| uw / 1e6).filter(|w| *w > 0.0)
+                });
                 let h = hw.as_deref();
                 s.temp_c = h.and_then(|h| labelled(h, "temp", &["pkg"])).map(|m| m / 1000.0);
                 (

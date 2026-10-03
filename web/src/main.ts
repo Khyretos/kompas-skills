@@ -12,7 +12,7 @@ import { renderSidebar } from "./views/sidebar";
 import { composer, fillMessage, messageViews, renderEmpty, renderHeader, renderMessage, type MessageView } from "./views/conversation";
 import { KeyedList } from "./core/keyed";
 import { paneTabs, renderTasks } from "./views/tasks";
-import { renderMachines, REFRESH_STEPS } from "./views/machines";
+import { renderMachines, REFRESH_STEPS, setGpuView } from "./views/machines";
 
 let savePrefs: ReturnType<typeof setTimeout> | undefined;
 import { html as h } from "./core/html";
@@ -96,7 +96,7 @@ async function start(server: Server): Promise<void> {
   store.set({
     server: { ...server, name: status.name || server.name }, projects, chats, tasks, providers, roles, machines, today,
     userName: status.user ?? undefined, isAdmin: !!status.admin, theme: status.theme ?? "system",
-    machinesRefresh: status.machinesRefresh ?? 5, windshift: status.windshift, windshiftWarning: status.windshiftWarning, logoVersion: status.logoVersion,
+    machinesRefresh: status.machinesRefresh ?? 5, gpuPins: status.gpuPins ?? [], windshift: status.windshift, windshiftWarning: status.windshiftWarning, logoVersion: status.logoVersion,
   });
   applyTheme(status.theme ?? "system");
   wire(shellRoot);
@@ -149,14 +149,14 @@ function render(s: AppState, prev: AppState): void {
   }
   const rightKeys: (keyof AppState)[] = s.rightTab === "tasks"
     ? ["rightTab", "tasks", "projects", "openTaskId", "editingTaskId", "taskScope", "activeProjectId", "activeChatId", "chats"]
-    : ["rightTab", "machines", "today", "machinesRefresh", "tasks", "pairing"];
+    : ["rightTab", "machines", "today", "machinesRefresh", "tasks", "pairing", "gpuOpen", "gpuPins"];
   // Never rebuild the task editor under the user's hands; only when it opens or closes.
   const editing = s.rightTab === "tasks" && s.editingTaskId && s.editingTaskId === prev.editingTaskId && !firstRender;
   if (!editing && changed(s, prev, rightKeys)) {
     remount($("#right"), s.rightTab === "tasks" ? renderTasks(s) : h`
       <div class="pane-head">${paneTabs(s)}
         <button class="icon-btn only-narrow" data-action="pane" data-pane="main" aria-label="Close">✕</button></div>
-      ${renderMachines(s.machines, s.today, s.machinesRefresh, s.pairing)}`);
+      ${(setGpuView(s.gpuOpen, s.gpuPins), renderMachines(s.machines, s.today, s.machinesRefresh, s.pairing))}`);
     // Task descriptions are markdown, rendered sanitised after mounting.
     for (const el of document.querySelectorAll<HTMLElement>("[data-md-task]")) {
       const t = s.tasks.find((x) => x.id === el.dataset.mdTask);
@@ -239,6 +239,19 @@ function wire(shell: HTMLElement): void {
       store.set({ expandedProjects: expanded, activeProjectId: id, taskScope: "project" });
     },
     "project-tasks": (el) => store.set({ activeProjectId: el.dataset.id, taskScope: "project", rightTab: "tasks", pane: "right" }),
+    "gpu-toggle": (el) => {
+      const open = new Set(store.get().gpuOpen);
+      const k = el.dataset.gpu ?? "";
+      if (open.has(k)) open.delete(k); else open.add(k);
+      store.set({ gpuOpen: open });
+    },
+    "gpu-pin": (el) => {
+      const pin = el.dataset.pin ?? "";
+      const now = store.get().gpuPins;
+      const gpuPins = now.includes(pin) ? now.filter((p) => p !== pin) : [...now, pin];
+      store.set({ gpuPins });
+      api.setGpuPins(gpuPins).catch(showError);
+    },
     "pair-done": () => store.set({ pairing: undefined }),
     unpair: (el) => {
       const m = store.get().machines.find((x) => x.id === el.dataset.id);

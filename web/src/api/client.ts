@@ -13,6 +13,7 @@ export interface KompanionApi {
   logout(): Promise<string | null>;
   setTheme(theme: ThemeChoice): Promise<void>;
   setMachinesRefresh(seconds: number): Promise<void>;
+  setGpuPins(pins: string[]): Promise<void>;
   getNotifications(): Promise<NotificationPrefs>;
   setNotifications(p: NotificationPrefs): Promise<void>;
   /** Keeps the live machine feed on for about 15 s. */

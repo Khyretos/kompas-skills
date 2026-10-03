@@ -246,6 +246,11 @@ li.task[draggable="true"] { cursor: grab; }
 li.task.dragging { opacity: 0.5; }
 .project-badge { font-size: 0.7rem; max-width: 7rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .submenu { display: grid; border-top: 1px solid var(--line); margin-top: 0.2rem; padding-top: 0.2rem; max-height: 14rem; overflow-y: auto; }
+.gpu-head { width: 100%; display: flex; align-items: center; gap: 0.4rem; text-align: left; padding: 0.3rem 0; }
+.gpu-summary { margin-left: auto; white-space: nowrap; }
+.gpu-bar { display: grid; grid-template-columns: 6.5rem 1fr auto auto; align-items: center; gap: 0.5rem; font-size: 0.82rem; }
+.gpu-bar .pin { width: 1.6rem; height: 1.6rem; opacity: 0.45; }
+.gpu-bar .pin.on, .gpu-bar .pin:hover { opacity: 1; color: var(--accent-strong); }
 .server-logo { width: 1.75rem; height: 1.75rem; flex: none; }
 .server small { display: flex; align-items: center; gap: 0.35rem; }
 .account { border-top: 1px solid var(--line); padding-top: 0.5rem; display: grid; gap: 0.25rem; }

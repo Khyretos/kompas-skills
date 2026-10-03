@@ -294,9 +294,12 @@ fn valid(s: &Snapshot) -> bool {
             g.name.len() <= 120
                 && g.pci_slot.len() <= 40
                 && g.driver.len() <= 40
-                && [g.load, g.vram_used_gb, g.vram_total_gb, g.watts, g.temp_c, g.core_mhz, g.mem_mhz, g.fan_rpm]
+                && [g.load, g.vram_used_gb, g.vram_total_gb, g.watts, g.temp_c, g.core_mhz, g.mem_mhz, g.fan_rpm,
+                    g.core_max_mhz, g.power_cap_w]
                     .into_iter()
                     .all(finite)
+                && g.engines.len() <= 16
+                && g.engines.iter().all(|e| e.name.len() <= 40 && (0.0..=1.0).contains(&e.busy))
         })
 }
 

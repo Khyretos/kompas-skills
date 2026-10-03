@@ -279,7 +279,9 @@ pub const REFRESH_STEPS: &[u32] = &[1, 2, 5, 15, 30, 60, 300];
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Prefs {
-    machines_refresh: u32,
+    machines_refresh: Option<u32>,
+    /// GPU panel bars pinned by this user ("<pci slot>/<metric>").
+    gpu_pins: Option<Vec<String>>,
 }
 
 /// Per-user preferences that follow the user across devices.
@@ -288,14 +290,22 @@ pub async fn set_prefs(
     Extension(u): Extension<User>,
     Json(b): Json<Prefs>,
 ) -> ApiResult<StatusCode> {
-    if !REFRESH_STEPS.contains(&b.machines_refresh) {
-        return Err(ApiError::BadRequest("Pick one of the refresh steps.".into()));
+    if let Some(r) = b.machines_refresh {
+        if !REFRESH_STEPS.contains(&r) {
+            return Err(ApiError::BadRequest("Pick one of the refresh steps.".into()));
+        }
+        sqlx::query("UPDATE users SET machines_refresh = ? WHERE id = ?").bind(r).bind(&u.id).execute(&s.db).await?;
     }
-    sqlx::query("UPDATE users SET machines_refresh = ? WHERE id = ?")
-        .bind(b.machines_refresh)
-        .bind(&u.id)
-        .execute(&s.db)
-        .await?;
+    if let Some(pins) = b.gpu_pins {
+        if pins.len() > 64 || pins.iter().any(|p| p.len() > 80) {
+            return Err(ApiError::BadRequest("Too many pins.".into()));
+        }
+        sqlx::query("UPDATE users SET gpu_pins = ? WHERE id = ?")
+            .bind(serde_json::to_string(&pins).unwrap_or_else(|_| "[]".into()))
+            .bind(&u.id)
+            .execute(&s.db)
+            .await?;
+    }
     Ok(StatusCode::NO_CONTENT)
 }
 
