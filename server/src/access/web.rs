@@ -61,7 +61,7 @@ pub async fn list_grants(
 ) -> ApiResult<Json<Vec<Value>>> {
     owned(&s, &id, &u).await?;
 
-    let rows: Vec<(String, Value, String, String, Option<String>)> = sqlx::query_as(
+    let rows: Vec<(String, String, String, String, Option<String>)> = sqlx::query_as(
         "SELECT target, rights, granted_by, granted_at, expires FROM machine_grants WHERE machine_id = ?"
     )
     .bind(&id)
@@ -71,126 +71,12 @@ pub async fn list_grants(
     let results = rows
         .into_iter()
         .map(|(target, rights, granted_by, granted_at, expires)| {
-            let rights_vec: Vec<String> = rights.as_array()
-                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
-                .unwrap_or_default();
+            let rights_vec: Vec<String> = rights
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
 
             json!({
                 "target": target,
-                "rights": rights_vec,
-                "grantedBy": granted_by,
-                "grantedAt": granted_at,
-                "expires": expires.unwrap_or_default()
-            })
-        })
-        .collect();
-
-    Ok(Json(results))
-}
-
-pub async fn revoke_grant(
-    State(s): State<AppState>,
-    Extension(u): Extension<User>,
-    Path(id): Path<String>,
-    Json(b): Json<TargetBody>,
-) -> ApiResult<StatusCode> {
-    owned(&s, &id, &u).await?;
-
-    let tool = json!({
-        "tool": "revoke_grant",
-        "target": b.target
-    });
-
-    super::runner::queue_job(&s.db, &id, &u.id, &tool, None).await?;
-
-    sqlx::query("INSERT INTO access_log (machine_id, user_id, at, kind, target, detail) VALUES (?, ?, ?, ?, ?, ?)")
-        .bind(&id)
-        .bind(&u.id)
-        .bind(&util::now())
-        .bind("revoked")
-        .bind(&b.target)
-        .bind("requested")
-        .execute(&s.db)
-        .await?;
-
-    Ok(StatusCode::ACCEPTED)
-}
-
-pub async fn add_grant(
-    State(s): State<AppState>,
-    Extension(u): Extension<User>,
-    Path(id): Path<String>,
-    Json(b): Json<AddBody>,
-) -> ApiResult<StatusCode> {
-    owned(&s, &id, &u).await?;
-
-    if !valid_grant(&b.target, &b.rights) {
-        return Err(ApiError::BadRequest("That grant isn't valid: use an absolute folder or \"system\", and rights read, write or shell.".to_string()));
-    }
-
-    let tool = json!({
-        "tool": "add_grant",
-        "grant": {
-            "target": b.target,
-            "rights": b.rights,
-            "granted_by": u.name,
-            "granted_at": util::now()
-        }
-    });
-
-    super::runner::queue_job(&s.db, &id, &u.id, &tool, None).await?;
-
-    sqlx::query("INSERT INTO access_log (machine_id, user_id, at, kind, target, detail) VALUES (?, ?, ?, ?, ?, ?)")
-        .bind(&id)
-        .bind(&u.id)
-        .bind(&util::now())
-        .bind("granted")
-        .bind(&b.target)
-        .bind("requested")
-        .execute(&s.db)
-        .await?;
-
-    Ok(StatusCode::ACCEPTED)
-}
-
-pub async fn history(
-    State(s): State<AppState>,
-    Extension(u): Extension<User>,
-) -> ApiResult<Json<Vec<Value>>> {
-    let rows: Vec<(String, String, String, String, String)> = sqlx::query_as(
-        "SELECT a.at, a.kind, a.target, a.detail, COALESCE(m.name, '') FROM access_log a LEFT JOIN machines m ON m.id = a.machine_id WHERE a.user_id = ? ORDER BY a.id DESC LIMIT 200"
-    )
-    .bind(&u.id)
-    .fetch_all(&s.db)
-    .await?;
-
-    let results = rows
-        .into_iter()
-        .map(|(at, kind, target, detail, machine)| {
-            json!({
-                "at": at,
-                "kind": kind,
-                "target": target,
-                "detail": detail,
-                "machine": machine
-            })
-        })
-        .collect();
-
-    Ok(Json(results))
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_valid_grant() {
-        assert!(valid_grant("/home/k/p", &["read".to_string()]));
-        assert!(valid_grant("system", &["read".to_string()]));
-        assert!(!valid_grant("/a/../b", &["read".to_string()]));
-        assert!(!valid_grant("relative", &["read".to_string()]));
-        assert!(!valid_grant("/home/k/p", &[]));
-        assert!(!valid_grant("/home/k/p", &["root".to_string()]));
-    }
-}
+                "rights": rights_vec
