@@ -47,7 +47,7 @@ pub async fn create_job(
     // Queue the job
     let job_id = queue_job(&s.db, &id, &u.id, &b.tool, None)
         .await
-        .map_err(|e| ApiError::Internal(e.to_string()))?;
+        .map_err(ApiError::Internal)?;
 
     Ok((StatusCode::ACCEPTED, Json(json!({ "id": job_id }))))
 }
