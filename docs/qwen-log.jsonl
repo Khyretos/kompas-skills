@@ -51,3 +51,4 @@
 {"name": "F6 jobs: allow the new tools", "out": "server/src/access/jobs.rs", "gpu_seconds": 26.7, "tokens": 721, "lines": 82, "review": "skipped", "at": "2026-10-04T00:07:06"}
 {"name": "F6 access.ts: system grants and expiry", "out": "web/src/views/access.ts", "gpu_seconds": 104.3, "tokens": 2664, "lines": 91, "at": "2026-10-04T00:08:50"}
 {"name": "access.ts fixes", "out": "web/src/views/access.ts", "gpu_seconds": 62.2, "tokens": 1332, "lines": 91, "review": "skipped", "at": "2026-10-04T00:10:12"}
+{"name": "runner now() and job ok", "out": "runner/src/main.rs", "gpu_seconds": 81.1, "tokens": 2425, "lines": 246, "review": "skipped", "at": "2026-10-04T00:23:33"}

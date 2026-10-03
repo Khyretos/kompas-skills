@@ -48,3 +48,7 @@
 23. Rust runs tests in parallel. Each test that touches files needs its own folder: put the
     test name in it (`temp_dir().join(format!("kk-edit-{name}-{}", process::id()))`). When
     tests share one folder, one test's cleanup deletes another's files.
+24. Time: keep units straight. Seconds since the epoch become days with `div_euclid(86_400)`.
+    Timestamps compared as strings must use one format (RFC 3339 UTC with time of day).
+    Test date code with known real dates (`civil(20_729) == (2026, 10, 3)`). A clock bug
+    once made every expiring grant look expired.
