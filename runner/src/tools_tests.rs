@@ -38,7 +38,7 @@ fn test_grants_add_and_revoke() {
     let mut grants = Grants::load(&dir).unwrap();
     let grant = crate::grants::Grant {
         target: "/tmp/testdir".to_string(),
-        rights: vec!["read".to_string(), "write".to_string()],
+        rights: vec![Right::Read, Right::Write],
         granted_by: "admin".to_string(),
         granted_at: "1620000000".to_string(),
         expires: Some("1620000000".to_string()),
