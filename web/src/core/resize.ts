@@ -117,31 +117,27 @@ export function initResize(shell: HTMLElement): void {
   }
 
   function handlePointerDown(e: PointerEvent): void {
-    const handle = e.target as HTMLDivElement;
-    if (!handle.classList.contains("resize-handle")) return;
+    const handle = e.currentTarget as HTMLElement;
     const side = handle.dataset.side as Side;
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = width(side);
     shell.classList.add("dragging");
-    handle.setPointerCapture(e.pointerId);
-    const moveHandler = (ev: PointerEvent): void => {
-      const rect = shell.getBoundingClientRect();
-      const px = ev.clientX - rect.left;
-      if (side === "left") {
-        setWidth("left", px);
-      } else {
-        setWidth("right", rect.width - px);
-      }
-      updateAriaValues(side);
+    try { handle.setPointerCapture(e.pointerId); } catch { /* not supported: window listeners still work */ }
+    const move = (ev: PointerEvent): void => {
+      const dx = ev.clientX - startX;
+      setWidth(side, side === "left" ? startWidth + dx : startWidth - dx);
     };
-    const upHandler = (): void => {
+    const up = (): void => {
       shell.classList.remove("dragging");
-      handle.releasePointerCapture(e.pointerId);
-      shell.removeEventListener("pointermove", moveHandler);
-      shell.removeEventListener("pointerup", upHandler);
-      shell.removeEventListener("pointercancel", upHandler);
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
     };
-    shell.addEventListener("pointermove", moveHandler);
-    shell.addEventListener("pointerup", upHandler);
-    shell.addEventListener("pointercancel", upHandler);
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
   }
 
   function handleKeyDown(e: KeyboardEvent): void {

@@ -72,3 +72,4 @@
 {"name": "L2 resize.ts fixes", "out": "web/src/core/resize.ts", "gpu_seconds": 60.3, "tokens": 2267, "lines": 230, "review": "skipped", "at": "2026-10-04T01:02:07"}
 {"name": "L3 layout tests", "out": "web/tests/layout.spec.ts", "gpu_seconds": 70.0, "tokens": 2172, "lines": 114, "at": "2026-10-04T01:03:34"}
 {"name": "L4 resize.ts compile and state", "out": "web/src/core/resize.ts", "gpu_seconds": 88.8, "tokens": 2225, "lines": 227, "review": "skipped", "at": "2026-10-04T01:07:15"}
+{"name": "L5 resize drag", "out": "web/src/core/resize.ts", "mode": "patch", "gpu_seconds": 26.3, "tokens": 499, "lines": 1, "attempts": 1, "at": "2026-10-04T01:11:38"}
