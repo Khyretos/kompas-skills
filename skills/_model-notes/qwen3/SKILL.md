@@ -10,6 +10,8 @@ Measured 2026-10-01..03 (details: ~/Docker/docs/ai-capability/qwen3-14b-soucouya
 - Invents paths, hosts and settings when the prompt doesn't contain them; put the real config in the prompt.
 - Sometimes copies an instruction from the prompt into its output; strip lines like "ensure no additional ...".
 
+- (2026-10-03) Use one model tag per Ollama host. A context-size variant (`qwen3:14b-16k`) is a separate model: requests alternating between it and `qwen3:14b` make Ollama unload and reload on almost every switch (about 44 s per request instead of under 1 s). Pick the 16k tag everywhere if any caller needs 16k context.
+
 As translation judge (kk-localize, 2026-10-03):
 - Stricter than Qwen3.5-9B grading its own work: it scored 3 on real errors the 9B had given 4-5 (nl non-word "Gededegeerde", typo "joing", "alles else", "Open-source kredieten" for credits).
 - Accepts normal tech loanwords (nl "demo games", "fork"), which is right.
