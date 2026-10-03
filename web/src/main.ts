@@ -13,7 +13,7 @@ import { composer, fillMessage, messageViews, renderEmpty, renderHeader, renderM
 import { KeyedList } from "./core/keyed";
 import { paneTabs, renderTasks } from "./views/tasks";
 import { renderMachines, REFRESH_STEPS, setGpuView } from "./views/machines";
-import { renderAccess } from "./views/access";
+import { grantFromForm, renderAccess } from "./views/access";
 
 let savePrefs: ReturnType<typeof setTimeout> | undefined;
 import { html as h } from "./core/html";
@@ -381,9 +381,8 @@ function wire(shell: HTMLElement): void {
     const grantForm = (ev.target as HTMLElement).closest("form.grant-add") as HTMLFormElement | null;
     if (grantForm) {
       ev.preventDefault();
-      const f = new FormData(grantForm);
-      const rights = f.getAll("rights").map(String);
-      api.addGrant(grantForm.dataset.machine ?? "", String(f.get("target") ?? "").trim(), rights)
+      const g = grantFromForm(grantForm);
+      api.addGrant(grantForm.dataset.machine ?? "", g.target, g.rights, g.expiresHours)
         .then(() => setTimeout(loadAccess, 1500), showError);
       return;
     }

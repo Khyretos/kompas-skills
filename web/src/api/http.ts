@@ -61,8 +61,8 @@ export class HttpApi implements KompanionApi {
   setMachinesRefresh(seconds: number) { return this.request<void>("PUT", "/me/prefs", { machinesRefresh: seconds }); }
   pairMachine(name: string) { return this.request<{ id: string; name: string; token: string }>("POST", "/machines", { name }); }
   listGrants(machineId: string) { return this.request<import("../views/access").GrantView[]>("GET", `/machines/${encodeURIComponent(machineId)}/grants`); }
-  addGrant(machineId: string, target: string, rights: string[]) {
-    return this.request<void>("POST", `/machines/${encodeURIComponent(machineId)}/grants`, { target, rights });
+  addGrant(machineId: string, target: string, rights: string[], expiresHours?: number) {
+    return this.request<void>("POST", `/machines/${encodeURIComponent(machineId)}/grants`, { target, rights, expires_hours: expiresHours ?? null });
   }
   revokeGrant(machineId: string, target: string) {
     return this.request<void>("POST", `/machines/${encodeURIComponent(machineId)}/grants/revoke`, { target });

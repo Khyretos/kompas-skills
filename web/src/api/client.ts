@@ -22,7 +22,7 @@ export interface KompanionApi {
   pairMachine(name: string): Promise<{ id: string; name: string; token: string }>;
   unpairMachine(id: string): Promise<void>;
   listGrants(machineId: string): Promise<import("../views/access").GrantView[]>;
-  addGrant(machineId: string, target: string, rights: string[]): Promise<void>;
+  addGrant(machineId: string, target: string, rights: string[], expiresHours?: number): Promise<void>;
   revokeGrant(machineId: string, target: string): Promise<void>;
   accessHistory(): Promise<import("../views/access").AccessEvent[]>;
   getAdmin(): Promise<{ settings: AdminSettings; smtpPasswordSet: boolean }>;

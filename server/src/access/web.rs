@@ -10,6 +10,8 @@ pub struct TargetBody {
 
 #[derive(Deserialize)]
 pub struct AddBody {
+    #[serde(default)]
+    pub expires_hours: Option<i64>,
     pub target: String,
     pub rights: Vec<String>,
 }
@@ -18,9 +20,21 @@ fn valid_grant(target: &str, rights: &[String]) -> bool {
     if rights.is_empty() {
         return false;
     }
+    // Check for duplicates
+    if rights.len() != rights.iter().collect::<std::collections::HashSet<_>>().len() {
+        return false;
+    }
+
     if target == "system" {
+        let allowed = ["packages", "services", "desktop", "root"];
+        for r in rights {
+            if !allowed.contains(&r.as_str()) {
+                return false;
+            }
+        }
         return true;
     }
+
     if !target.starts_with('/') {
         return false;
     }
@@ -66,7 +80,7 @@ pub async fn list_grants(
     )
     .bind(&id)
     .fetch_all(&s.db)
-    .await?;
+        .await?;
 
     let results = rows
         .into_iter()
@@ -124,17 +138,26 @@ pub async fn add_grant(
     owned(&s, &id, &u).await?;
 
     if !valid_grant(&b.target, &b.rights) {
-        return Err(ApiError::BadRequest("That grant isn't valid: use an absolute folder or \"system\", and rights read, write or shell.".to_string()));
+        return Err(ApiError::BadRequest("That grant isn't valid: a folder takes read, write or shell; \"system\" takes packages, services, desktop or root.".to_string()));
+    }
+
+    let mut grant_json = json!({
+        "target": b.target,
+        "rights": b.rights,
+        "granted_by": u.name,
+        "granted_at": util::now()
+    });
+
+    if let Some(hours) = b.expires_hours {
+        if hours < 1 || hours > 720 {
+            return Err(ApiError::BadRequest("Expiry must be between 1 hour and 30 days.".to_string()));
+        }
+        grant_json["expires"] = util::in_hours(hours).into();
     }
 
     let tool = json!({
         "tool": "add_grant",
-        "grant": {
-            "target": b.target,
-            "rights": b.rights,
-            "granted_by": u.name,
-            "granted_at": util::now()
-        }
+        "grant": grant_json
     });
 
     super::runner::queue_job(&s.db, &id, &u.id, &tool, None).await?;
@@ -161,7 +184,7 @@ pub async fn history(
     )
     .bind(&u.id)
     .fetch_all(&s.db)
-    .await?;
+        .await?;
 
     let results = rows
         .into_iter()
@@ -185,11 +208,11 @@ mod tests {
 
     #[test]
     fn test_valid_grant() {
-        assert!(valid_grant("/home/k/p", &["read".to_string()]));
-        assert!(valid_grant("system", &["read".to_string()]));
-        assert!(!valid_grant("/a/../b", &["read".to_string()]));
-        assert!(!valid_grant("relative", &["read".to_string()]));
-        assert!(!valid_grant("/home/k/p", &[]));
-        assert!(!valid_grant("/home/k/p", &["root".to_string()]));
+        assert!(valid_grant("/home/k", &["read".to_string(), "write".to_string()]));
+        assert!(!valid_grant("/home/k", &["root".to_string()]));
+        assert!(valid_grant("system", &["packages".to_string(), "root".to_string()]));
+        assert!(!valid_grant("system", &["read".to_string()]));
+        assert!(!valid_grant("/home/../etc", &["read".to_string()]));
+        assert!(!valid_grant("/home/k", &[]));
     }
 }

@@ -9,3 +9,7 @@
 7. (2026-10-03) Map names with a lookup table (`Record<string, string>`), not chained `.replace()` calls: those also hit substrings.
 8. (2026-10-03) Never inline event handlers (`onchange="..."`): the CSP blocks them and they bypass `onAction`. Forms are handled by the shell's submit listener.
 9. (2026-10-03) In `${cond ? list.map(...) : html`...`}` the `}` comes after the whole ternary; a stray `)}` after the map closes the expression early (tsc: "':' expected").
+
+10. Before you output a file, count the braces of the last function. An extra `}` at the end
+    of a module is a syntax error that breaks the whole build. When told to remove one, check
+    the last 3 lines of your output.

@@ -47,3 +47,7 @@
 {"name": "fix runner/src/sysinfo.rs", "out": "runner/src/sysinfo.rs", "gpu_seconds": 31.6, "tokens": 854, "lines": 102, "review": "skipped", "at": "2026-10-03T23:54:36"}
 {"name": "fix runner/src/tools.rs", "out": "runner/src/tools.rs", "gpu_seconds": 60.9, "tokens": 1672, "lines": 156, "review": "skipped", "at": "2026-10-03T23:55:37"}
 {"name": "edit.rs test fixes", "out": "runner/src/edit.rs", "gpu_seconds": 70.7, "tokens": 2029, "lines": 186, "review": "skipped", "at": "2026-10-03T23:59:29"}
+{"name": "F6 grants: server rights and expiry", "out": "server/src/access/web.rs", "gpu_seconds": 132.4, "tokens": 3643, "lines": 218, "at": "2026-10-04T00:06:40"}
+{"name": "F6 jobs: allow the new tools", "out": "server/src/access/jobs.rs", "gpu_seconds": 26.7, "tokens": 721, "lines": 82, "review": "skipped", "at": "2026-10-04T00:07:06"}
+{"name": "F6 access.ts: system grants and expiry", "out": "web/src/views/access.ts", "gpu_seconds": 104.3, "tokens": 2664, "lines": 91, "at": "2026-10-04T00:08:50"}
+{"name": "access.ts fixes", "out": "web/src/views/access.ts", "gpu_seconds": 62.2, "tokens": 1332, "lines": 91, "review": "skipped", "at": "2026-10-04T00:10:12"}
