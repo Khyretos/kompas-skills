@@ -106,6 +106,35 @@ impl Default for HostStats {
     }
 }
 
+/// Adds per-engine busy shares and VRAM in use from kompanion-gpu-helper (a
+/// tiny root service on the host, see gpu-helper/), when its socket is
+/// mounted. Without it, the container only sees its own processes.
+fn merge_helper(snap: &mut Snapshot) {
+    use std::io::Read;
+    let Ok(mut s) = std::os::unix::net::UnixStream::connect("/host-gpu/stats.sock") else { return };
+    let _ = s.set_read_timeout(Some(Duration::from_millis(500)));
+    let mut text = String::new();
+    if s.take(256 * 1024).read_to_string(&mut text).is_err() {
+        return;
+    }
+    let Ok(list) = serde_json::from_str::<Vec<Value>>(&text) else { return };
+    for g in &mut snap.gpus {
+        let Some(u) = list.iter().find(|u| u["pciSlot"].as_str() == Some(g.pci_slot.as_str())) else { continue };
+        if let Some(engines) = u["engines"].as_array() {
+            g.engines = engines
+                .iter()
+                .filter_map(|e| {
+                    Some(machine_stats::gpu::Engine { name: e["name"].as_str()?.chars().take(40).collect(), busy: e["busy"].as_f64()?.clamp(0.0, 1.0) })
+                })
+                .take(16)
+                .collect();
+        }
+        if let Some(b) = u["vramUsedBytes"].as_u64() {
+            g.vram_used_gb = Some((b as f64 / 1024f64.powi(3) * 10.0).round() / 10.0);
+        }
+    }
+}
+
 fn uptime_text(secs: u64) -> String {
     let (d, h, m) = (secs / 86_400, secs % 86_400 / 3_600, secs % 3_600 / 60);
     if d > 0 { format!("{d} d {h} h") } else { format!("{h} h {m} min") }
@@ -139,7 +168,8 @@ impl HostStats {
     fn local_view(&self, state: &AppState) -> Value {
         let mut l = self.local.lock().unwrap();
         if l.at.is_none_or(|t| t.elapsed() >= MIN_INTERVAL) {
-            let snap = l.sampler.sample();
+            let mut snap = l.sampler.sample();
+            merge_helper(&mut snap);
             l.history.push(&snap);
             l.snap = Some(snap);
             l.at = Some(Instant::now());

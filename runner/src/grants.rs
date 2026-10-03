@@ -1,5 +1,5 @@
-use std::fs::{self, File};
-use std::io::{BufReader, BufWriter, Write};
+use std::fs::{self, File, Permissions};
+use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 use std::os::unix::fs::PermissionsExt;
 use serde::{Deserialize, Serialize};
@@ -33,7 +33,7 @@ impl Grants {
         if let Some(file) = file {
             let reader = BufReader::new(file);
             let mut contents = String::new();
-            reader.read_to_string(&mut contents).map_err(|e| format!("Failed to read grants file: {}", e))?;
+            reader.read_to_end(&mut contents).map_err(|e| format!("Failed to read grants file: {}", e))?;
 
             let mut grants: Vec<Grant> = serde_json::from_str(&contents).map_err(|e| format!("Invalid JSON in grants file: {}", e))?;
 
@@ -120,7 +120,7 @@ impl Grants {
             if grant.target == "system" {
                 if grant.rights.contains(&right) {
                     if let Some(expires) = &grant.expires {
-                        if now >= expires {
+                        if now >= *expires {
                             return false;
                         }
                     }
@@ -130,7 +130,7 @@ impl Grants {
                 let grant_path = Path::new(&grant.target);
                 if path.starts_with(grant_path) && grant.rights.contains(&right) {
                     if let Some(expires) = &grant.expires {
-                        if now >= expires {
+                        if now >= *expires {
                             return false;
                         }
                     }
@@ -148,7 +148,7 @@ impl Grants {
         if let Some(index) = index {
             let existing = &self.list[index];
             let mut new_rights = existing.rights.clone();
-            new_rights.extend(grant.rights.iter().filter(|r| !new_rights.contains(r)));
+            new_rights.extend(grant.rights.into_iter().filter(|r| !new_rights.contains(r)));
 
             let mut new_granted_at = existing.granted_at.clone();
             if grant.granted_at > new_granted_at {
@@ -224,7 +224,6 @@ mod tests {
     use std::fs;
     use std::path::PathBuf;
     use std::env::temp_dir;
-    use std::process::id;
 
     #[test]
     fn test_load_missing_file() {

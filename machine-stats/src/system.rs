@@ -73,8 +73,11 @@ impl Sampler {
                 let mut gpus = self.gpu.read(Path::new(&p("sys")));
                 let mut busy = self.engines.read(Path::new(&p("proc")));
                 for g in &mut gpus {
-                    if let Some(list) = busy.remove(&g.pci_slot) {
-                        g.engines = list.into_iter().map(|(name, busy)| crate::gpu::Engine { name, busy }).collect();
+                    if let Some(u) = busy.remove(&g.pci_slot) {
+                        g.engines = u.engines.into_iter().map(|(name, busy)| crate::gpu::Engine { name, busy }).collect();
+                        if g.vram_used_gb.is_none() {
+                            g.vram_used_gb = u.vram_used_bytes.map(|b| (b as f64 / 1024f64.powi(3) * 10.0).round() / 10.0);
+                        }
                     }
                 }
                 gpus

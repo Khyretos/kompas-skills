@@ -62,6 +62,10 @@ Kees asked for more orange and more shades of purple in every themed web app. Ru
 - Surfaces step: night page, plum sidebars/panels, plum-2 cards/inputs, violet header bars with white text. On a violet bar use the lilac logo `brand/logo-on-dark.svg` and orange buttons with plum text; the normal logo's violet disappears there.
 - Ordinary UI text (nav labels, chat lists) stays white/mist or plum, never orange (lesson 3). Colour icons and indicator bars, not labels.
 
+## 3. Waiting for a background process (2026-10-03)
+
+`pgrep -f <name>` also matches the shell that runs the wait loop (its command line contains the name), so `until ! pgrep -f x` never ends. Wait on the PID instead (`wait $pid`, or `while kill -0 $pid`), or match with a pattern that can't match itself (`pgrep -f '[p]ipeline.py'`).
+
 ## 4. Inspecting containers without leaking secrets (2026-10-03)
 
 Never print environment values when inspecting a container: a grep for a model name matched "14B" inside an SMTP password and printed it. List variable names only, e.g. `docker inspect <c> | jq -r '.[0].Config.Env[] | split("=")[0]'`; when a value is really needed, print it only for names that don't match `PASS|PWD|KEY|SECRET|TOKEN|CREDENTIAL|AUTH` (case-insensitive). The same goes for `.env` files: `grep -oE '^[A-Z_]+='`.

@@ -1,4 +1,4 @@
-use std::fs::{self, canonicalize, File, metadata, PermissionsExt};
+use std::fs::{self, canonicalize, File, metadata};
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Child};
@@ -25,17 +25,17 @@ pub fn run(grants: &Grants, tool: &Tool, now: &str) -> Outcome {
             let path = Path::new(path);
             let canonical_path = match canonicalize(path) {
                 Ok(p) => p,
-                Err(_) => return Outcome { ok: false, output: format!("not granted: {} on {}", Right::Read, path.display()) },
+                Err(_) => return Outcome { ok: false, output: format!("not granted: {:?} on {}", Right::Read, path.display()) },
             };
 
             if !grants.allows(&canonical_path, &Right::Read, now) {
-                return Outcome { ok: false, output: format!("not granted: {} on {}", Right::Read, canonical_path.display()) };
+                return Outcome { ok: false, output: format!("not granted: {:?} on {}", Right::Read, canonical_path.display()) };
             }
 
             if canonical_path.is_file() {
                 let metadata = match metadata(&canonical_path) {
                     Ok(m) => m,
-                    Err(_) => return Outcome { ok: false, output: format!("not granted: {} on {}", Right::Read, canonical_path.display()) },
+                    Err(_) => return Outcome { ok: false, output: format!("not granted: {:?} on {}", Right::Read, canonical_path.display()) },
                 };
 
                 if metadata.len() > 256 * 1024 {
@@ -44,7 +44,7 @@ pub fn run(grants: &Grants, tool: &Tool, now: &str) -> Outcome {
 
                 let content = match fs::read_to_string(&canonical_path) {
                     Ok(c) => c,
-                    Err(_) => return Outcome { ok: false, output: format!("not granted: {} on {}", Right::Read, canonical_path.display()) },
+                    Err(_) => return Outcome { ok: false, output: format!("not granted: {:?} on {}", Right::Read, canonical_path.display()) },
                 };
 
                 Outcome { ok: true, output: content }
@@ -57,11 +57,11 @@ pub fn run(grants: &Grants, tool: &Tool, now: &str) -> Outcome {
             let parent_path = path.parent().unwrap_or(Path::new("."));
             let canonical_parent = match canonicalize(parent_path) {
                 Ok(p) => p,
-                Err(_) => return Outcome { ok: false, output: format!("not granted: {} on {}", Right::Write, path.display()) },
+                Err(_) => return Outcome { ok: false, output: format!("not granted: {:?} on {}", Right::Write, path.display()) },
             };
 
             if !grants.allows(&canonical_parent, &Right::Write, now) {
-                return Outcome { ok: false, output: format!("not granted: {} on {}", Right::Write, canonical_parent.display()) };
+                return Outcome { ok: false, output: format!("not granted: {:?} on {}", Right::Write, canonical_parent.display()) };
             }
 
             if content.len() > 1024 * 1024 {
@@ -71,11 +71,11 @@ pub fn run(grants: &Grants, tool: &Tool, now: &str) -> Outcome {
             let canonical_path = canonical_parent.join(path.file_name().unwrap_or(Path::new("")));
             let mut file = match File::create(&canonical_path) {
                 Ok(f) => f,
-                Err(_) => return Outcome { ok: false, output: format!("not granted: {} on {}", Right::Write, canonical_path.display()) },
+                Err(_) => return Outcome { ok: false, output: format!("not granted: {:?} on {}", Right::Write, canonical_path.display()) },
             };
 
             if let Err(e) = file.write_all(content.as_bytes()) {
-                return Outcome { ok: false, output: format!("not granted: {} on {}", Right::Write, canonical_path.display()) };
+                return Outcome { ok: false, output: format!("not granted: {:?} on {}", Right::Write, canonical_path.display()) };
             }
 
             Outcome { ok: true, output: format!("wrote {}", canonical_path.display()) }
@@ -84,11 +84,11 @@ pub fn run(grants: &Grants, tool: &Tool, now: &str) -> Outcome {
             let path = Path::new(path);
             let canonical_path = match canonicalize(path) {
                 Ok(p) => p,
-                Err(_) => return Outcome { ok: false, output: format!("not granted: {} on {}", Right::Read, path.display()) },
+                Err(_) => return Outcome { ok: false, output: format!("not granted: {:?} on {}", Right::Read, path.display()) },
             };
 
             if !grants.allows(&canonical_path, &Right::Read, now) {
-                return Outcome { ok: false, output: format!("not granted: {} on {}", Right::Read, canonical_path.display()) };
+                return Outcome { ok: false, output: format!("not granted: {:?} on {}", Right::Read, canonical_path.display()) };
             }
 
             if !canonical_path.is_dir() {
@@ -132,11 +132,11 @@ pub fn run(grants: &Grants, tool: &Tool, now: &str) -> Outcome {
             let cwd = Path::new(cwd);
             let canonical_cwd = match canonicalize(cwd) {
                 Ok(p) => p,
-                Err(_) => return Outcome { ok: false, output: format!("not granted: {} on {}", Right::Shell, cwd.display()) },
+                Err(_) => return Outcome { ok: false, output: format!("not granted: {:?} on {}", Right::Shell, cwd.display()) },
             };
 
             if !grants.allows(&canonical_cwd, &Right::Shell, now) {
-                return Outcome { ok: false, output: format!("not granted: {} on {}", Right::Shell, canonical_cwd.display()) };
+                return Outcome { ok: false, output: format!("not granted: {:?} on {}", Right::Shell, canonical_cwd.display()) };
             }
 
             let mut child = match Command::new("sh")
@@ -148,7 +148,7 @@ pub fn run(grants: &Grants, tool: &Tool, now: &str) -> Outcome {
                 .stderr(std::process::Stdio::piped())
                 .spawn() {
                 Ok(c) => c,
-                Err(_) => return Outcome { ok: false, output: format!("not granted: {} on {}", Right::Shell, canonical_cwd.display()) },
+                Err(_) => return Outcome { ok: false, output: format!("not granted: {:?} on {}", Right::Shell, canonical_cwd.display()) },
             };
 
             let mut stdout = Vec::new();
@@ -177,7 +177,7 @@ pub fn run(grants: &Grants, tool: &Tool, now: &str) -> Outcome {
                         }
                     },
                     Err(_) => {
-                        return Outcome { ok: false, output: format!("not granted: {} on {}", Right::Shell, canonical_cwd.display()) };
+                        return Outcome { ok: false, output: format!("not granted: {:?} on {}", Right::Shell, canonical_cwd.display()) };
                     }
                 }
 

@@ -1,0 +1,5 @@
+{"name": "F5 runner grants", "out": "runner/src/grants.rs", "gpu_seconds": 109.8, "tokens": 5627, "lines": 308, "at": "2026-10-03T19:47:53"}
+{"name": "F5 runner tools", "out": "runner/src/tools.rs", "gpu_seconds": 70.4, "tokens": 3573, "lines": 199, "at": "2026-10-03T19:49:03"}
+{"name": "F5 server jobs+grants", "out": "server/src/access.rs", "gpu_seconds": 115.9, "tokens": 5568, "lines": 425, "at": "2026-10-03T19:51:08"}
+{"name": "fix runner/src/grants.rs", "out": "runner/src/grants.rs", "gpu_seconds": 125.9, "tokens": 5603, "lines": 307, "at": "2026-10-03T21:09:50"}
+{"name": "fix runner/src/tools.rs", "out": "runner/src/tools.rs", "gpu_seconds": 86.8, "tokens": 3634, "lines": 199, "at": "2026-10-03T21:11:17"}

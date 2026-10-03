@@ -94,6 +94,20 @@ fn labelled(hw: &Path, kind: &str, labels: &[&str]) -> Option<f64> {
 
 const GIB: f64 = 1024.0 * 1024.0 * 1024.0;
 
+/// Size of the largest PCI memory region of a device, in bytes. On Intel Arc
+/// cards with resizable BAR this is the VRAM size (sysfs has no VRAM total
+/// for i915/xe on this kernel). Lines of `resource`: "start end flags" in hex.
+fn largest_bar(dev: &Path) -> Option<u64> {
+    let text = fs::read_to_string(dev.join("resource")).ok()?;
+    text.lines()
+        .filter_map(|l| {
+            let mut it = l.split_whitespace().map(|v| u64::from_str_radix(v.trim_start_matches("0x"), 16).ok());
+            let (start, end) = (it.next()??, it.next()??);
+            (end > start).then(|| end - start + 1)
+        })
+        .max()
+}
+
 fn name(vendor: &str, device: &str) -> String {
     match (vendor, device) {
         ("0x8086", "0x56a0") => "Intel Arc A770".into(),
@@ -176,6 +190,7 @@ impl GpuReader {
             }
             "i915" => {
                 s.core_mhz = num(&card.join("gt_act_freq_mhz"));
+                s.vram_total_gb = largest_bar(&dev).filter(|b| *b >= 1 << 30).map(|b| (b as f64 / GIB).round());
                 s.core_max_mhz = num(&card.join("gt_max_freq_mhz"));
                 s.power_cap_w = hwn("power1_max").map(|uw| uw / 1e6).filter(|w| *w > 0.0);
                 s.temp_c = hwn("temp1_input").map(|m| m / 1000.0);
@@ -183,6 +198,7 @@ impl GpuReader {
             }
             "xe" => {
                 s.core_mhz = num(&dev.join("tile0/gt0/freq0/act_freq"));
+                s.vram_total_gb = largest_bar(&dev).filter(|b| *b >= 1 << 30).map(|b| (b as f64 / GIB).round());
                 s.core_max_mhz = num(&dev.join("tile0/gt0/freq0/max_freq"));
                 s.power_cap_w = hw.as_deref().and_then(|h| {
                     (1..=4).find_map(|n| num(&h.join(format!("power{n}_max")))).map(|uw| uw / 1e6).filter(|w| *w > 0.0)
@@ -302,6 +318,16 @@ mod tests {
         assert!(second[0].watts.unwrap() > 10.0, "{:?}", second[0].watts);
         assert_eq!(second[0].load, Some(1.0));
         let _ = fs::remove_dir_all(&sys);
+    }
+
+    #[test]
+    fn largest_bar_is_the_vram_window() {
+        let dir = tree("bar");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("resource"),
+            "0x00000000fb000000 0x00000000fbffffff 0x0000000000040200\n0x0000006000000000 0x00000063ffffffff 0x000000000014220c\n0x0000000000000000 0x0000000000000000 0x0000000000000000\n").unwrap();
+        assert_eq!(largest_bar(&dir), Some(16 << 30));
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]
