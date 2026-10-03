@@ -95,7 +95,7 @@ async function start(server: Server): Promise<void> {
   store.set({
     server: { ...server, name: status.name || server.name }, projects, chats, tasks, providers, roles, machines, today,
     userName: status.user ?? undefined, isAdmin: !!status.admin, theme: status.theme ?? "system",
-    machinesRefresh: status.machinesRefresh ?? 5,
+    machinesRefresh: status.machinesRefresh ?? 5, windshift: status.windshift,
   });
   applyTheme(status.theme ?? "system");
   wire(shellRoot);

@@ -333,6 +333,14 @@ pub async fn report(
         {
             return Err(ApiError::TooMany);
         }
+        if !remote.contains_key(&id) {
+            // First report since start: say which GPU fields arrive (no values).
+            for g in &snap.gpus {
+                tracing::info!(machine = %id, gpu = %g.name, driver = %g.driver,
+                    load = g.load.is_some(), vram = g.vram_total_gb.is_some(), watts = g.watts.is_some(),
+                    temp = g.temp_c.is_some(), "runner GPU fields");
+            }
+        }
         let mut history = remote.remove(&id).map(|r| r.history).unwrap_or_default();
         history.push(&snap);
         remote.insert(id.clone(), Remote { user_id, snap, at: Instant::now(), at_iso: util::now(), interval, history });

@@ -164,6 +164,7 @@ pub async fn status(
         "version": env!("CARGO_PKG_VERSION"),
         "setupNeeded": !users_exist(&state).await?,
         "user": user.map(|u| u.name),
+        "windshift": if state.windshift { "connected" } else { "not configured" },
         "signIn": {
             "password": state.config.password_login(),
             "oidc": state.config.oidc.as_ref().map(|o| o.label.clone()),

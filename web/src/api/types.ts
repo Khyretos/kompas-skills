@@ -175,6 +175,7 @@ export interface ServerStatus {
   admin?: boolean;
   theme?: ThemeChoice;
   machinesRefresh?: number; // seconds; 1 = live
+  windshift?: "connected" | "not configured";
   /** How people can sign in; absent on older servers (password only). */
   signIn?: { password: boolean; oidc: string | null };
 }

@@ -12,6 +12,7 @@ mod mail;
 mod oidc;
 mod tasks;
 mod util;
+mod windshift;
 
 use std::{
     str::FromStr,
@@ -43,6 +44,8 @@ pub struct AppState {
     pub dummy_hash: String,
     pub oidc: Arc<oidc::Oidc>,
     pub host: Arc<hoststats::HostStats>,
+    /// Windshift sync configured from the environment (WINDSHIFT_URL, WINDSHIFT_TOKEN[_FILE]).
+    pub windshift: bool,
 }
 
 #[cfg(test)]
@@ -58,6 +61,7 @@ impl AppState {
             dummy_hash: String::new(),
             oidc: Default::default(),
             host: Default::default(),
+            windshift: false,
         }
     }
 }
@@ -95,6 +99,7 @@ async fn main() -> anyhow::Result<()> {
         return import::run(&db, path, args.get(3).map(String::as_str)).await;
     }
 
+    let windshift = windshift::Windshift::from_env(llm::http_client()).map(Arc::new);
     let state = AppState {
         config: Arc::new(config.clone()),
         db,
@@ -105,8 +110,13 @@ async fn main() -> anyhow::Result<()> {
         dummy_hash: auth::hash_password(&util::random_token())?,
         oidc: Default::default(),
         host: Default::default(),
+        windshift: windshift.is_some(),
     };
     hoststats::HostStats::spawn_live(state.clone());
+    if let Some(ws) = windshift {
+        tracing::info!("Windshift sync on");
+        windshift::spawn(state.db.clone(), ws);
+    }
     admin::ensure_admin(&state.db).await?;
     auth::ensure_setup_code(&state).await?;
 

@@ -5,6 +5,7 @@ export interface AppState {
   server?: Server;
   userName?: string; // signed-in user
   isAdmin: boolean;
+  windshift?: string; // "connected" | "not configured" (set in the server's compose file only)
   theme: ThemeChoice;
   machinesRefresh: number; // seconds between Machines updates; 1 = live
   pairing?: { id: string; name: string; token: string }; // shown once after pairing a PC

@@ -26,6 +26,11 @@ export function renderSettings(s: AppState): SafeHtml {
         <button class="icon-btn" data-action="close-settings" aria-label="Close">${icon("close")}</button>
       </div>
       ${renderAdmin(s.admin?.settings ?? DEFAULTS, s.admin?.smtpPasswordSet ?? false, s.theme, s.isAdmin && !!s.admin)}
+      ${s.isAdmin ? html`<section>
+        <h3 class="label">Connections</h3>
+        <p>Windshift: <span class="chip ${s.windshift === "connected" ? "good" : ""}">${s.windshift ?? "not configured"}</span></p>
+        <p class="muted small">Set in the server's compose file (WINDSHIFT_URL, WINDSHIFT_TOKEN); it can't be changed here.</p>
+      </section>` : ""}
       <section>
         <h3 class="label">Roles</h3>
         <p class="muted">Any model can fill any role. Skills and lessons belong to the role, so switching a model keeps them.</p>
