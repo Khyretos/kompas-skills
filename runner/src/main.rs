@@ -106,7 +106,7 @@ fn main() {
         }
     };
 
-    let grants = match grants::Grants::load(&expand(&cfg.grants_file)) {
+    let mut grants = match grants::Grants::load(&expand(&cfg.grants_file)) {
         Ok(g) => g,
         Err(e) => {
             eprintln!("kompanion-runner: can't load grants: {e}");
