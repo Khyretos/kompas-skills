@@ -25,6 +25,14 @@ As translation judge (kk-localize, 2026-10-03):
 - Scoring speed: about 2.5 min for 420 short strings, one request at a time.
 - Gave 5 to a wrong sense even with a back-translation beside it (nl "Services healthy" → "Diensten voor een gezonde levensstijl", healthy lifestyle). A judge doesn't replace reading the short labels.
 
+## qwen3.5:9b-q8_0 (Ollama on soucouyant; coding and PC-control model, 2026-10-03)
+
+- Tag rebuilt with `PARAMETER num_ctx 16384` and `PARAMETER num_thread 1` (same name): fully on the GPU,
+  extra CPU threads only spin-wait between GPU steps (shared lesson 6). Thinking is on by default: send
+  `reasoning_effort: "none"` (OpenAI endpoint) or `think: false` (native API).
+- It and gemma4:12b-it-qat don't both fit on the 16 GB card next to the desktop; callers alternating between
+  them make Ollama swap (a few seconds per switch). Batch per model where possible.
+
 ## Qwen3.5-9B int4 (OVMS on kireserver, A770; served as "Coder")
 
 - (2026-10-03) Same model as `qwen3.5:9b` on Ollama: there it again translated "Our fork" as "Onze vork",

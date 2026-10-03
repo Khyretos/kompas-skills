@@ -22,3 +22,5 @@ As translation judge (kk-localize, 2026-10-03), replacing qwen3:14b:
 - About 0.4-0.55 s per score through the OpenAI endpoint with `reasoning_effort: "none"`.
 - Back-translation prompts say "give one translation, nothing else"; parse scores strictly (first JSON object, integer 1-5, one retry) and never cache an unparsable answer.
 - (2026-10-03, Kompanion F5) No `query!` macros when given a positive example (good). But: kept binding `serde_json::Value` as an SQLite column through two fix rounds; wrote a security bug (fixed "dummy" machine id in a handler); used made-up fields (`grants.grants`). Needs the exact types of every field in the prompt.
+- (2026-10-03) The soucouyant tag is rebuilt with `PARAMETER num_ctx 16384` and `PARAMETER num_thread 1`:
+  fully on the GPU, more CPU threads only spin-wait (~290% CPU → ~32%, same 67 tok/s). See shared lesson 6.
