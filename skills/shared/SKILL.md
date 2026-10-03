@@ -92,3 +92,7 @@ Every job runs in a container image (rust:1, rust:1-alpine, node:22); a broken s
 ## 6. One model tag at a time on a shared GPU (2026-10-03)
 
 Every request naming a different tag makes Ollama swap models (~45 s each). Drafting scripts, Kompanion roles and other tools on the same Ollama must use the same tag; after a switch, update the defaults first, then start jobs. Health checks only list models (`/v1/models`, `/api/tags`, `/api/ps`), never generate.
+
+## 7. Batch jobs on a shared GPU run at night (2026-10-03, from Kees)
+
+A batch job that calls a model on a machine people also use by day (kk-localize's judge on soucouyant's Ollama) only calls it in a night window: kk-localize starts at 00:30, finishes the language it is on and stops calling the judge at 07:00, and leaves the rest for the next night. Daytime and manual runs skip those calls (`FORCE_JUDGE=1` overrides) and leave the work pending instead of failed. Otherwise Ollama swaps models against the daytime drafting model (seconds become tens of seconds per request). Check other scheduled jobs before picking the time (kk-engine CI runs at 03:00).
