@@ -1,7 +1,7 @@
 // A fake server so the UI can be built and tried before the real one exists.
 // Everything here is example data.
 import type { KompanionApi, ServerEvent } from "./client";
-import type { NotificationPrefs, TaskState, AdminSettings, DaySummary, MachineStats, Chat, Message, ModelProvider, Project, RoleAssignment, Server, Task } from "./types";
+import type { TaskState, AdminSettings, DaySummary, MachineStats, Chat, Message, ModelProvider, Project, RoleAssignment, Server, Task } from "./types";
 
 const now = Date.now();
 const ago = (min: number) => new Date(now - min * 60_000).toISOString();
