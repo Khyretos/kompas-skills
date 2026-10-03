@@ -1,7 +1,6 @@
-//! kompanion-gpu-helper: the one privileged piece. It runs as root with an
-//! empty capability set (root may read fdinfo of root-owned processes such as
-//! OVMS through the same-uid ptrace check; no CAP_SYS_PTRACE), reads only the
-//! drm-* lines of /proc/*/fdinfo, and answers every connection on a unix
+//! kompanion-gpu-helper: the one privileged piece. It runs as its own system
+//! user with only CAP_SYS_PTRACE (needed to read fdinfo of processes that hold
+//! capabilities, such as OVMS in a container), reads only the drm-* lines of /proc/*/fdinfo, and answers every connection on a unix
 //! socket with per-GPU aggregates: engine busy shares and VRAM in use. No
 //! process names, no input is read, no network.
 //!

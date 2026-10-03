@@ -1,16 +1,19 @@
-# Root, but no capabilities: reads drm-* lines of /proc/*/fdinfo of root-owned
-# processes (same-uid check) and serves aggregates on a unix socket for the
-# group "kompanion-gpu". Install: see install.sh.
+# Reads only drm-* lines of /proc/*/fdinfo and serves per-GPU aggregates on a
+# unix socket for the group "kompanion-gpu". Runs as its own system user with
+# one capability, CAP_SYS_PTRACE: the kernel lets a process read another's
+# fdinfo only with that capability or with every capability the target has
+# (OVMS runs as container root with Docker's default set), so this is the
+# smallest grant that works. No network, read-only system. Install: install.sh.
 [Unit]
 Description=Kompanion GPU helper (per-engine GPU stats, read-only)
 After=local-fs.target
 
 [Service]
 ExecStart=/usr/local/bin/kompanion-gpu-helper /run/kompanion-gpu/stats.sock
-User=root
+User=kompanion-gpu
 Group=kompanion-gpu
-CapabilityBoundingSet=
-AmbientCapabilities=
+CapabilityBoundingSet=CAP_SYS_PTRACE
+AmbientCapabilities=CAP_SYS_PTRACE
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes
@@ -30,7 +33,7 @@ LockPersonality=yes
 MemoryDenyWriteExecute=yes
 SystemCallArchitectures=native
 SystemCallFilter=@system-service
-SystemCallFilter=~@privileged @resources
+SystemCallFilter=~@resources @mount @swap @reboot @raw-io @module @clock @cpu-emulation @debug @obsolete
 RuntimeDirectory=kompanion-gpu
 RuntimeDirectoryMode=0750
 UMask=0007
