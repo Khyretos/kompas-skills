@@ -254,6 +254,10 @@ li.task.dragging { opacity: 0.5; }
 .grant-add { display: grid; gap: 0.4rem; margin-top: 0.5rem; }
 .grant-add input[type="text"], .grant-add input:not([type]) { width: 100%; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 0.4rem 0.6rem; color: var(--fg); }
 .chip.refused { color: var(--bad); }
+.grants, .access-history { display: grid; gap: 0.4rem; }
+.grant-row { display: grid; grid-template-columns: 1fr auto; gap: 0.25rem 0.5rem; align-items: center; }
+.grant-row code { word-break: break-all; }
+.grant-rights { display: flex; gap: 0.6rem; flex-wrap: wrap; }
 .server-logo { width: 1.75rem; height: 1.75rem; flex: none; }
 .server small { display: flex; align-items: center; gap: 0.35rem; }
 .account { border-top: 1px solid var(--line); padding-top: 0.5rem; display: grid; gap: 0.25rem; }
