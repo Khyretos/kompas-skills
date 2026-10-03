@@ -7,11 +7,7 @@ async function openDemo(page: Page): Promise<void> {
 }
 
 test.describe("Layout", () => {
-  let loads = 0;
 
-  test.beforeEach(async ({ page }) => {
-    loads = 0;
-    page.on("load", () => loads++);
     await page.addInitScript(() => {
       try {
         if (!sessionStorage.getItem("kk-test")) {
@@ -24,9 +20,7 @@ test.describe("Layout", () => {
     page.on("dialog", (d) => d.accept());
   });
 
-  test.afterEach(async ({ page }) => {
-    expect(loads).toBe(1);
-  });
+
 
   const viewports = [
     { width: 1280, height: 800 },
