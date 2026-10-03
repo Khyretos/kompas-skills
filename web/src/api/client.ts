@@ -9,7 +9,8 @@ export interface KompanionApi {
   status(): Promise<ServerStatus>;
   setup(code: string, name: string, password: string): Promise<void>;
   login(name: string, password: string): Promise<void>;
-  logout(): Promise<void>;
+  /** Signs out; returns the provider's sign-out page when single sign-on was used. */
+  logout(): Promise<string | null>;
   setTheme(theme: ThemeChoice): Promise<void>;
   setMachinesRefresh(seconds: number): Promise<void>;
   getNotifications(): Promise<NotificationPrefs>;

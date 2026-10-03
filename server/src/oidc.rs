@@ -245,6 +245,8 @@ async fn finish(state: &AppState, headers: &HeaderMap, q: CallbackQuery) -> Resu
         .await
         .map_err(|e| anyhow!("token exchange failed: {e}"))?;
     let id_token = tokens.id_token().ok_or_else(|| anyhow!("no ID token"))?;
+    let raw_id_token = id_token.to_string();
+    let roles = token_roles(tokens.access_token().secret(), &cfg.client_id);
     let claims = id_token.claims(&client.id_token_verifier(), &pending.nonce)?;
 
     let who = Identity {
@@ -260,9 +262,88 @@ async fn finish(state: &AppState, headers: &HeaderMap, q: CallbackQuery) -> Resu
         .await?
         .ok_or(Fail::NoAccount)?;
     tracing::info!(user = %user_id, "signed in with single sign-on");
-    Ok(auth::create_session(state, &user_id)
+    if let Some(role) = &cfg.admin_role {
+        set_admin(state, &user_id, roles.iter().any(|r| r == role)).await?;
+    }
+    Ok(auth::create_session_with(state, &user_id, Some(&raw_id_token))
         .await
         .map_err(|e| anyhow!("{e}"))?)
+}
+
+/// Realm roles and this client's roles from a Keycloak access token. The token
+/// comes straight from the token endpoint over TLS, so its payload is read
+/// without checking the signature again.
+fn token_roles(access_token: &str, client_id: &str) -> Vec<String> {
+    use base64::Engine;
+    let Some(payload) = access_token.split('.').nth(1) else { return Vec::new() };
+    let Ok(bytes) = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(payload.trim_end_matches('=')) else {
+        return Vec::new();
+    };
+    let Ok(v) = serde_json::from_slice::<serde_json::Value>(&bytes) else { return Vec::new() };
+    let mut out = Vec::new();
+    for list in [&v["realm_access"]["roles"], &v["resource_access"][client_id]["roles"]] {
+        if let Some(a) = list.as_array() {
+            out.extend(a.iter().filter_map(|r| r.as_str().map(str::to_string)));
+        }
+    }
+    out
+}
+
+/// Grants or removes admin from a Keycloak role, but never removes the last admin.
+async fn set_admin(state: &AppState, user_id: &str, admin: bool) -> anyhow::Result<()> {
+    if admin {
+        sqlx::query("UPDATE users SET is_admin = 1 WHERE id = ?").bind(user_id).execute(&state.db).await?;
+    } else {
+        sqlx::query(
+            "UPDATE users SET is_admin = 0 WHERE id = ?
+               AND (SELECT COUNT(*) FROM users WHERE is_admin = 1 AND id <> ?) > 0",
+        )
+        .bind(user_id)
+        .bind(user_id)
+        .execute(&state.db)
+        .await?;
+    }
+    Ok(())
+}
+
+/// The provider's sign-out URL for this ID token.
+pub async fn end_session_url(state: &AppState, id_token: &str, headers: &axum::http::HeaderMap) -> Option<String> {
+    let cfg = state.config.oidc.as_ref()?;
+    let doc: serde_json::Value = state
+        .http
+        .get(format!("{}/.well-known/openid-configuration", cfg.issuer.trim_end_matches('/')))
+        .send()
+        .await
+        .ok()?
+        .json()
+        .await
+        .ok()?;
+    let end = doc["end_session_endpoint"].as_str()?;
+    // No post_logout_redirect_uri: it would have to be registered on the
+    // provider's client; without it the provider shows its own signed-out page.
+    let _ = headers;
+    let enc = |s: &str| -> String {
+        s.bytes()
+            .map(|b| if b.is_ascii_alphanumeric() || b"-_.~".contains(&b) { (b as char).to_string() } else { format!("%{b:02X}") })
+            .collect()
+    };
+    Some(format!("{end}?id_token_hint={}", enc(id_token)))
+}
+
+#[cfg(test)]
+mod role_tests {
+    #[test]
+    fn reads_realm_and_client_roles() {
+        use base64::Engine;
+        let payload = serde_json::json!({
+            "realm_access": { "roles": ["offline_access", "kompanion-admin"] },
+            "resource_access": { "kompanion": { "roles": ["admin"] } }
+        });
+        let token = format!("x.{}.y", base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(payload.to_string()));
+        let roles = super::token_roles(&token, "kompanion");
+        assert!(roles.contains(&"kompanion-admin".to_string()) && roles.contains(&"admin".to_string()));
+        assert!(super::token_roles("garbage", "kompanion").is_empty());
+    }
 }
 
 pub struct Identity {
@@ -382,6 +463,7 @@ mod tests {
             password_login: true,
             link_by_username: by_name,
             allow_new: allow_new.iter().map(|s| s.to_string()).collect(),
+            admin_role: None,
         }
     }
 

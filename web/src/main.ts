@@ -294,9 +294,8 @@ function wire(shell: HTMLElement): void {
       adminMessage("Sending…");
       api.testMail(to).then(() => adminMessage(`Test mail sent to ${to}.`), (e) => adminMessage(String(e.message ?? e), true));
     },
-    // Ends this app's session. Keycloak keeps its own session, so "Sign in
-    // with Kreative Kompas" afterwards may not ask for a password again.
-    logout: () => api.logout().then(() => location.replace("/"), showError),
+    // Ends this app's session, and the Keycloak session too after single sign-on.
+    logout: () => api.logout().then((sso) => location.replace(sso ?? "/"), showError),
     "close-settings": () => store.set({ settingsOpen: false }),
   });
 

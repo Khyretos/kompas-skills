@@ -290,7 +290,7 @@ export class MockApi implements KompanionApi {
     return { name: "Kreative Kompanion (demo)", version: "0.1.0", setupNeeded: false, user: "Kees", admin: true, theme: "system" as const };
   }
   async setup() {}
-  async logout() {}
+  async logout() { return null; }
   async setTheme() {}
   async setMachinesRefresh() {}
   async getNotifications() { return { email: "", onNeedsInput: true, onFailed: true, onDone: false, dailySummary: false }; }

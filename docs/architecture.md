@@ -339,6 +339,24 @@ image builds run on the faster PC instead of kireserver.
 Already in milestone 1: sign out (sidebar, bottom), the logo top left, chat
 menu, expandable projects, the server's own machine in the Machines tab.
 
+### Milestone 1.5 status (2026-10-03)
+
+Done:
+- [x] Admins (first account), admin settings in the database, app name.
+- [x] Mail: SMTP settings, password only from `SMTP_PASSWORD`, test mail, sender kompanion@ with replies to info@.
+- [x] Theming: brand colours with the WCAG AA check, served as `/api/theme.css`; logo upload (PNG/SVG, sandboxed); light/dark/system per user.
+- [x] Tasks: descriptions (goal, steps, done when; required), add/edit/reorder/close/delete, history.
+- [x] Project sources: internal or windshift; two-way Windshift sync every 5 minutes (env-configured, conflicts kept in history); "stop syncing".
+- [x] Notifications by mail: needs you, failed, done, daily summary; address defaults to the account email. (Planned for milestone 3, done early.)
+- [x] Machines: this server's stats, refresh slider with Live over SSE, paired PCs through `kompanion-runner` (first slice of milestone 2), GPU telemetry for amdgpu and Intel i915/xe.
+- [x] Sign out, chat menu, expandable projects.
+
+Still open in 1.5:
+- [ ] Admin rights from a Keycloak group (`[oidc] admin_group`), checked at every sign-in.
+- [ ] Sign out of Keycloak too (OIDC end-session), not only of Kompanion.
+- [ ] Tasks made in Kompanion inside a Windshift project are created in Windshift as well (today only existing items sync).
+- [ ] Drag to reorder (today: move up/down).
+
 ### 1.5 Admin and polish (doesn't need tasks, so it comes before them)
 
 - **Admins.** `users.is_admin`; the first account is admin, and an optional

@@ -35,6 +35,10 @@ pub struct Config {
 pub struct OidcConfig {
     /// e.g. https://auth.example.com/realms/example
     pub issuer: String,
+    /// Keycloak role (realm role, or client role of `client_id`) that makes a
+    /// user admin; checked at every sign-in. Unset: admins are managed here.
+    #[serde(default)]
+    pub admin_role: Option<String>,
     pub client_id: String,
     /// Name of the environment variable that holds the client secret.
     pub client_secret_env: String,

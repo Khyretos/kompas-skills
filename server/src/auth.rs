@@ -269,25 +269,38 @@ async fn start_session(state: &AppState, user_id: &str) -> ApiResult<Response> {
 
 /// Stores a new session and returns the Set-Cookie value for it.
 pub async fn create_session(state: &AppState, user_id: &str) -> ApiResult<String> {
+    create_session_with(state, user_id, None).await
+}
+
+/// A session that remembers the provider's ID token (for signing out there too).
+pub async fn create_session_with(state: &AppState, user_id: &str, id_token: Option<&str>) -> ApiResult<String> {
     let token = util::random_token();
-    sqlx::query("INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)")
+    sqlx::query("INSERT INTO sessions (token_hash, user_id, expires_at, id_token) VALUES (?, ?, ?, ?)")
         .bind(util::sha256_hex(&token))
         .bind(user_id)
         .bind(util::in_days(SESSION_DAYS))
+        .bind(id_token)
         .execute(&state.db)
         .await?;
     Ok(session_cookie(state, &token, SESSION_DAYS * 86_400))
 }
 
 pub async fn logout(State(state): State<AppState>, headers: HeaderMap) -> ApiResult<Response> {
+    let mut redirect = None;
     if let Some(token) = cookie_token(&headers) {
-        sqlx::query("DELETE FROM sessions WHERE token_hash = ?")
-            .bind(util::sha256_hex(&token))
-            .execute(&state.db)
+        let hash = util::sha256_hex(&token);
+        let row: Option<(Option<String>,)> = sqlx::query_as("SELECT id_token FROM sessions WHERE token_hash = ?")
+            .bind(&hash)
+            .fetch_optional(&state.db)
             .await?;
+        sqlx::query("DELETE FROM sessions WHERE token_hash = ?").bind(&hash).execute(&state.db).await?;
+        // Signed in with single sign-on: also end the provider's session.
+        if let Some(id_token) = row.and_then(|r| r.0) {
+            redirect = crate::oidc::end_session_url(&state, &id_token, &headers).await;
+        }
     }
     let cookie = session_cookie(&state, "", 0);
-    Ok(([(header::SET_COOKIE, cookie)], Json(json!({ "ok": true }))).into_response())
+    Ok(([(header::SET_COOKIE, cookie)], Json(json!({ "ok": true, "redirect": redirect }))).into_response())
 }
 
 /// Guard for all API routes:

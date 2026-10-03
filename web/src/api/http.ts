@@ -54,7 +54,7 @@ export class HttpApi implements KompanionApi {
     return this.request<void>("POST", "/setup", { code, name, password });
   }
   login(name: string, password: string) { return this.request<void>("POST", "/login", { name, password }); }
-  logout() { return this.request<void>("POST", "/logout"); }
+  async logout() { return (await this.request<{ redirect?: string | null }>("POST", "/logout")).redirect ?? null; }
   getNotifications() { return this.request<NotificationPrefs>("GET", "/me/notifications"); }
   setNotifications(p: NotificationPrefs) { return this.request<void>("PUT", "/me/notifications", p); }
   setMachinesRefresh(seconds: number) { return this.request<void>("PUT", "/me/prefs", { machinesRefresh: seconds }); }
