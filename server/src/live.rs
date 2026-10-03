@@ -5,7 +5,7 @@ use crate::{AppState, auth::User, events::Event};
 
 pub fn what_changed(method: &Method, path: &str) -> Option<(&'static str, Option<String>)> {
     // Ignore GET, HEAD, OPTIONS
-    if matches!(method, Method::GET | Method::HEAD | Method::OPTIONS) {
+    if method == Method::GET || method == Method::HEAD || method == Method::OPTIONS {
         return None;
     }
 
