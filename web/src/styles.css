@@ -251,6 +251,9 @@ li.task.dragging { opacity: 0.5; }
 .gpu-bar { display: grid; grid-template-columns: 6.5rem 1fr auto auto; align-items: center; gap: 0.5rem; font-size: 0.82rem; }
 .gpu-bar .pin { width: 1.6rem; height: 1.6rem; opacity: 0.45; }
 .gpu-bar .pin.on, .gpu-bar .pin:hover { opacity: 1; color: var(--accent-strong); }
+.grant-add { display: grid; gap: 0.4rem; margin-top: 0.5rem; }
+.grant-add input[type="text"], .grant-add input:not([type]) { width: 100%; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 0.4rem 0.6rem; color: var(--fg); }
+.chip.refused { color: var(--bad); }
 .server-logo { width: 1.75rem; height: 1.75rem; flex: none; }
 .server small { display: flex; align-items: center; gap: 0.35rem; }
 .account { border-top: 1px solid var(--line); padding-top: 0.5rem; display: grid; gap: 0.25rem; }

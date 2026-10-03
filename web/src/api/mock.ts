@@ -299,6 +299,10 @@ export class MockApi implements KompanionApi {
   async watchMachines() {}
   async pairMachine(name: string) { return { id: "demo", name, token: "demo-token" }; }
   async unpairMachine() {}
+  async listGrants() { return []; }
+  async addGrant() {}
+  async revokeGrant() {}
+  async accessHistory() { return []; }
   async getAdmin() { return { settings: structuredClone(adminSettings), smtpPasswordSet: false }; }
   async saveAdmin(s: AdminSettings) { Object.assign(adminSettings, s); return structuredClone(adminSettings); }
   async uploadLogo() {}

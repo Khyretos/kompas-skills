@@ -60,6 +60,14 @@ export class HttpApi implements KompanionApi {
   setGpuPins(pins: string[]) { return this.request<void>("PUT", "/me/prefs", { gpuPins: pins }); }
   setMachinesRefresh(seconds: number) { return this.request<void>("PUT", "/me/prefs", { machinesRefresh: seconds }); }
   pairMachine(name: string) { return this.request<{ id: string; name: string; token: string }>("POST", "/machines", { name }); }
+  listGrants(machineId: string) { return this.request<import("../views/access").GrantView[]>("GET", `/machines/${encodeURIComponent(machineId)}/grants`); }
+  addGrant(machineId: string, target: string, rights: string[]) {
+    return this.request<void>("POST", `/machines/${encodeURIComponent(machineId)}/grants`, { target, rights });
+  }
+  revokeGrant(machineId: string, target: string) {
+    return this.request<void>("POST", `/machines/${encodeURIComponent(machineId)}/grants/revoke`, { target });
+  }
+  accessHistory() { return this.request<import("../views/access").AccessEvent[]>("GET", "/access"); }
   unpairMachine(id: string) { return this.request<void>("DELETE", `/machines/${encodeURIComponent(id)}`); }
   watchMachines() { return this.request<void>("POST", "/machines/live"); }
   setTheme(theme: ThemeChoice) { return this.request<void>("PUT", "/me/theme", { theme }); }

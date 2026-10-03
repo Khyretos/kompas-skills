@@ -13,6 +13,7 @@ import { composer, fillMessage, messageViews, renderEmpty, renderHeader, renderM
 import { KeyedList } from "./core/keyed";
 import { paneTabs, renderTasks } from "./views/tasks";
 import { renderMachines, REFRESH_STEPS, setGpuView } from "./views/machines";
+import { renderAccess } from "./views/access";
 
 let savePrefs: ReturnType<typeof setTimeout> | undefined;
 import { html as h } from "./core/html";
@@ -149,11 +150,15 @@ function render(s: AppState, prev: AppState): void {
   }
   const rightKeys: (keyof AppState)[] = s.rightTab === "tasks"
     ? ["rightTab", "tasks", "projects", "openTaskId", "editingTaskId", "taskScope", "activeProjectId", "activeChatId", "chats"]
+    : s.rightTab === "access" ? ["rightTab", "grants", "accessHistory", "machines"]
     : ["rightTab", "machines", "today", "machinesRefresh", "tasks", "pairing", "gpuOpen", "gpuPins"];
   // Never rebuild the task editor under the user's hands; only when it opens or closes.
   const editing = s.rightTab === "tasks" && s.editingTaskId && s.editingTaskId === prev.editingTaskId && !firstRender;
   if (!editing && changed(s, prev, rightKeys)) {
-    remount($("#right"), s.rightTab === "tasks" ? renderTasks(s) : h`
+    remount($("#right"), s.rightTab === "tasks" ? renderTasks(s) : s.rightTab === "access" ? h`
+      <div class="pane-head">${paneTabs(s)}
+        <button class="icon-btn only-narrow" data-action="pane" data-pane="main" aria-label="Close">✕</button></div>
+      ${renderAccess(s.machines.filter((m) => m.id !== "server").map((m) => ({ id: m.id, name: m.name })), s.grants, s.accessHistory)}` : h`
       <div class="pane-head">${paneTabs(s)}
         <button class="icon-btn only-narrow" data-action="pane" data-pane="main" aria-label="Close">✕</button></div>
       ${(setGpuView(s.gpuOpen, s.gpuPins), renderMachines(s.machines, s.today, s.machinesRefresh, s.pairing))}`);
@@ -295,7 +300,15 @@ function wire(shell: HTMLElement): void {
       else store.set({ chatMenuId: undefined });
     },
     "open-task": (el) => store.set({ openTaskId: el.dataset.id, rightTab: "tasks", pane: "right" }),
-    tab: (el) => store.set({ rightTab: el.dataset.tab as AppState["rightTab"], openTaskId: undefined }),
+    tab: (el) => {
+      store.set({ rightTab: el.dataset.tab as AppState["rightTab"], openTaskId: undefined });
+      if (el.dataset.tab === "access") void loadAccess();
+    },
+    "grant-revoke": (el) => {
+      const target = el.dataset.target ?? "";
+      if (!confirm(`Revoke access to ${target}? The computer applies it at its next report.`)) return;
+      api.revokeGrant(el.dataset.machine ?? "", target).then(() => setTimeout(loadAccess, 1500), showError);
+    },
     "close-task": () => store.set({ openTaskId: undefined }),
     scope: (el) => store.set({ taskScope: el.dataset.scope as AppState["taskScope"] }),
     pane: (el) => store.set({ pane: el.dataset.pane as AppState["pane"] }),
@@ -365,6 +378,15 @@ function wire(shell: HTMLElement): void {
     if (c && title && title !== c.title) changeChat(id, { title });
   };
   shell.addEventListener("submit", (ev) => {
+    const grantForm = (ev.target as HTMLElement).closest("form.grant-add") as HTMLFormElement | null;
+    if (grantForm) {
+      ev.preventDefault();
+      const f = new FormData(grantForm);
+      const rights = f.getAll("rights").map(String);
+      api.addGrant(grantForm.dataset.machine ?? "", String(f.get("target") ?? "").trim(), rights)
+        .then(() => setTimeout(loadAccess, 1500), showError);
+      return;
+    }
     const pairForm = (ev.target as HTMLElement).closest("#pair-form") as HTMLFormElement | null;
     if (pairForm) {
       ev.preventDefault();
@@ -552,6 +574,16 @@ async function moveTask(id: string, dir: number): Promise<void> {
     await api.reorderTasks(t.projectId, ids);
     const pos = new Map(ids.map((x, k) => [x, k]));
     store.set({ tasks: store.get().tasks.map((x) => (pos.has(x.id) ? { ...x, position: pos.get(x.id) } : x)) });
+  } catch (e) { showError(e); }
+}
+
+/** Grants per paired machine and the access history. */
+async function loadAccess(): Promise<void> {
+  try {
+    const machines = store.get().machines.filter((m) => m.id !== "server");
+    const lists = await Promise.all(machines.map((m) => api.listGrants(m.id)));
+    const grants = Object.fromEntries(machines.map((m, i) => [m.id, lists[i]]));
+    store.set({ grants, accessHistory: await api.accessHistory() });
   } catch (e) { showError(e); }
 }
 

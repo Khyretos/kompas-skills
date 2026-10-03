@@ -26,3 +26,5 @@
 {"name": "fix runner/src/main.rs", "out": "runner/src/main.rs", "gpu_seconds": 55.4, "tokens": 2479, "lines": 234, "review": "skipped", "at": "2026-10-03T22:48:12"}
 {"name": "fix runner/src/main.rs", "out": "runner/src/main.rs", "gpu_seconds": 45.5, "tokens": 2466, "lines": 234, "review": "skipped", "at": "2026-10-03T22:50:13"}
 {"name": "fix runner/src/main.rs", "out": "runner/src/main.rs", "gpu_seconds": 78.6, "tokens": 2467, "lines": 234, "review": "skipped", "at": "2026-10-03T22:52:35"}
+{"name": "F5 jobs endpoint", "out": "server/src/access/jobs.rs", "gpu_seconds": 69.9, "tokens": 1532, "lines": 81, "at": "2026-10-03T22:55:10"}
+{"name": "F5 access page", "out": "web/src/views/access.ts", "gpu_seconds": 96.8, "tokens": 1734, "lines": 111, "at": "2026-10-03T22:56:47"}

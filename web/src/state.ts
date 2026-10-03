@@ -5,6 +5,8 @@ export interface AppState {
   server?: Server;
   userName?: string; // signed-in user
   isAdmin: boolean;
+  grants: Record<string, import("./views/access").GrantView[]>; // per paired machine
+  accessHistory: import("./views/access").AccessEvent[];
   logoVersion?: string | null;
   notifications?: NotificationPrefs; // loaded when Settings opens
   windshiftWarning?: string | null;
@@ -24,7 +26,7 @@ export interface AppState {
   roles: RoleAssignment[];
   machines: MachineStats[];
   today?: DaySummary;
-  rightTab: "tasks" | "machines";
+  rightTab: "tasks" | "machines" | "access";
   openTaskId?: string; // task shown in detail
   taskScope: "project" | "all";
   settingsOpen: boolean;
@@ -53,6 +55,8 @@ export const store = new Store<AppState>({
   isAdmin: false,
   theme: "system",
   machinesRefresh: 5,
+  grants: {},
+  accessHistory: [],
   gpuOpen: new Set(),
   gpuPins: [],
 });

@@ -21,6 +21,10 @@ export interface KompanionApi {
   /** Pairs a PC; the token is returned only this once. */
   pairMachine(name: string): Promise<{ id: string; name: string; token: string }>;
   unpairMachine(id: string): Promise<void>;
+  listGrants(machineId: string): Promise<import("../views/access").GrantView[]>;
+  addGrant(machineId: string, target: string, rights: string[]): Promise<void>;
+  revokeGrant(machineId: string, target: string): Promise<void>;
+  accessHistory(): Promise<import("../views/access").AccessEvent[]>;
   getAdmin(): Promise<{ settings: AdminSettings; smtpPasswordSet: boolean }>;
   saveAdmin(settings: AdminSettings): Promise<AdminSettings>;
   testMail(to: string): Promise<void>;
