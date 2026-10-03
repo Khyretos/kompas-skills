@@ -96,3 +96,13 @@ Every request naming a different tag makes Ollama swap models (~45 s each). Draf
 ## 7. Batch jobs on a shared GPU run at night (2026-10-03, from Kees)
 
 A batch job that calls a model on a machine people also use by day (kk-localize's judge on soucouyant's Ollama) only calls it in a night window: kk-localize starts at 00:30, finishes the language it is on and stops calling the judge at 07:00, and leaves the rest for the next night. Daytime and manual runs skip those calls (`FORCE_JUDGE=1` overrides) and leave the work pending instead of failed. Otherwise Ollama swaps models against the daytime drafting model (seconds become tens of seconds per request). Check other scheduled jobs before picking the time (kk-engine CI runs at 03:00).
+
+## 6. Ollama/llama-server CPU use with the model fully on the GPU (2026-10-03)
+
+- llama-server's CPU thread pool spin-waits (`--poll 50` by default) between GPU steps, so a model that is
+  100% on the GPU still burned ~3 cores while generating (qwen3:0.6b test: 313% CPU by default, 31% with
+  `-t 1` or `--poll 0`, same tok/s). Idle it uses nothing; a steady job like kk-localize keeps it spinning.
+- Fix without sudo: `PARAMETER num_thread 1` in the model's Modelfile (Ollama passes it as `-t 1`). Rebuild
+  the same tag (`FROM <tag>` + parameters, `ollama create <tag>`) so callers keep one name. On soucouyant
+  gemma4:12b-it-qat went from ~290% to ~32% of one core with no speed loss (67 tok/s, 2,700 tok/s prompt).
+- Only for models that are fully on the GPU: a partly offloaded model needs its CPU threads.
