@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Queue drafting jobs to the local model on soucouyant (Ollama, gemma4:12b-it-qat), back to back.
+"""Queue drafting jobs to Qwen3.5 9B (soucouyant Ollama, or OVMS on kireserver when soucouyant is busy), back to back.
 
 Each job: draft -> self-review against the role's skills -> final file.
 jobs.json: [{"name": "...", "role": "worker/rust"|"worker/web"|..., "prompt": "...",
@@ -10,25 +10,48 @@ Writes the final code to each job's "out" and one log line per job
 """
 import json, os, re, sys, time, urllib.request
 
-OLLAMA = os.environ.get("OLLAMA_URL", "http://192.168.178.80:11434/v1/chat/completions")
-# One model name per Ollama host: a second name makes Ollama reload on every switch.
-MODEL = os.environ.get("QWEN_MODEL", "gemma4:12b-it-qat")
-NOTES = "gemma4" if MODEL.startswith("gemma4") else MODEL.split(":")[0].split(".")[0]  # skills/_model-notes/<NOTES>
+OLLAMA = os.environ.get("OLLAMA_URL", "http://192.168.178.80:11434")
+# Code, tools and vision: Qwen3.5 9B on both GPUs (Kees, 2026-10-03). One model
+# name per Ollama host: a second name makes Ollama reload on every switch.
+SOUCOUYANT_MODEL = os.environ.get("QWEN_MODEL", "qwen3.5:9b-q8_0")
+OVMS = os.environ.get("OVMS_URL", "https://ovms.kreative-kompas.com/v3/chat/completions")
+OVMS_MODEL = "Coder"  # Qwen3.5-9B int8 on the A770, same family
+NOTES = "qwen3"  # skills/_model-notes/<NOTES>
+
+def backend():
+    """soucouyant's Qwen3.5 when Ollama has it loaded or nothing loaded (no
+    swap); otherwise OVMS on kireserver, so another job's model stays put."""
+    try:
+        with urllib.request.urlopen(OLLAMA + "/api/ps", timeout=5) as r:
+            loaded = [m["name"] for m in json.load(r).get("models", [])]
+        if not loaded or SOUCOUYANT_MODEL in loaded:
+            return (OLLAMA + "/v1/chat/completions", SOUCOUYANT_MODEL, {"reasoning_effort": "none"}, None)
+    except Exception:
+        pass
+    env = os.popen("docker inspect ovms --format '{{range .Config.Env}}{{println .}}{{end}}'").read()
+    key = next((l[len("API_KEY="):] for l in env.splitlines() if l.startswith("API_KEY=")), "")
+    return (OVMS, OVMS_MODEL, {"chat_template_kwargs": {"enable_thinking": False}}, key)
+
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def skills(role):
     parts = []
-    for rel in [f"skills/{role}/SKILL.md", f"skills/_model-notes/{NOTES}/SKILL.md", "skills/shared/SKILL.md"]:
+    # Only the role's lessons and the model's notes, to keep prompts small.
+    for rel in [f"skills/{role}/SKILL.md", f"skills/_model-notes/{NOTES}/SKILL.md"]:
         p = os.path.join(REPO, rel)
         if os.path.exists(p):
             parts.append(open(p).read())
     return "\n\n".join(parts)
 
 def ask(system, user, max_tokens):
-    body = json.dumps({"model": MODEL, "max_tokens": max_tokens, "temperature": 0.2,
-                       "reasoning_effort": "none",
-                       "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}).encode()
-    req = urllib.request.Request(OLLAMA, body, {"Content-Type": "application/json"})
+    url, model, extra, key = backend()
+    body = json.dumps({"model": model, "max_tokens": max_tokens, "temperature": 0.2,
+                       "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}], **extra}).encode()
+    headers = {"Content-Type": "application/json"}
+    if key:
+        headers["Authorization"] = "Bearer " + key
+    req = urllib.request.Request(url, body, headers)
+    print(f"[{model}]", file=sys.stderr, flush=True)
     t = time.time()
     with urllib.request.urlopen(req, timeout=1200) as r:
         v = json.load(r)

@@ -339,20 +339,21 @@ image builds run on the faster PC instead of kireserver.
 Already in milestone 1: sign out (sidebar, bottom), the logo top left, chat
 menu, expandable projects, the server's own machine in the Machines tab.
 
-### Model choice result (2026-10-03 benchmark)
+### Model choice result (2026-10-03 benchmarks)
 
 | Model | Where | Speed | Tool use | Screen grounding | Text |
 |---|---|---|---|---|---|
 | Qwen3.5-9B int8 ("Coder") | OVMS, A770 on kireserver | 33 tok/s | 5/6 | 18/20 | good |
-| gemma4:12b-it-qat | Ollama, RX 9070 XT on soucouyant | 68 tok/s | 4/6, loops on a repeated command | 5/20 | equal to Coder |
+| qwen3.5:9b-q8_0 | Ollama, RX 9070 XT on soucouyant | — | 5/6 | 15/20 | 15/15 code quality |
+| gemma4:12b-it-qat | Ollama, soucouyant | 68 tok/s | 4/6, loops | 5/20 | equal on text |
 
-Role slots: everything that calls tools or looks at screens uses Coder, the
-fast text work uses gemma4.
-- orchestrator → Coder (plans and calls tools in W2)
-- PC-control agent (F6), vision and test-driver roles (W2/W3) → Coder
-- reviewer → Coder
-- worker and drafting (code, tests, docs) → gemma4 on soucouyant
-New role slots get these defaults when they are added.
+Decision (Kees, 2026-10-03): Qwen3.5 9B on both GPUs for code, tools, PC
+control and vision; gemma4 only as kk-localize's translation judge (judge runs
+move to nights later).
+- orchestrator, reviewer, PC-control agent (F6), vision and test-driver → Coder on OVMS
+- worker and drafting → qwen3.5:9b-q8_0 on soucouyant (thinking off with `reasoning_effort: "none"`)
+- The drafting pipeline uses soucouyant when Ollama has qwen3.5 loaded or
+  nothing loaded, and OVMS Coder otherwise, so it never forces a model swap.
 
 ### Milestone 1.5 status (2026-10-03)
 
