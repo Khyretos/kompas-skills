@@ -169,16 +169,10 @@ mod tests {
     use std::env;
     use std::process;
 
+    /// An empty (deny-all) Grants: loading a path that does not exist.
     fn temp_grants() -> Grants {
-        let dir = env::temp_dir().join(format!("kk-test-{}", process::id()));
-        fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("grants.json");
-        // Create an empty file to simulate a missing/empty grants file
-        fs::write(&path, "").unwrap();
-        
-        let grants = Grants::load(&path).unwrap_or_else(|_| Grants::default());
-        
-        // Clean up
+        let dir = env::temp_dir().join(format!("kk-systools-{}", process::id()));
+        let grants = Grants::load(&dir.join("grants.json")).unwrap();
         let _ = fs::remove_dir_all(&dir);
         grants
     }
@@ -220,7 +214,7 @@ mod tests {
     #[test]
     fn test_service_refused() {
         let grants = temp_grants();
-        let outcome = service(&grants, "status", Some("test.service"), "now");
+        let outcome = service(&grants, "status", Some("test.service"), "2026-06-01T00:00:00Z");
         assert!(!outcome.ok);
         assert!(outcome.output.contains("not granted: services"));
     }
@@ -228,7 +222,7 @@ mod tests {
     #[test]
     fn test_package_refused() {
         let grants = temp_grants();
-        let outcome = package(&grants, "pacman", "install", &["htop".to_string()], "now");
+        let outcome = package(&grants, "pacman", "install", &["htop".to_string()], "2026-06-01T00:00:00Z");
         assert!(!outcome.ok);
         assert!(outcome.output.contains("not granted: packages"));
     }
@@ -236,7 +230,7 @@ mod tests {
     #[test]
     fn test_reload_refused() {
         let grants = temp_grants();
-        let outcome = reload(&grants, "hyprland", "now");
+        let outcome = reload(&grants, "hyprland", "2026-06-01T00:00:00Z");
         assert!(!outcome.ok);
         assert!(outcome.output.contains("not granted: desktop"));
     }

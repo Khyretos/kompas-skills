@@ -51,6 +51,7 @@ fn pretty_name(text: &str) -> Option<String> {
 
 fn os_name() -> Option<String> {
     read_trim("/etc/os-release")
+        .as_deref()
         .and_then(pretty_name)
 }
 
@@ -76,7 +77,7 @@ fn polkit_agent() -> bool {
         "polkit-mate-aut",
     ];
 
-    for pid in fs::read_dir("/proc").ok()? {
+    for pid in fs::read_dir("/proc").ok().flatten() {
         let Ok(entry) = pid else { continue };
         let Ok(pid_str) = entry.file_name().into_string() else { continue };
         

@@ -115,7 +115,7 @@ mod tests {
         std::fs::create_dir_all(&tmpdir).expect("failed to create temp dir");
         let outcome = run_cmd("pwd", &[], Some(&tmpdir), &[], 10);
         assert!(outcome.ok);
-        assert!(outcome.output.contains(&tmpdir.to_string_lossy()));
+        assert!(outcome.output.contains(tmpdir.to_string_lossy().as_ref()));
         std::fs::remove_dir_all(&tmpdir).expect("failed to remove temp dir");
     }
 }
