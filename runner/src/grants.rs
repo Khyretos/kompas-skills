@@ -18,6 +18,7 @@ pub struct Grant {
     pub expires: Option<String>,
 }
 
+#[derive(Debug)]
 pub struct Grants {
     path: PathBuf,
     pub list: Vec<Grant>,
@@ -33,7 +34,7 @@ impl Grants {
         if let Some(file) = file {
             let reader = BufReader::new(file);
             let mut contents = String::new();
-            reader.read_to_end(&mut contents).map_err(|e| format!("Failed to read grants file: {}", e))?;
+            std::io::Read::read_to_string(&mut { reader }, &mut contents).map_err(|e| format!("Failed to read grants file: {}", e))?;
 
             let mut grants: Vec<Grant> = serde_json::from_str(&contents).map_err(|e| format!("Invalid JSON in grants file: {}", e))?;
 
@@ -115,31 +116,22 @@ impl Grants {
         errors.join(", ")
     }
 
+    /// True when an unexpired grant on a folder covers `path` (component-wise)
+    /// with `right`. "system" grants never cover files: see `allows_system`.
     pub fn allows(&self, path: &Path, right: &Right, now: &str) -> bool {
-        for grant in &self.list {
-            if grant.target == "system" {
-                if grant.rights.contains(&right) {
-                    if let Some(expires) = &grant.expires {
-                        if now >= *expires {
-                            return false;
-                        }
-                    }
-                    return true;
-                }
-            } else {
-                let grant_path = Path::new(&grant.target);
-                if path.starts_with(grant_path) && grant.rights.contains(&right) {
-                    if let Some(expires) = &grant.expires {
-                        if now >= *expires {
-                            return false;
-                        }
-                    }
-                    return true;
-                }
-            }
-        }
+        self.list.iter().any(|g| {
+            g.target != "system"
+                && path.starts_with(Path::new(&g.target))
+                && g.rights.contains(right)
+                && g.expires.as_deref().is_none_or(|e| now < e)
+        })
+    }
 
-        false
+    /// True when an unexpired "system" grant has `right` (services, packages, system info).
+    pub fn allows_system(&self, right: &Right, now: &str) -> bool {
+        self.list.iter().any(|g| {
+            g.target == "system" && g.rights.contains(right) && g.expires.as_deref().is_none_or(|e| now < e)
+        })
     }
 
     pub fn add(&mut self, grant: Grant) -> Result<(), String> {
@@ -148,7 +140,11 @@ impl Grants {
         if let Some(index) = index {
             let existing = &self.list[index];
             let mut new_rights = existing.rights.clone();
-            new_rights.extend(grant.rights.into_iter().filter(|r| !new_rights.contains(r)));
+            for r in grant.rights.iter().cloned() {
+                if !new_rights.contains(&r) {
+                    new_rights.push(r);
+                }
+            }
 
             let mut new_granted_at = existing.granted_at.clone();
             if grant.granted_at > new_granted_at {
@@ -157,7 +153,7 @@ impl Grants {
 
             let mut new_expires = existing.expires.clone();
             if let Some(grant_expires) = &grant.expires {
-                if new_expires.is_none() || grant_expires > new_expires.as_ref().unwrap() {
+                if new_expires.as_ref().is_none_or(|e| grant_expires > e) {
                     new_expires = Some(grant_expires.clone());
                 }
             }
@@ -228,7 +224,7 @@ mod tests {
     #[test]
     fn test_load_missing_file() {
         let temp_dir = temp_dir();
-        let path = temp_dir.join(format!("grants_test_{}.json", id()));
+        let path = temp_dir.join(format!("grants_test_{}_{}.json", std::process::id(), line!()));
         let grants = Grants::load(&path).unwrap();
         assert!(grants.list.is_empty());
     }
@@ -236,19 +232,20 @@ mod tests {
     #[test]
     fn test_load_invalid_grant() {
         let temp_dir = temp_dir();
-        let path = temp_dir.join(format!("grants_test_{}.json", id()));
+        let path = temp_dir.join(format!("grants_test_{}_{}.json", std::process::id(), line!()));
         let content = r#"[{"target": "../invalid", "rights": ["read"], "granted_by": "user", "granted_at": "2026-10-03T18:00:00Z"}]"#;
         fs::write(&path, content).unwrap();
 
         let result = Grants::load(&path);
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Invalid grant at index 0: target contains '..'"));
+        let err = result.unwrap_err();
+        assert!(err.contains("index 0") && err.contains("target contains '..'"), "{err}");
     }
 
     #[test]
     fn test_allows() {
         let temp_dir = temp_dir();
-        let path = temp_dir.join(format!("grants_test_{}.json", id()));
+        let path = temp_dir.join(format!("grants_test_{}_{}.json", std::process::id(), line!()));
         let content = r#"[{"target": "/home/kees/projects/kk-engine", "rights": ["read", "write"], "granted_by": "khyretos", "granted_at": "2026-10-03T18:00:00Z", "expires": null},
                          {"target": "system", "rights": ["read"], "granted_by": "khyretos", "granted_at": "2026-10-03T18:00:00Z"}]"#;
         fs::write(&path, content).unwrap();
@@ -273,7 +270,7 @@ mod tests {
     #[test]
     fn test_add_merge() {
         let temp_dir = temp_dir();
-        let path = temp_dir.join(format!("grants_test_{}.json", id()));
+        let path = temp_dir.join(format!("grants_test_{}_{}.json", std::process::id(), line!()));
         let content = r#"[{"target": "/home/kees/projects/kk-engine", "rights": ["read"], "granted_by": "user", "granted_at": "2026-10-03T18:00:00Z"}]"#;
         fs::write(&path, content).unwrap();
 
@@ -296,7 +293,7 @@ mod tests {
     #[test]
     fn test_revoke() {
         let temp_dir = temp_dir();
-        let path = temp_dir.join(format!("grants_test_{}.json", id()));
+        let path = temp_dir.join(format!("grants_test_{}_{}.json", std::process::id(), line!()));
         let content = r#"[{"target": "/home/kees/projects/kk-engine", "rights": ["read"], "granted_by": "user", "granted_at": "2026-10-03T18:00:00Z"}]"#;
         fs::write(&path, content).unwrap();
 
@@ -305,3 +302,7 @@ mod tests {
         assert!(grants.list.is_empty());
     }
 }
+
+#[cfg(test)]
+#[path = "grants_more_tests.rs"]
+mod more_tests;

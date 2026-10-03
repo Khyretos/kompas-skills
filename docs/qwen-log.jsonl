@@ -3,3 +3,9 @@
 {"name": "F5 server jobs+grants", "out": "server/src/access.rs", "gpu_seconds": 115.9, "tokens": 5568, "lines": 425, "at": "2026-10-03T19:51:08"}
 {"name": "fix runner/src/grants.rs", "out": "runner/src/grants.rs", "gpu_seconds": 125.9, "tokens": 5603, "lines": 307, "at": "2026-10-03T21:09:50"}
 {"name": "fix runner/src/tools.rs", "out": "runner/src/tools.rs", "gpu_seconds": 86.8, "tokens": 3634, "lines": 199, "at": "2026-10-03T21:11:17"}
+{"name": "fix runner/src/grants.rs", "out": "runner/src/grants.rs", "gpu_seconds": 58.1, "tokens": 2955, "lines": 155, "at": "2026-10-03T21:45:09"}
+{"name": "fix runner/src/tools.rs", "out": "runner/src/tools.rs", "gpu_seconds": 79.0, "tokens": 3822, "lines": 208, "at": "2026-10-03T21:46:28"}
+{"name": "tools tests", "out": "runner/src/tools_tests.rs", "gpu_seconds": 74.0, "tokens": 3866, "lines": 121, "at": "2026-10-03T21:49:25"}
+{"name": "grants more tests", "out": "runner/src/grants_more_tests.rs", "gpu_seconds": 44.5, "tokens": 2266, "lines": 101, "at": "2026-10-03T21:50:09"}
+{"name": "fix runner/src/tools_tests.rs", "out": "runner/src/tools_tests.rs", "gpu_seconds": 77.5, "tokens": 3881, "lines": 121, "at": "2026-10-03T21:51:44"}
+{"name": "fix runner/src/grants_more_tests.rs", "out": "runner/src/grants_more_tests.rs", "gpu_seconds": 47.5, "tokens": 2264, "lines": 101, "at": "2026-10-03T21:52:31"}

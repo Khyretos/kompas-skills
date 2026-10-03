@@ -68,7 +68,7 @@ pub fn run(grants: &Grants, tool: &Tool, now: &str) -> Outcome {
                 return Outcome { ok: false, output: format!("content too big: {}", path.display()) };
             }
 
-            let canonical_path = canonical_parent.join(path.file_name().unwrap_or(Path::new("")));
+            let canonical_path = canonical_parent.join(path.file_name().unwrap_or_default());
             let mut file = match File::create(&canonical_path) {
                 Ok(f) => f,
                 Err(_) => return Outcome { ok: false, output: format!("not granted: {:?} on {}", Right::Write, canonical_path.display()) },
@@ -102,8 +102,7 @@ pub fn run(grants: &Grants, tool: &Tool, now: &str) -> Outcome {
                         let entry_path = entry.path();
                         let entry_name = entry.file_name();
                         let entry_type = if entry_path.is_dir() { "dir" } else { "file" };
-                        let entry_name = entry_name.to_string_lossy();
-                        entries.push((entry_name.as_ref(), entry_type));
+                        entries.push((entry_name.to_string_lossy().into_owned(), entry_type));
                     }
                 }
             }
@@ -146,54 +145,49 @@ pub fn run(grants: &Grants, tool: &Tool, now: &str) -> Outcome {
                 .stdin(std::process::Stdio::null())
                 .stdout(std::process::Stdio::piped())
                 .stderr(std::process::Stdio::piped())
-                .spawn() {
+                .spawn()
+            {
                 Ok(c) => c,
-                Err(_) => return Outcome { ok: false, output: format!("not granted: {:?} on {}", Right::Shell, canonical_cwd.display()) },
+                Err(e) => return Outcome { ok: false, output: format!("could not start the command: {e}") },
             };
-
-            let mut stdout = Vec::new();
-            let mut stderr = Vec::new();
-            let start = Instant::now();
-
-            while start.elapsed() < Duration::from_secs(60) {
-                match child.try_wait() {
-                    Ok(Some(status)) => {
-                        let mut output = String::new();
-                        if let Ok(s) = std::str::from_utf8(&stdout) {
-                            output.push_str(s);
-                        }
-                        if let Ok(s) = std::str::from_utf8(&stderr) {
-                            output.push_str(s);
-                        }
-                        output.push_str(&format!("exit: {}", status.code().unwrap_or(-1)));
-                        return Outcome { ok: true, output };
-                    },
-                    Ok(None) => {
-                        if let Ok(Some(buf)) = child.stdout.as_mut().and_then(BufRead::read_until) {
-                            stdout.extend_from_slice(&buf);
-                        }
-                        if let Ok(Some(buf)) = child.stderr.as_mut().and_then(BufRead::read_until) {
-                            stderr.extend_from_slice(&buf);
-                        }
-                    },
-                    Err(_) => {
-                        return Outcome { ok: false, output: format!("not granted: {:?} on {}", Right::Shell, canonical_cwd.display()) };
+            // Drain both pipes in threads so a chatty command can't block on a full pipe.
+            let drain = |pipe: Option<Box<dyn std::io::Read + Send>>| {
+                std::thread::spawn(move || {
+                    let mut buf = Vec::new();
+                    if let Some(mut p) = pipe {
+                        let _ = std::io::Read::read_to_end(&mut std::io::Read::take(&mut p, 64 * 1024), &mut buf);
                     }
+                    buf
+                })
+            };
+            let out_t = drain(child.stdout.take().map(|p| Box::new(p) as Box<dyn std::io::Read + Send>));
+            let err_t = drain(child.stderr.take().map(|p| Box::new(p) as Box<dyn std::io::Read + Send>));
+            let start = Instant::now();
+            let code = loop {
+                match child.try_wait() {
+                    Ok(Some(status)) => break status.code().unwrap_or(-1),
+                    Ok(None) if start.elapsed() < Duration::from_secs(60) => std::thread::sleep(Duration::from_millis(50)),
+                    Ok(None) => {
+                        let _ = child.kill();
+                        let _ = child.wait();
+                        break -1;
+                    }
+                    Err(_) => break -1,
                 }
-
-                std::thread::sleep(Duration::from_millis(50));
+            };
+            let mut bytes = out_t.join().unwrap_or_default();
+            bytes.extend(err_t.join().unwrap_or_default());
+            bytes.truncate(64 * 1024);
+            let mut output = String::from_utf8_lossy(&bytes).into_owned();
+            if !output.is_empty() && !output.ends_with('\n') {
+                output.push('\n');
             }
-
-            let mut output = String::new();
-            if let Ok(s) = std::str::from_utf8(&stdout) {
-                output.push_str(s);
-            }
-            if let Ok(s) = std::str::from_utf8(&stderr) {
-                output.push_str(s);
-            }
-            output.push_str("exit: -1");
-
-            Outcome { ok: true, output }
+            output.push_str(&format!("exit: {code}"));
+            Outcome { ok: code == 0, output }
         },
     }
 }
+
+#[cfg(test)]
+#[path = "tools_tests.rs"]
+mod tests;

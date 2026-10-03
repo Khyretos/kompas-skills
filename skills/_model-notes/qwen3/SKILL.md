@@ -65,3 +65,5 @@ Full write-up: kreative-kompas-vscode-theme `docs/ai-capability/vscode-theme-dra
 - Tell it what not to touch (gradients, headings); it "improves" them unasked, e.g. a violet headline on a dark theme.
 - When a list of changes is long, check it did all of them; the first Discourse draft did about a third.
 - Feed the previous draft plus numbered findings into the next prompt; that fixed most files in one round.
+- (2026-10-03) Fix rounds on a large file (300 lines) at 8k context can return a different, smaller file with a new API (grants.rs lost `allows`/`add`/`revoke`). Always repeat the exact API block in a fix prompt and reject a fix whose public items differ. After two failed rounds Claude fixed it (see lesson worker/rust #11).
+- (2026-10-03) Tests: invents constructors (`Grants::new`) and methods (`is_empty`) on types it was told about; give tests their own file and the exact API list.

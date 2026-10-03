@@ -11,3 +11,4 @@
 8. (2026-10-03) Errors shown to people: never pass a raw response body through. Use `llm::readable_error` (no HTML, at most 200 characters, a plain word for known GPU failures).
 9. (2026-10-03) Model calls: bound the prompt (chat history budget), retry once on a failure before anything streamed, then fall back to another provider and say so in one line.
 10. (2026-10-03) Parsing "key: value" lines: use `split_once(':')`, never `split(':')` (PCI slots like 0000:03:00.0 contain colons); strip units like " ns" before parsing numbers.
+11. (2026-10-03) Access checks: a special target ("system") must never act as a wildcard for file paths; check every grant and skip expired ones instead of returning on the first expired match. Shell: drain stdout/stderr in threads (a full pipe blocks the child), kill on timeout, report the exit code.
