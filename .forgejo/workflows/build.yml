@@ -44,7 +44,7 @@ jobs:
           git init -q . && git -c http.extraHeader="Authorization: token ${{ github.token }}" fetch -q --depth 1 "${{ github.server_url }}/${{ github.repository }}" "${{ github.sha }}" && git checkout -q FETCH_HEAD
       - name: Build the static runner binary
         run: |
-          cd runner && cargo build --release
+          cd runner && cargo test && cargo build --release
           cp target/release/kompanion-runner ../kompanion-runner-x86_64-linux-musl
       - name: Show the binary
         # (The job token can't write packages; the binary for PCs is copied by hand.)

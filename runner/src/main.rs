@@ -10,6 +10,11 @@
 //! token_file = "~/.config/kompanion-runner/token"   # file with the token, mode 600
 //! ```
 
+#[allow(dead_code)]
+mod grants;
+#[allow(dead_code)] // wired into the job loop in the next step
+mod tools;
+
 use std::{fs, path::PathBuf, thread, time::Duration};
 
 use machine_stats::Sampler;
