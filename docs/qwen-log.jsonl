@@ -19,3 +19,5 @@
 {"name": "F5 access runner side", "out": "server/src/access/runner.rs", "gpu_seconds": 38.1, "tokens": 2306, "lines": 230, "review": "skipped", "at": "2026-10-03T22:38:58"}
 {"name": "fix server/src/access/runner.rs", "out": "server/src/access/runner.rs", "gpu_seconds": 6.2, "tokens": 204, "lines": 21, "review": "skipped", "at": "2026-10-03T22:40:39"}
 {"name": "fix server/src/access/web.rs", "out": "server/src/access/web.rs", "gpu_seconds": 14.4, "tokens": 696, "lines": 82, "review": "skipped", "at": "2026-10-03T22:40:54"}
+{"name": "F5 runner job loop", "out": "runner/src/main.rs", "gpu_seconds": 42.5, "tokens": 2573, "lines": 7, "review": "skipped", "at": "2026-10-03T22:43:34"}
+{"name": "F5 runner job loop", "out": "runner/src/main.rs", "gpu_seconds": 45.4, "tokens": 2456, "lines": 233, "review": "skipped", "at": "2026-10-03T22:44:43"}

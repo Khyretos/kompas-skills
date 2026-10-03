@@ -383,7 +383,8 @@ pub async fn report(
         .bind(&id)
         .execute(&s.db)
         .await?;
-    Ok(Json(json!({ "interval": interval })))
+    let jobs = crate::access::take_jobs(&s.db, &id).await.unwrap_or_default();
+    Ok(Json(json!({ "interval": interval, "jobs": jobs })))
 }
 
 #[cfg(test)]

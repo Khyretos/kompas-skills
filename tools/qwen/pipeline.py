@@ -39,12 +39,18 @@ def ask(system, user, max_tokens):
     return choice["message"]["content"], time.time() - t, v.get("usage", {}).get("completion_tokens", 0)
 
 def strip(text):
-    m = re.search(r"```[a-zA-Z]*\n(.*?)```", text, re.S)
-    if m:
-        return m.group(1).strip() + "\n"
-    # A fence that never closes (answer cut off): drop the opening line.
-    text = re.sub(r"^```[a-zA-Z]*\n", "", text.strip())
-    return text.strip() + "\n"
+    """The code from an answer: from the first opening fence to the LAST closing
+    one (code can contain fences itself, e.g. a ```toml example in a doc
+    comment); an answer without fences is taken as it is."""
+    text = text.strip()
+    m = re.search(r"^```[a-zA-Z0-9_+-]*[ \t]*\n", text, re.M)
+    if not m:
+        return text + "\n"
+    body = text[m.end():]
+    end = body.rfind("\n```")
+    if end != -1:
+        body = body[:end]
+    return body.strip() + "\n"
 
 def main():
     jobs = json.load(open(sys.argv[1]))
