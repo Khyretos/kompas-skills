@@ -49,16 +49,6 @@ jobs:
       - name: Show the binary
         run: ls -l kompanion-runner-x86_64-linux-musl && sha256sum kompanion-runner-x86_64-linux-musl
 
-  image:
-    runs-on: soucouyant
-    needs: [server, web]
-    container:
-      image: docker:cli
-    steps:
-      - name: Tools
-        run: apk add --no-cache git
-      - name: Check out (plain git; this image has no Node for actions/checkout)
-        run: |
-          git init -q . && git -c http.extraHeader="Authorization: token ${{ github.token }}" fetch -q --depth 1 "${{ github.server_url }}/${{ github.repository }}" "${{ github.sha }}" && git checkout -q FETCH_HEAD
-      - name: Build the container image
-        run: docker build -t kreative-kompanion:ci .
+# The container image is built where it is deployed (kireserver): job containers
+# on soucouyant have no Docker daemon, and giving them the host socket would
+# hand every job root on soucouyant.
