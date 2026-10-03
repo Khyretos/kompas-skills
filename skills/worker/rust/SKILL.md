@@ -12,3 +12,8 @@
 9. (2026-10-03) Model calls: bound the prompt (chat history budget), retry once on a failure before anything streamed, then fall back to another provider and say so in one line.
 10. (2026-10-03) Parsing "key: value" lines: use `split_once(':')`, never `split(':')` (PCI slots like 0000:03:00.0 contain colons); strip units like " ns" before parsing numbers.
 11. (2026-10-03) Access checks: a special target ("system") must never act as a wildcard for file paths; check every grant and skip expired ones instead of returning on the first expired match. Shell: drain stdout/stderr in threads (a full pipe blocks the child), kill on timeout, report the exit code.
+
+12. Tests clean up only what they created. Never `remove_dir_all(std::env::temp_dir())`:
+    that deletes the whole system temp dir. Make a unique subdir
+    (`temp_dir().join(format!("kk-<test>-{}", std::process::id()))`), use it, and remove only that
+    subdir; or remove just the one file with `fs::remove_file`.

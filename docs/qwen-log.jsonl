@@ -30,3 +30,5 @@
 {"name": "F5 access page", "out": "web/src/views/access.ts", "gpu_seconds": 96.8, "tokens": 1734, "lines": 111, "at": "2026-10-03T22:56:47"}
 {"name": "fix server/src/access/jobs.rs", "out": "server/src/access/jobs.rs", "gpu_seconds": 23.0, "tokens": 758, "lines": 81, "review": "skipped", "at": "2026-10-03T22:58:45"}
 {"name": "fix web/src/views/access.ts", "out": "web/src/views/access.ts", "gpu_seconds": 30.8, "tokens": 896, "lines": 111, "review": "skipped", "at": "2026-10-03T22:59:16"}
+{"name": "grants.json created at start", "out": "runner/src/grants.rs", "gpu_seconds": 238.9, "tokens": 6687, "lines": 321, "at": "2026-10-03T23:21:37"}
+{"name": "fix grants test cleanup", "out": "runner/src/grants.rs", "gpu_seconds": 110.4, "tokens": 3348, "lines": 321, "review": "skipped", "at": "2026-10-03T23:23:38"}

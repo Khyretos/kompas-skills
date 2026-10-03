@@ -14,7 +14,7 @@ OLLAMA = os.environ.get("OLLAMA_URL", "http://192.168.178.80:11434")
 # Code, tools and vision: Qwen3.5 9B on both GPUs (Kees, 2026-10-03). One model
 # name per Ollama host: a second name makes Ollama reload on every switch.
 SOUCOUYANT_MODEL = os.environ.get("QWEN_MODEL", "qwen3.5:9b-q8_0")
-OVMS = os.environ.get("OVMS_URL", "https://ovms.kreative-kompas.com/v3/chat/completions")
+OVMS = os.environ.get("OVMS_URL", "http://172.16.1.25:8000/v3/chat/completions")  # direct: the proxy cuts long answers at 60 s
 OVMS_MODEL = "Coder"  # Qwen3.5-9B int8 on the A770, same family
 NOTES = "qwen3"  # skills/_model-notes/<NOTES>
 

@@ -45,6 +45,15 @@ impl Grants {
             }
 
             list = grants;
+        } else {
+            // Missing file means no grants (deny-all).
+            // Save an empty array so the file exists for the user to see and edit.
+            let empty_grants = Grants { path, list };
+            if let Err(e) = empty_grants.save() {
+                eprintln!("Warning: Failed to create initial grants file: {}", e);
+                return Ok(empty_grants);
+            }
+            return Ok(empty_grants);
         }
 
         Ok(Grants { path, list })
@@ -227,6 +236,10 @@ mod tests {
         let path = temp_dir.join(format!("grants_test_{}_{}.json", std::process::id(), line!()));
         let grants = Grants::load(&path).unwrap();
         assert!(grants.list.is_empty());
+        assert!(path.exists());
+        let content = fs::read_to_string(&path).unwrap();
+        assert_eq!(content.trim(), "[]");
+        fs::remove_file(&path).unwrap();
     }
 
     #[test]
