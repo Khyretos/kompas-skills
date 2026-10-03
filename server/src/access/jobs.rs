@@ -55,7 +55,8 @@ pub async fn create_job(
 pub async fn get_job(
     State(s): State<AppState>,
     Extension(u): Extension<User>,
-    Path((id, machine_id)): Path<(String, String)>,
+    // Route: /machines/{id}/jobs/{job}
+    Path((machine_id, id)): Path<(String, String)>,
 ) -> ApiResult<Json<Value>> {
     let row: Option<(String, Option<String>, String, Option<String>)> =
         sqlx::query_as(
