@@ -75,9 +75,7 @@ export function initResize(shell: HTMLElement): void {
     el.dataset.side = side;
     el.setAttribute("aria-expanded", "true");
     const textOpen = side === "left" ? "‹" : "›";
-    const textClosed = side === "left" ? "›" : "‹";
     const labelHide = side === "left" ? "Hide the projects panel" : "Hide the tasks panel";
-    const labelShow = side === "left" ? "Show the projects panel" : "Show the tasks panel";
     el.textContent = textOpen;
     el.setAttribute("aria-label", labelHide);
     return el;
