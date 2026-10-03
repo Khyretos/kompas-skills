@@ -16,7 +16,7 @@ mod tools;
 
 use machine_stats::Sampler;
 use serde::Deserialize;
-use std::{fs, path::PathBuf, thread, time::{SystemTime, UNIX_EPOCH}};
+use std::{fs, path::PathBuf, thread, time::{Duration, SystemTime, UNIX_EPOCH}};
 
 #[derive(Deserialize)]
 struct Config {
@@ -141,7 +141,7 @@ fn main() {
             "job_id": "grants",
             "ok": true,
             "output": "",
-            "grants": grants.list()
+            "grants": grants.grants
         }),
     );
 
@@ -190,7 +190,8 @@ fn main() {
                                 }
                                 _ => {
                                     if let Ok(tool) = serde_json::from_value::<tools::Tool>(tool_val.clone()) {
-                                        output = tools::run(&grants, &tool, &now());
+                                        let res = tools::run(&grants, &tool, &now());
+                                        output = res.as_str().unwrap_or("").to_string();
                                         if output.starts_with("not granted") {
                                             refused = true;
                                         } else {
@@ -212,7 +213,7 @@ fn main() {
                                     "ok": ok,
                                     "output": output,
                                     "refused": refused,
-                                    "grants": grants.list()
+                                    "grants": grants.grants
                                 }),
                             );
                         }

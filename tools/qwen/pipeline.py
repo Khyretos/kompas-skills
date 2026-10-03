@@ -62,8 +62,8 @@ def main():
         system = "You write exact, compiling code for this repository. Follow these rules strictly:\n\n" + rules
         draft, s1, t1 = ask(system, job["prompt"] + ("\n\nRelevant files:" + ctx if ctx else ""), job.get("max_tokens", 4000))
         # The self-review needs the draft in the prompt; skip it when that
-        # wouldn't leave room for a full answer in the 8k context (~4 chars/token).
-        if (len(system) + len(job["prompt"]) + 2 * len(draft)) / 4 > 6000 or not job.get("review", True):
+        # wouldn't leave room for a full answer in the 16k context (~4 chars/token).
+        if (len(system) + len(job["prompt"]) + 2 * len(draft)) / 4 > 13000 or not job.get("review", True):
             out = os.path.join(REPO, job["out"])
             os.makedirs(os.path.dirname(out), exist_ok=True)
             open(out, "w").write(strip(draft))

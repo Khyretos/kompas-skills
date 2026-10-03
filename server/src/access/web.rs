@@ -61,7 +61,7 @@ pub async fn list_grants(
 ) -> ApiResult<Json<Vec<Value>>> {
     owned(&s, &id, &u).await?;
 
-    let rows: Vec<(String, Value, String, String, Option<String>)> = sqlx::query_as(
+    let rows: Vec<(String, String, String, String, Option<String>)> = sqlx::query_as(
         "SELECT target, rights, granted_by, granted_at, expires FROM machine_grants WHERE machine_id = ?"
     )
     .bind(&id)
@@ -70,9 +70,8 @@ pub async fn list_grants(
 
     let results = rows
         .into_iter()
-        .map(|(target, rights, granted_by, granted_at, expires)| {
-            let rights_vec: Vec<String> = rights.as_array()
-                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+        .map(|(target, rights_str, granted_by, granted_at, expires)| {
+            let rights_vec: Vec<String> = serde_json::from_str::<Vec<String>>(&rights_str)
                 .unwrap_or_default();
 
             json!({
