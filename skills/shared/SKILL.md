@@ -52,3 +52,12 @@ i will always prefer my text white or at least readable".
 - In DMS keep `widgetColorMode: "default"`; "colorful" paints bar text in the primary colour.
 - The VS Code theme's orange keywords are fine: that is syntax colouring, not UI text.
 - Lesson 2 originally set DMS `primary` to orange; that was wrong and is fixed in theme.json v1.1.0.
+
+## 4. Web app theming: orange accents, purple steps (2026-10-03, from Kees)
+
+Kees asked for more orange and more shades of purple in every themed web app. Rule (full text in `~/Docker/Personal-projects/kreative-kompas/brand/palette.md`, "Accents and surfaces"):
+
+- Links, icons, active markers, focus rings and secondary buttons: orange `#f3941f` on dark, orange-ink `#8a5a00` on light; light-mode active items get `#fde7cc` behind plum text.
+- Purple stays primary: primary buttons violet with white text. Apps with a single theme colour (Nextcloud, Outline, Paperless) keep violet, because that colour also fills primary buttons and colours link text in both modes.
+- Surfaces step: night page, plum sidebars/panels, plum-2 cards/inputs, violet header bars with white text. On a violet bar use the lilac logo `brand/logo-on-dark.svg` and orange buttons with plum text; the normal logo's violet disappears there.
+- Ordinary UI text (nav labels, chat lists) stays white/mist or plum, never orange (lesson 3). Colour icons and indicator bars, not labels.

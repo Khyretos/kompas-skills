@@ -52,3 +52,14 @@ Full write-up: kreative-kompas-vscode-theme `docs/ai-capability/vscode-theme-dra
   List every key with a value, or review those keys specifically.
 - It doesn't think about what a colour is *for*: `cursor_text_color` = cursor colour (text under the cursor
   becomes invisible), lilac `#cca9ff` as secondary on a light background (1.7:1). Contrast-check pairs after it.
+
+## CSS theme edits against a brand rule (2026-10-03, orange re-theme)
+
+29 runs over 14 apps; 3 first drafts usable, the rest needed one or two review rounds. Report: `~/Docker/docs/ai-capability/theming-orange-2026-10.md`.
+
+- Give it the exact variables or selectors to touch and their values. With only the brand rule it invents generic selectors (`.sidebar`, `.card`, `button.secondary`) and a bare `a` that recolours all UI text.
+- Spell out per mode which colour goes where: it puts orange `#f3941f` and orange-light on light backgrounds (focus rings, checkbox fills, hover) and uses the light tint `#fde7cc` on dark themes. Check every pair it writes against the ratio table.
+- Compute colour scales, rgb channels and ratios yourself and paste them in: it copies 46 given values flawlessly but invents channels (`255,150,50` for `#f3941f`) and ratios in comments.
+- Tell it what not to touch (gradients, headings); it "improves" them unasked, e.g. a violet headline on a dark theme.
+- When a list of changes is long, check it did all of them; the first Discourse draft did about a third.
+- Feed the previous draft plus numbered findings into the next prompt; that fixed most files in one round.
