@@ -46,8 +46,17 @@ jobs:
         run: |
           cd runner && cargo build --release
           cp target/release/kompanion-runner ../kompanion-runner-x86_64-linux-musl
-      - name: Show the binary
-        run: ls -l kompanion-runner-x86_64-linux-musl && sha256sum kompanion-runner-x86_64-linux-musl
+      - name: Publish the binary as a generic package (main only)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          apk add --no-cache curl >/dev/null
+          sha256sum kompanion-runner-x86_64-linux-musl
+          for v in "${{ github.sha }}" latest; do
+            curl -sf -X DELETE -H "Authorization: token ${{ github.token }}" \
+              "${{ github.server_url }}/api/packages/${{ github.repository_owner }}/generic/kompanion-runner/$v" || true
+            curl -sf -H "Authorization: token ${{ github.token }}" --upload-file kompanion-runner-x86_64-linux-musl \
+              "${{ github.server_url }}/api/packages/${{ github.repository_owner }}/generic/kompanion-runner/$v/kompanion-runner-x86_64-linux-musl"
+          done
 
 # The container image is built where it is deployed (kireserver): job containers
 # on soucouyant have no Docker daemon, and giving them the host socket would
