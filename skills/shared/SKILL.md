@@ -69,3 +69,18 @@ Kees asked for more orange and more shades of purple in every themed web app. Ru
 ## 4. Inspecting containers without leaking secrets (2026-10-03)
 
 Never print environment values when inspecting a container: a grep for a model name matched "14B" inside an SMTP password and printed it. List variable names only, e.g. `docker inspect <c> | jq -r '.[0].Config.Env[] | split("=")[0]'`; when a value is really needed, print it only for names that don't match `PASS|PWD|KEY|SECRET|TOKEN|CREDENTIAL|AUTH` (case-insensitive). The same goes for `.env` files: `grep -oE '^[A-Z_]+='`.
+
+## 5. Ollama hosts: one model name, and what the RAM is (2026-10-03)
+
+Source: soucouyant benchmark, ~/Docker/docs/ai-capability/soucouyant-model-benchmark-2026-10.md.
+
+- Ollama 0.35 runs models through llama.cpp's llama-server. It keeps a prompt cache in system RAM
+  (`--cache-ram`, default 8192 MiB) that fills after a few hundred different prompts: that, not the model,
+  is the ~8 GB of RAM next to ~12 GB of VRAM. `journalctl -u ollama | grep "cache state"` shows it.
+  Cap it with `Environment="LLAMA_ARG_CACHE_RAM=2048"` in the service override.
+- Every distinct model name (including `:14b-16k` style context variants) is a separate load. Two callers
+  on one 16 GB card with different names make Ollama reload on almost every request. Agree one name per host.
+- Before benchmarking or swapping models on a shared host, check `journalctl -u ollama --since -3m | grep GIN`
+  for other callers and ask them to pause; a swap stalls their jobs and spoils the timings.
+- A model that doesn't fit is split by layers onto the CPU (qwen3.6:35b-a3b: 45% CPU, 26 tok/s, ~20 GB RAM).
+  Check `ollama ps` says 100% GPU before trusting a speed number.

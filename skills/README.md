@@ -11,7 +11,7 @@ about). Layout:
 - `runner/`: running tools on PCs within the access grants.
 - `shared/`: facts every role needs (house rules, brand, FOSS only).
 - `reviewer/`: what to check, in order.
-- `_model-notes/<model>/`: known failure patterns of one model, so prompts can
+- `_model-notes/<model>/`: known failure patterns of one model (qwen3, gemma4, gpt-oss), so prompts can
   guard against them.
 
 Each folder has a `SKILL.md`; lessons are numbered and dated, newest last.
