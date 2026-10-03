@@ -13,3 +13,8 @@
 10. Before you output a file, count the braces of the last function. An extra `}` at the end
     of a module is a syntax error that breaks the whole build. When told to remove one, check
     the last 3 lines of your output.
+11. Never make the user refresh (Kees, standing rule). Every action that changes data
+    updates the store at once (optimistic), rolls back with an error toast on failure,
+    and disables its button with a spinner while pending. Live changes from the server
+    arrive over the `/api/events` SSE stream. Each page has a Playwright test that does an
+    action and checks the screen without reloading.

@@ -102,6 +102,31 @@ screenshots, mouse and keyboard). FOSS only, and every OS is covered.
   takes which role. It also scans the local network and well-known ports for
   Ollama, LM Studio, llama.cpp and OVMS.
 
+### Root on a PC: pkexec from the runner works (tested 2026-10-03)
+
+The runner runs as a systemd user service. On soucouyant (CachyOS, Hyprland, mate-polkit),
+a `package paru install cowsay` job ran `paru --sudo pkexec`, and the polkit prompt appeared
+on the desktop. Kees typed his password there and the job ended with exit 0. polkit finds
+the user's graphical session even though the service is not part of it. The password
+never passes through Kompanion. The test grant (system: packages + root) was revoked
+afterwards.
+Known gap: the runner handles jobs on its polling thread, so it stops sending stats while
+a job waits for the prompt. Jobs should get their own thread (W2).
+
+### Snappy and live, never a refresh (standing UI rule, Kees 2026-10-03)
+
+The app must feel quick and reactive. Nothing may need a page reload.
+1. Every action that changes data (grant, revoke, rename, move chat, settings, task
+   edits, pairing, ...) updates the screen at once. It is an optimistic update: on
+   failure it rolls back and shows an error toast. Its button is disabled and shows
+   a spinner while the request runs.
+2. The server pushes changes to each user over one Server-Sent Events stream
+   (`/api/events`): grants, machines online/offline, jobs, tasks, chats and settings.
+   Other tabs and server-side changes appear live. The stream reconnects with backoff
+   and reloads the affected list after a reconnect.
+3. Every page gets a Playwright test: do an action, then check the screen changed
+   without a reload.
+
 ### Layout of the app
 
 Left sidebar: chats and projects. Middle: the conversation with the project's
