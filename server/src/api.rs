@@ -264,6 +264,20 @@ async fn answer(s: AppState, user_id: String, chat_id: String, role: RoleAssignm
     .fetch_all(&s.db)
     .await
     .unwrap_or_default();
+    // Keep the prompt bounded: the newest messages that fit ~24,000 characters
+    // (long chats otherwise grow until the GPU runs out of memory).
+    let mut budget = 24_000usize;
+    let keep = history
+        .iter()
+        .rev()
+        .take_while(|(_, t)| {
+            let fits = t.len() <= budget;
+            budget = budget.saturating_sub(t.len());
+            fits
+        })
+        .count()
+        .max(1);
+    let history = history[history.len().saturating_sub(keep)..].to_vec();
     let mut convo = vec![ChatMessage {
         role: "system".into(),
         content: ORCHESTRATOR_PROMPT.into(),
@@ -282,9 +296,37 @@ async fn answer(s: AppState, user_id: String, chat_id: String, role: RoleAssignm
     let (mut tokens_in, mut tokens_out) = (None, None);
     let mut error: Option<String> = None;
 
-    match s.config.provider(&role.provider_id) {
-        None => error = Some(format!("provider {} is not configured", role.provider_id)),
-        Some(p) => match llm::stream_chat(&s.http, p, &role.model_id, &convo).await {
+    // Try the role's model, once more after a pause, then another provider the
+    // user has assigned to a role (e.g. the worker on soucouyant). Only while
+    // nothing has been streamed yet.
+    let mut candidates = vec![(role.provider_id.clone(), role.model_id.clone()), (role.provider_id.clone(), role.model_id.clone())];
+    let others: Vec<(String, String)> = sqlx::query_as(
+        "SELECT DISTINCT provider_id, model_id FROM user_roles WHERE user_id = ? AND provider_id <> ?",
+    )
+    .bind(&user_id)
+    .bind(&role.provider_id)
+    .fetch_all(&s.db)
+    .await
+    .unwrap_or_default();
+    candidates.extend(others);
+    let mut used = role.model_id.clone();
+    let mut used_provider = role.provider_id.clone();
+    for (attempt, (provider_id, model_id)) in candidates.iter().enumerate() {
+        if attempt > 0 {
+            if !text.is_empty() || error.is_none() {
+                break;
+            }
+            tracing::warn!(error = ?error, attempt, provider = %provider_id, "retrying the model call");
+            if attempt == 1 {
+                tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+            }
+            error = None;
+        }
+        used = model_id.clone();
+        used_provider = provider_id.clone();
+    match s.config.provider(provider_id) {
+        None => error = Some(format!("provider {provider_id} is not configured")),
+        Some(p) => match llm::stream_chat(&s.http, p, model_id, &convo).await {
             Err(e) => error = Some(format!("{e:#}")),
             Ok(stream) => {
                 tokio::pin!(stream);
@@ -318,12 +360,18 @@ async fn answer(s: AppState, user_id: String, chat_id: String, role: RoleAssignm
             }
         },
     }
+    }
+    if error.is_none() && used != role.model_id {
+        let note = format!("\n\n_({} was busy, so `{used}` answered.)_", role.model_id);
+        text.push_str(&note);
+        s.bus.send(&user_id, Event::MessageDelta { message_id: reply_id.clone(), chat_id: chat_id.clone(), text: note, done: false });
+    }
 
     if let Some(e) = &error {
         tracing::warn!(error = %e, model = %role.model_id, "model call failed");
         let note = format!(
-            "\n\nI couldn't reach `{}`: {}",
-            role.model_id,
+            "\n\nI couldn't get an answer from `{}`: {}",
+            used,
             e.chars().take(300).collect::<String>()
         );
         text.push_str(&note);
@@ -369,8 +417,8 @@ async fn answer(s: AppState, user_id: String, chat_id: String, role: RoleAssignm
     .bind(&user_id)
     .bind(util::new_id())
     .bind(&chat_id)
-    .bind(&role.provider_id)
-    .bind(&role.model_id)
+    .bind(&used_provider)
+    .bind(&used)
     .bind("You sent a message in this chat.")
     .bind(request.to_string())
     .bind(&text)

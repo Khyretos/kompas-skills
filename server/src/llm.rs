@@ -168,11 +168,7 @@ pub async fn stream_chat(
     if !resp.status().is_success() {
         let status = resp.status();
         let text = resp.text().await.unwrap_or_default();
-        bail!(
-            "{} answered {status}: {}",
-            p.name,
-            text.chars().take(300).collect::<String>()
-        );
+        bail!("{} answered {status}: {}", p.name, readable_error(&text));
     }
 
     let kind = p.kind.clone();
@@ -309,5 +305,31 @@ mod tests {
         assert!(
             matches!(&parse_event(&ProviderKind::Anthropic, &v)[..], [Chunk::Text(t)] if t == "Yo")
         );
+    }
+}
+
+/// A short, readable reason from an error body: never raw HTML, never more
+/// than 200 characters, and a plain word for known OVMS GPU failures.
+pub fn readable_error(body: &str) -> String {
+    let lower = body.to_lowercase();
+    if lower.contains("<html") || lower.contains("<!doctype") {
+        return "an error page instead of an answer".into();
+    }
+    if lower.contains("cl_out_of_resources") || lower.contains("intel_gpu") || lower.contains("llmexecutor") {
+        return "the model is busy or out of GPU memory".into();
+    }
+    let flat: String = body.split_whitespace().collect::<Vec<_>>().join(" ");
+    flat.chars().take(200).collect()
+}
+
+#[cfg(test)]
+mod readable_tests {
+    use super::readable_error;
+
+    #[test]
+    fn hides_html_and_gpu_noise() {
+        assert_eq!(readable_error("<html><body><h1>504 Gateway Time-out</h1></body></html>"), "an error page instead of an answer");
+        assert_eq!(readable_error("{\"error\":\"Mediapipe ... LLMExecutor ... intel_gpu\"}"), "the model is busy or out of GPU memory");
+        assert_eq!(readable_error("bad\n  key"), "bad key");
     }
 }

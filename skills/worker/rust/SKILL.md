@@ -8,3 +8,5 @@
 5. (2026-10-01) Rates from counters need the previous sample: compute the delta first, then store the new sample. Overwriting first gives zero every time. Test with two reads.
 6. (2026-10-01) sysfs: `class/drm/cardN` only (skip `cardN-DP-1` connectors); every file may be missing, so every read returns an `Option`.
 7. (2026-10-03) Traits must be in scope for their methods, e.g. `use openidconnect::OAuth2TokenResponse as _;` for `access_token()`.
+8. (2026-10-03) Errors shown to people: never pass a raw response body through. Use `llm::readable_error` (no HTML, at most 200 characters, a plain word for known GPU failures).
+9. (2026-10-03) Model calls: bound the prompt (chat history budget), retry once on a failure before anything streamed, then fall back to another provider and say so in one line.
