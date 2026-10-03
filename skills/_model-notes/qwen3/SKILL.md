@@ -30,6 +30,7 @@ As translation judge (kk-localize, 2026-10-03):
 - Tag rebuilt with `PARAMETER num_ctx 16384` and `PARAMETER num_thread 1` (same name): fully on the GPU,
   extra CPU threads only spin-wait between GPU steps (shared lesson 6). Thinking is on by default: send
   `reasoning_effort: "none"` (OpenAI endpoint) or `think: false` (native API).
+- Measured: 59 tok/s, ~4,000 tok/s prompt, 12.8 GB card total at 16k (about 10.5 GB for the model).
 - It and gemma4:12b-it-qat don't both fit on the 16 GB card next to the desktop; callers alternating between
   them make Ollama swap (a few seconds per switch). Batch per model where possible.
 
