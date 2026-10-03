@@ -26,6 +26,8 @@ ProtectKernelLogs=yes
 ProtectControlGroups=yes
 ProtectClock=yes
 ProtectHostname=yes
+# /proc stays fully visible (ProtectProc=default): fdinfo of other processes is the whole point.
+ProtectProc=default
 RestrictAddressFamilies=AF_UNIX
 RestrictNamespaces=yes
 RestrictRealtime=yes
@@ -34,6 +36,11 @@ MemoryDenyWriteExecute=yes
 SystemCallArchitectures=native
 SystemCallFilter=@system-service
 SystemCallFilter=~@resources @mount @swap @reboot @raw-io @module @clock @cpu-emulation @debug @obsolete
+# CAP_SYS_PTRACE must only pass the /proc/<pid>/fdinfo read check: no attaching,
+# no reading or writing other processes' memory, no stealing their fds.
+SystemCallFilter=~ptrace process_vm_readv process_vm_writev pidfd_getfd kcmp
+SystemCallErrorNumber=EPERM
+ReadOnlyPaths=/
 RuntimeDirectory=kompanion-gpu
 RuntimeDirectoryMode=0750
 UMask=0007
