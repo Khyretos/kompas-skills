@@ -42,3 +42,6 @@
     invalid JSON.
 21. When you read a file, keep the value: `let Ok(before) = fs::read_to_string(&f) else { ... }`.
     Calling `read_to_string` only to check `is_err()` leaves the String empty.
+22. To iterate an `Option` or `Result` of an iterator, use `.into_iter().flatten()`
+    (`fs::read_dir(p).into_iter().flatten()`). `Option<ReadDir>` has no `.flatten()`.
+    Compare `&&str` with `String` by dereferencing: `list.iter().any(|a| *a == s)`.

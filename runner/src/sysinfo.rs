@@ -77,7 +77,7 @@ fn polkit_agent() -> bool {
         "polkit-mate-aut",
     ];
 
-    for pid in fs::read_dir("/proc").ok().flatten() {
+    for pid in fs::read_dir("/proc").into_iter().flatten() {
         let Ok(entry) = pid else { continue };
         let Ok(pid_str) = entry.file_name().into_string() else { continue };
         
@@ -93,7 +93,7 @@ fn polkit_agent() -> bool {
         };
         
         let lower = name.to_lowercase();
-        if agents.iter().any(|a| a == lower) {
+        if agents.iter().any(|a| *a == lower) {
             return true;
         }
     }
