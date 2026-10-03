@@ -32,11 +32,18 @@ def ask(system, user, max_tokens):
     t = time.time()
     with urllib.request.urlopen(req, timeout=1200) as r:
         v = json.load(r)
-    return v["choices"][0]["message"]["content"], time.time() - t, v.get("usage", {}).get("completion_tokens", 0)
+    choice = v["choices"][0]
+    if choice.get("finish_reason") == "length":
+        print(f"WARNING: answer cut off ({v.get('usage', {})})", file=sys.stderr, flush=True)
+    return choice["message"]["content"], time.time() - t, v.get("usage", {}).get("completion_tokens", 0)
 
 def strip(text):
     m = re.search(r"```[a-zA-Z]*\n(.*?)```", text, re.S)
-    return (m.group(1) if m else text).strip() + "\n"
+    if m:
+        return m.group(1).strip() + "\n"
+    # A fence that never closes (answer cut off): drop the opening line.
+    text = re.sub(r"^```[a-zA-Z]*\n", "", text.strip())
+    return text.strip() + "\n"
 
 def main():
     jobs = json.load(open(sys.argv[1]))
@@ -46,6 +53,16 @@ def main():
         ctx = "".join(f"\n--- {c} ---\n{open(os.path.join(REPO, c)).read()}" for c in job.get("context", []))
         system = "You write exact, compiling code for this repository. Follow these rules strictly:\n\n" + rules
         draft, s1, t1 = ask(system, job["prompt"] + ("\n\nRelevant files:" + ctx if ctx else ""), job.get("max_tokens", 4000))
+        # The self-review needs the draft in the prompt; skip it when that
+        # wouldn't leave room for a full answer in the 8k context (~4 chars/token).
+        if (len(system) + len(job["prompt"]) + 2 * len(draft)) / 4 > 6000 or not job.get("review", True):
+            out = os.path.join(REPO, job["out"])
+            os.makedirs(os.path.dirname(out), exist_ok=True)
+            open(out, "w").write(strip(draft))
+            rec = {"name": job["name"], "out": job["out"], "gpu_seconds": round(s1, 1), "tokens": t1,
+                   "lines": strip(draft).count("\n"), "review": "skipped", "at": time.strftime("%Y-%m-%dT%H:%M:%S")}
+            log.write(json.dumps(rec) + "\n"); log.flush(); print(json.dumps(rec), flush=True)
+            continue
         review_prompt = ("Review the code below against every rule above and the task. Fix every problem you find. "
                          "Output ONLY the corrected complete file, nothing else.\n\nTask:\n" + job["prompt"] + "\n\nCode:\n" + strip(draft))
         final, s2, t2 = ask(system, review_prompt, job.get("max_tokens", 4000))

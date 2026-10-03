@@ -1,4 +1,3 @@
-```rust
 use axum::{Extension, Json, extract::{Path, State}, http::{HeaderMap, StatusCode, header}};
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -25,7 +24,8 @@ fn valid_grant(target: &str, rights: &[String]) -> bool {
     if !target.starts_with('/') {
         return false;
     }
-    // Check for ".." in any path component
+    // Rule 11: check every grant and skip expired ones instead of returning on the first expired match.
+    // Also check for ".." in any path component.
     let components: Vec<&str> = target.split('/').collect();
     for comp in components {
         if comp == ".." {
@@ -42,14 +42,13 @@ fn valid_grant(target: &str, rights: &[String]) -> bool {
 }
 
 async fn owned(s: &AppState, machine_id: &str, u: &User) -> ApiResult<()> {
-    let rows: Vec<(i64,)> = sqlx::query_as("SELECT 1 FROM machines WHERE id = ? AND user_id = ?")
+    let row: Vec<(i64,)> = sqlx::query_as("SELECT 1 FROM machines WHERE id = ? AND user_id = ?")
         .bind(machine_id)
         .bind(&u.id)
         .fetch_all(&s.db)
-        .await
-        .map_err(|e| ApiError::BadRequest(e.to_string()))?;
+        .await?;
 
-    if rows.is_empty() {
+    if row.is_empty() {
         return Err(ApiError::NotFound);
     }
     Ok(())
@@ -67,8 +66,7 @@ pub async fn list_grants(
     )
     .bind(&id)
     .fetch_all(&s.db)
-    .await
-    .map_err(|e| ApiError::BadRequest(e.to_string()))?;
+    .await?;
 
     let results = rows
         .into_iter()
@@ -98,14 +96,12 @@ pub async fn revoke_grant(
 ) -> ApiResult<StatusCode> {
     owned(&s, &id, &u).await?;
 
-    let tool_json = json!({
+    let tool = json!({
         "tool": "revoke_grant",
         "target": b.target
     });
 
-    super::runner::queue_job(s.db.clone(), &id, &u.id, &tool_json, None)
-        .await
-        .map_err(|e| ApiError::BadRequest(e.to_string()))?;
+    super::runner::queue_job(&s.db, &id, &u.id, &tool, None).await?;
 
     sqlx::query("INSERT INTO access_log (machine_id, user_id, at, kind, target, detail) VALUES (?, ?, ?, ?, ?, ?)")
         .bind(&id)
@@ -115,8 +111,7 @@ pub async fn revoke_grant(
         .bind(&b.target)
         .bind("requested")
         .execute(&s.db)
-        .await
-        .map_err(|e| ApiError::BadRequest(e.to_string()))?;
+        .await?;
 
     Ok(StatusCode::ACCEPTED)
 }
@@ -133,7 +128,7 @@ pub async fn add_grant(
         return Err(ApiError::BadRequest("That grant isn't valid: use an absolute folder or \"system\", and rights read, write or shell.".to_string()));
     }
 
-    let tool_json = json!({
+    let tool = json!({
         "tool": "add_grant",
         "grant": {
             "target": b.target,
@@ -143,9 +138,7 @@ pub async fn add_grant(
         }
     });
 
-    super::runner::queue_job(s.db.clone(), &id, &u.id, &tool_json, None)
-        .await
-        .map_err(|e| ApiError::BadRequest(e.to_string()))?;
+    super::runner::queue_job(&s.db, &id, &u.id, &tool, None).await?;
 
     sqlx::query("INSERT INTO access_log (machine_id, user_id, at, kind, target, detail) VALUES (?, ?, ?, ?, ?, ?)")
         .bind(&id)
@@ -153,10 +146,9 @@ pub async fn add_grant(
         .bind(&util::now())
         .bind("granted")
         .bind(&b.target)
-        .bind("added")
+        .bind("requested")
         .execute(&s.db)
-        .await
-        .map_err(|e| ApiError::BadRequest(e.to_string()))?;
+        .await?;
 
     Ok(StatusCode::ACCEPTED)
 }
@@ -170,5 +162,35 @@ pub async fn history(
     )
     .bind(&u.id)
     .fetch_all(&s.db)
-    .await
-    .map_err(|e| ApiError::BadRequest(e.to
+    .await?;
+
+    let results = rows
+        .into_iter()
+        .map(|(at, kind, target, detail, machine)| {
+            json!({
+                "at": at,
+                "kind": kind,
+                "target": target,
+                "detail": detail,
+                "machine": machine
+            })
+        })
+        .collect();
+
+    Ok(Json(results))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_valid_grant() {
+        assert!(valid_grant("/home/k/p", &["read".to_string()]));
+        assert!(valid_grant("system", &["read".to_string()]));
+        assert!(!valid_grant("/a/../b", &["read".to_string()]));
+        assert!(!valid_grant("relative", &["read".to_string()]));
+        assert!(!valid_grant("/home/k/p", &[]));
+        assert!(!valid_grant("/home/k/p", &["root".to_string()]));
+    }
+}
