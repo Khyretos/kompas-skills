@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Queue drafting jobs to qwen3:14b on soucouyant (Ollama), back to back.
+"""Queue drafting jobs to the local model on soucouyant (Ollama, gemma4:12b-it-qat), back to back.
 
 Each job: draft -> self-review against the role's skills -> final file.
 jobs.json: [{"name": "...", "role": "worker/rust"|"worker/web"|..., "prompt": "...",
@@ -11,12 +11,14 @@ Writes the final code to each job's "out" and one log line per job
 import json, os, re, sys, time, urllib.request
 
 OLLAMA = os.environ.get("OLLAMA_URL", "http://192.168.178.80:11434/v1/chat/completions")
-MODEL = os.environ.get("QWEN_MODEL", "qwen3:14b")
+# One model name per Ollama host: a second name makes Ollama reload on every switch.
+MODEL = os.environ.get("QWEN_MODEL", "gemma4:12b-it-qat")
+NOTES = "gemma4" if MODEL.startswith("gemma4") else MODEL.split(":")[0].split(".")[0]  # skills/_model-notes/<NOTES>
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def skills(role):
     parts = []
-    for rel in [f"skills/{role}/SKILL.md", "skills/_model-notes/qwen3/SKILL.md", "skills/shared/SKILL.md"]:
+    for rel in [f"skills/{role}/SKILL.md", f"skills/_model-notes/{NOTES}/SKILL.md", "skills/shared/SKILL.md"]:
         p = os.path.join(REPO, rel)
         if os.path.exists(p):
             parts.append(open(p).read())
