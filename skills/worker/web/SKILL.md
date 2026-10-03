@@ -21,3 +21,8 @@
 12. Code you are given "at module level" or "after the function" stays outside the function.
     State that two exported functions share (like a `busy` Set) must be declared at the top
     level of the module, or the second function can't see it.
+13. Playwright: `expect()` takes a Locator (`expect(page.locator("#left"))`), never a selector string.
+    A Locator's `fill(value)` and `click()` take no selector; narrow first with
+    `.locator(sel)`, `.first()` or `.filter({ hasText })`. Counts use `toHaveCount(n)` or
+    `expect(await l.count()).toBeGreaterThan(0)`. "Gone" is
+    `expect(page.locator("li", { hasText: t })).toHaveCount(0)`.

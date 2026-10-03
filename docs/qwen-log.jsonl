@@ -64,3 +64,7 @@
 {"name": "C4 main.ts optimistic grants", "out": "web/src/main.ts", "mode": "patch", "gpu_seconds": 36.4, "tokens": 645, "lines": 3, "attempts": 1, "at": "2026-10-04T00:40:50"}
 {"name": "C4 main.ts optimistic chats and tasks", "out": "web/src/main.ts", "mode": "patch", "gpu_seconds": 51.4, "tokens": 1070, "lines": 4, "attempts": 1, "at": "2026-10-04T00:41:42"}
 {"name": "C5 live.rs method match", "out": "server/src/live.rs", "mode": "patch", "gpu_seconds": 49.8, "tokens": 83, "lines": 1, "attempts": 1, "at": "2026-10-04T00:43:56"}
+{"name": "T1 mock grants", "out": "web/src/api/mock.ts", "mode": "patch", "gpu_seconds": 20.1, "tokens": 577, "lines": 2, "attempts": 1, "at": "2026-10-04T00:49:40"}
+{"name": "T1 playwright config", "out": "web/playwright.config.ts", "gpu_seconds": 11.7, "tokens": 190, "lines": 13, "review": "skipped", "at": "2026-10-04T00:49:52"}
+{"name": "T1 live tests", "out": "web/tests/live.spec.ts", "gpu_seconds": 77.9, "tokens": 1245, "lines": 64, "at": "2026-10-04T00:51:10"}
+{"name": "T2 live tests fixes", "out": "web/tests/live.spec.ts", "mode": "patch", "gpu_seconds": 33.6, "tokens": 862, "lines": 4, "attempts": 1, "at": "2026-10-04T00:52:04"}

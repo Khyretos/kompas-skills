@@ -32,6 +32,19 @@ jobs:
           npm run typecheck
           npm run build
 
+  web-live:
+    # Browser tests in demo mode: every page updates without a reload.
+    runs-on: soucouyant
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+    steps:
+      - uses: https://code.forgejo.org/actions/checkout@v4
+      - name: Playwright tests
+        working-directory: web
+        run: |
+          npm ci
+          npx playwright test
+
   runner:
     runs-on: soucouyant
     container:

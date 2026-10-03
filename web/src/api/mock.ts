@@ -1,7 +1,13 @@
 // A fake server so the UI can be built and tried before the real one exists.
 // Everything here is example data.
+import type { AccessEvent, GrantView } from "../views/access";
 import type { KompanionApi, ServerEvent } from "./client";
 import type { TaskState, AdminSettings, DaySummary, MachineStats, Chat, Message, ModelProvider, Project, RoleAssignment, Server, Task } from "./types";
+
+const grants: Record<string, GrantView[]> = {
+  soucouyant: [{ target: "/home/kees/projects/kompanion", rights: ["read", "write"], grantedBy: "demo", grantedAt: "2026-10-01T10:00:00Z", expires: null }],
+};
+const history: AccessEvent[] = [];
 
 const now = Date.now();
 const ago = (min: number) => new Date(now - min * 60_000).toISOString();
@@ -299,10 +305,25 @@ export class MockApi implements KompanionApi {
   async watchMachines() {}
   async pairMachine(name: string) { return { id: "demo", name, token: "demo-token" }; }
   async unpairMachine() {}
-  async listGrants() { return []; }
-  async addGrant() {}
-  async revokeGrant() {}
-  async accessHistory() { return []; }
+  async listGrants(machineId: string) { return structuredClone(grants[machineId] ?? []); }
+  async addGrant(machineId: string, target: string, rights: string[], expiresHours?: number) {
+    setTimeout(() => {
+      const list = (grants[machineId] ??= []).filter((g) => g.target !== target);
+      list.push({ target, rights, grantedBy: "demo", grantedAt: new Date().toISOString(),
+        expires: expiresHours ? new Date(Date.now() + expiresHours * 3_600_000).toISOString() : null });
+      grants[machineId] = list;
+      history.unshift({ at: new Date().toISOString(), kind: "granted", target, detail: rights.join(", "), machine: machineId });
+      this.emit({ type: "changed", what: "access", machineId });
+    }, 400);
+  }
+  async revokeGrant(machineId: string, target: string) {
+    setTimeout(() => {
+      grants[machineId] = (grants[machineId] ?? []).filter((g) => g.target !== target);
+      history.unshift({ at: new Date().toISOString(), kind: "revoked", target, detail: null, machine: machineId });
+      this.emit({ type: "changed", what: "access", machineId });
+    }, 400);
+  }
+  async accessHistory() { return structuredClone(history); }
   async getAdmin() { return { settings: structuredClone(adminSettings), smtpPasswordSet: false }; }
   async saveAdmin(s: AdminSettings) { Object.assign(adminSettings, s); return structuredClone(adminSettings); }
   async uploadLogo() {}
