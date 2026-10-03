@@ -231,6 +231,10 @@ input[type="url"]:focus, select:focus, textarea:focus { outline: none; border-co
 }
 .task-editor textarea { font-family: var(--mono); font-size: 0.85rem; resize: vertical; }
 .project-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; }
+.pair { margin-top: 0.75rem; display: grid; gap: 0.35rem; }
+.pair input, .pair-result input { width: 100%; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 0.45rem 0.6rem; color: var(--fg); }
+.pair-result { margin-top: 0.75rem; display: grid; gap: 0.4rem; padding: 0.75rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.pair-result pre { font-family: var(--mono); font-size: 0.78rem; white-space: pre-wrap; background: var(--surface-2); padding: 0.5rem; border-radius: 6px; }
 .server-logo { width: 1.75rem; height: 1.75rem; flex: none; }
 .server small { display: flex; align-items: center; gap: 0.35rem; }
 .account { border-top: 1px solid var(--line); padding-top: 0.5rem; display: grid; gap: 0.25rem; }

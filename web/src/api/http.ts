@@ -55,6 +55,8 @@ export class HttpApi implements KompanionApi {
   login(name: string, password: string) { return this.request<void>("POST", "/login", { name, password }); }
   logout() { return this.request<void>("POST", "/logout"); }
   setMachinesRefresh(seconds: number) { return this.request<void>("PUT", "/me/prefs", { machinesRefresh: seconds }); }
+  pairMachine(name: string) { return this.request<{ id: string; name: string; token: string }>("POST", "/machines", { name }); }
+  unpairMachine(id: string) { return this.request<void>("DELETE", `/machines/${encodeURIComponent(id)}`); }
   watchMachines() { return this.request<void>("POST", "/machines/live"); }
   setTheme(theme: ThemeChoice) { return this.request<void>("PUT", "/me/theme", { theme }); }
   getAdmin() { return this.request<{ settings: AdminSettings; smtpPasswordSet: boolean }>("GET", "/admin/settings"); }

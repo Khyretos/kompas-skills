@@ -7,6 +7,7 @@ export interface AppState {
   isAdmin: boolean;
   theme: ThemeChoice;
   machinesRefresh: number; // seconds between Machines updates; 1 = live
+  pairing?: { id: string; name: string; token: string }; // shown once after pairing a PC
   admin?: { settings: AdminSettings; smtpPasswordSet: boolean }; // loaded when an admin opens settings
   projects: Project[];
   chats: Chat[];

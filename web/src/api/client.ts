@@ -14,6 +14,9 @@ export interface KompanionApi {
   setMachinesRefresh(seconds: number): Promise<void>;
   /** Keeps the live machine feed on for about 15 s. */
   watchMachines(): Promise<void>;
+  /** Pairs a PC; the token is returned only this once. */
+  pairMachine(name: string): Promise<{ id: string; name: string; token: string }>;
+  unpairMachine(id: string): Promise<void>;
   getAdmin(): Promise<{ settings: AdminSettings; smtpPasswordSet: boolean }>;
   saveAdmin(settings: AdminSettings): Promise<AdminSettings>;
   testMail(to: string): Promise<void>;

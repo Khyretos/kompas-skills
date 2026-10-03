@@ -294,6 +294,8 @@ export class MockApi implements KompanionApi {
   async setTheme() {}
   async setMachinesRefresh() {}
   async watchMachines() {}
+  async pairMachine(name: string) { return { id: "demo", name, token: "demo-token" }; }
+  async unpairMachine() {}
   async getAdmin() { return { settings: structuredClone(adminSettings), smtpPasswordSet: false }; }
   async saveAdmin(s: AdminSettings) { Object.assign(adminSettings, s); return structuredClone(adminSettings); }
   async testMail() { throw new Error("The demo can't send mail."); }

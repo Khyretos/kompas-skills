@@ -1,6 +1,7 @@
 // Machines tab: live load and power per connected computer, and today's totals.
 import { html, SafeHtml } from "../core/html";
 import type { DaySummary, MachineStats } from "../api/types";
+import { icon } from "./icons";
 
 const pct = (n: number) => `${Math.round(n * 100)}%`;
 const fmtTokens = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)} M` : `${Math.round(n / 1000)}k`);
@@ -36,6 +37,7 @@ function machine(m: MachineStats): SafeHtml {
       <div class="machine-head">
         <span class="dot ok" aria-hidden="true"></span>
         <strong>${m.name}</strong><span class="muted small">${m.os}</span>
+        ${m.id !== "server" ? html`<button class="icon-btn" data-action="unpair" data-id="${m.id}" aria-label="Unpair ${m.name}">${icon("trash")}</button>` : ""}
         <span class="watts">${cpuKind ? `${pct(m.cpu)} CPU` : watts === undefined ? "" : `${watts} W`}</span>
       </div>
       ${sparkline(m.history, cpuKind ? 1 : undefined)}
@@ -76,7 +78,23 @@ const stepLabel = (s: number) => (s === 1 ? "Live" : s < 60 ? `every ${s} s` : `
 const clock = (iso?: string) =>
   iso ? new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "not yet";
 
-export function renderMachines(machines: MachineStats[], day: DaySummary | undefined, refresh: number): SafeHtml {
+function pairResult(p: { id: string; name: string; token: string }, server: string): SafeHtml {
+  const config = `server = "${server}"\nmachine_id = "${p.id}"\ntoken_file = "~/.config/kompanion-runner/token"`;
+  return html`
+    <div class="pair-result" role="status">
+      <p><strong>${p.name} is paired.</strong> Copy the token now: it is shown only once.</p>
+      <label class="label" for="pair-token">Token</label>
+      <input id="pair-token" readonly value="${p.token}">
+      <p class="small">On ${p.name}, save the token in <code>~/.config/kompanion-runner/token</code> (mode 600) and this as
+        <code>~/.config/kompanion-runner/config.toml</code>:</p>
+      <pre>${config}</pre>
+      <p class="small">Then start <code>kompanion-runner</code> (see docs/runner-install.md). The computer shows up here within a minute.</p>
+      <button class="btn small" data-action="pair-done">Done</button>
+    </div>`;
+}
+
+export function renderMachines(machines: MachineStats[], day: DaySummary | undefined, refresh: number,
+  pairing?: { id: string; name: string; token: string }): SafeHtml {
   const step = Math.max(0, REFRESH_STEPS.indexOf(refresh));
   const newest = machines.map((m) => m.sampledAt).filter(Boolean).sort().pop();
   return html`
@@ -100,6 +118,14 @@ export function renderMachines(machines: MachineStats[], day: DaySummary | undef
           <span class="muted small" aria-live="off">Updated ${clock(newest)}</span>
         </div>
         <ul class="machines">${machines.map(machine)}</ul>
+        ${pairing ? pairResult(pairing, location.origin) : html`
+          <form class="pair" id="pair-form">
+            <label class="label" for="pair-name">Pair a computer</label>
+            <div class="row">
+              <input id="pair-name" name="name" placeholder="Computer name, e.g. soucouyant" maxlength="60" required>
+              <button class="btn" type="submit">Pair</button>
+            </div>
+          </form>`}
       </section>
     </div>`;
 }

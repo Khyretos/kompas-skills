@@ -148,14 +148,14 @@ function render(s: AppState, prev: AppState): void {
   }
   const rightKeys: (keyof AppState)[] = s.rightTab === "tasks"
     ? ["rightTab", "tasks", "projects", "openTaskId", "editingTaskId", "taskScope", "activeProjectId", "activeChatId", "chats"]
-    : ["rightTab", "machines", "today", "machinesRefresh", "tasks"];
+    : ["rightTab", "machines", "today", "machinesRefresh", "tasks", "pairing"];
   // Never rebuild the task editor under the user's hands; only when it opens or closes.
   const editing = s.rightTab === "tasks" && s.editingTaskId && s.editingTaskId === prev.editingTaskId && !firstRender;
   if (!editing && changed(s, prev, rightKeys)) {
     remount($("#right"), s.rightTab === "tasks" ? renderTasks(s) : h`
       <div class="pane-head">${paneTabs(s)}
         <button class="icon-btn only-narrow" data-action="pane" data-pane="main" aria-label="Close">✕</button></div>
-      ${renderMachines(s.machines, s.today, s.machinesRefresh)}`);
+      ${renderMachines(s.machines, s.today, s.machinesRefresh, s.pairing)}`);
     // Task descriptions are markdown, rendered sanitised after mounting.
     for (const el of document.querySelectorAll<HTMLElement>("[data-md-task]")) {
       const t = s.tasks.find((x) => x.id === el.dataset.mdTask);
@@ -236,6 +236,12 @@ function wire(shell: HTMLElement): void {
       store.set({ expandedProjects: expanded, activeProjectId: id, taskScope: "project" });
     },
     "project-tasks": (el) => store.set({ activeProjectId: el.dataset.id, taskScope: "project", rightTab: "tasks", pane: "right" }),
+    "pair-done": () => store.set({ pairing: undefined }),
+    unpair: (el) => {
+      const m = store.get().machines.find((x) => x.id === el.dataset.id);
+      if (!m || !confirm(`Unpair ${m.name}? Its runner stops being accepted.`)) return;
+      api.unpairMachine(m.id).then(() => api.listMachines()).then((machines) => store.set({ machines }), showError);
+    },
     "new-task": () => store.set({ editingTaskId: "new" }),
     "edit-task": (el) => store.set({ editingTaskId: el.dataset.id }),
     "cancel-task-edit": () => store.set({ editingTaskId: undefined }),
@@ -325,6 +331,13 @@ function wire(shell: HTMLElement): void {
     if (c && title && title !== c.title) changeChat(id, { title });
   };
   shell.addEventListener("submit", (ev) => {
+    const pairForm = (ev.target as HTMLElement).closest("#pair-form") as HTMLFormElement | null;
+    if (pairForm) {
+      ev.preventDefault();
+      const name = String(new FormData(pairForm).get("name") ?? "").trim();
+      api.pairMachine(name).then(async (pairing) => store.set({ pairing, machines: await api.listMachines() }), showError);
+      return;
+    }
     const taskForm = (ev.target as HTMLElement).closest("#task-editor") as HTMLFormElement | null;
     if (taskForm) { ev.preventDefault(); submitTask(taskForm); return; }
     const admin = (ev.target as HTMLElement).closest("#admin-form") as HTMLFormElement | null;
