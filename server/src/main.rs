@@ -1,3 +1,4 @@
+mod access;
 mod admin;
 mod api;
 mod auth;
@@ -156,6 +157,10 @@ async fn main() -> anyhow::Result<()> {
         .route("/machines", get(hoststats::list).post(hoststats::create))
         .route("/machines/live", post(hoststats::live))
         .route("/machines/{id}", axum::routing::delete(hoststats::delete))
+        .route("/machines/{id}/results", post(access::results).layer(axum::extract::DefaultBodyLimit::max(128 * 1024)))
+        .route("/machines/{id}/grants", get(access::list_grants).post(access::add_grant))
+        .route("/machines/{id}/grants/revoke", post(access::revoke_grant))
+        .route("/access", get(access::history))
         .route(
             "/machines/{id}/stats",
             post(hoststats::report).layer(axum::extract::DefaultBodyLimit::max(64 * 1024)),
