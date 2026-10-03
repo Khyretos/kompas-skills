@@ -593,18 +593,6 @@ pub async fn calls(
 }
 
 // Tasks and machines arrive with milestones 2 and 3.
-/// The server's own machine; runners on other PCs come in milestone 3.
-pub async fn machines(State(s): State<AppState>) -> Json<Vec<Value>> {
-    Json(vec![s.host.snapshot_now(&s)])
-}
-
-/// Heartbeat from a Machines tab set to "Live": stats are pushed over the
-/// event stream every second for the next 15 s.
-pub async fn machines_live(State(s): State<AppState>, Extension(u): Extension<User>) -> StatusCode {
-    s.host.watch(&u.id);
-    StatusCode::NO_CONTENT
-}
-
 // ---- Live events ----
 
 pub async fn events(State(s): State<AppState>, Extension(u): Extension<User>) -> impl IntoResponse {

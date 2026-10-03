@@ -40,7 +40,7 @@ pub struct User {
 pub struct Throttle(Mutex<HashMap<String, (u32, Instant)>>);
 
 impl Throttle {
-    fn check(&self, key: &str) -> ApiResult<()> {
+    pub fn check(&self, key: &str) -> ApiResult<()> {
         let map = self.0.lock().unwrap();
         if let Some((n, since)) = map.get(key)
             && *n >= 10
@@ -50,7 +50,7 @@ impl Throttle {
         }
         Ok(())
     }
-    fn fail(&self, key: &str) {
+    pub fn fail(&self, key: &str) {
         let mut map = self.0.lock().unwrap();
         let e = map.entry(key.to_string()).or_insert((0, Instant::now()));
         if e.1.elapsed() > Duration::from_secs(600) {
@@ -298,6 +298,10 @@ pub async fn guard(State(state): State<AppState>, mut req: Request, next: Next) 
     // Inside the nested /api router the prefix is already stripped.
     let path = req.uri().path();
     let path = path.strip_prefix("/api").unwrap_or(path).to_string();
+    // Runner reports carry their own bearer token and no cookie.
+    if req.method() == Method::POST && path.starts_with("/machines/") && path.ends_with("/stats") {
+        return next.run(req).await;
+    }
     let open = matches!(
         path.as_str(),
         "/status" | "/theme.css" | "/setup" | "/login" | "/auth/oidc/start" | "/auth/oidc/callback"

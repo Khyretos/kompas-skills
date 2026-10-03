@@ -19,6 +19,10 @@ pub struct Config {
     /// Name shown for this server in the Machines panel.
     #[serde(default)]
     pub machine_name: Option<String>,
+    /// What each GPU of this server is used for, by PCI slot, e.g.
+    /// `gpu_labels = { "0000:10:00.0" = "AI (OVMS)" }`.
+    #[serde(default)]
+    pub gpu_labels: std::collections::HashMap<String, String>,
     #[serde(default, rename = "provider")]
     pub providers: Vec<ProviderConfig>,
     #[serde(default)]

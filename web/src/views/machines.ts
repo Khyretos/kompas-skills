@@ -45,15 +45,28 @@ function machine(m: MachineStats): SafeHtml {
         <div><dt>RAM</dt><dd>${bar(m.ramUsedGb / m.ramTotalGb, "RAM")}<span>${m.ramUsedGb}/${m.ramTotalGb} GB</span></dd></div>
         ${cpuKind ? "" : html`<div><dt>Kompanion</dt><dd>${bar(m.kompanionShare, "Kompanion share")}<span>${pct(m.kompanionShare)} of CPU</span></dd></div>`}
       </dl>
-      ${m.gpus.map((g) => html`
+      ${m.diskTotalGb ? html`<dl class="stats">
+        <div><dt>Disk</dt><dd>${bar((m.diskUsedGb ?? 0) / m.diskTotalGb, "Disk")}<span>${Math.round(m.diskUsedGb ?? 0)}/${Math.round(m.diskTotalGb)} GB</span></dd></div>
+      </dl>` : ""}
+      ${m.powerHistory && m.powerHistory.length > 1 ? html`
+        <div class="power"><span class="muted small">GPU power ${Math.round(m.powerHistory[m.powerHistory.length - 1])} W</span>${sparkline(m.powerHistory)}</div>` : ""}
+      ${m.gpus.map((g) => {
+        const facts = [
+          g.watts != null ? `${Math.round(g.watts)} W` : "",
+          g.tempC != null ? `${Math.round(g.tempC)} °C` : "",
+          g.coreMhz ? `${Math.round(g.coreMhz)} MHz` : "",
+          g.fanRpm != null ? `fan ${Math.round(g.fanRpm)} rpm` : "",
+        ].filter(Boolean).join(" · ");
+        return html`
         <div class="gpu">
-          <div class="gpu-head"><strong>${g.name}</strong><span class="muted small">${g.use}</span></div>
+          <div class="gpu-head"><strong>${g.name}</strong><span class="muted small">${g.use || g.driver || ""}</span></div>
           <dl class="stats">
-            <div><dt>Load</dt><dd>${bar(g.load, `${g.name} load`)}<span>${pct(g.load)}</span></dd></div>
-            <div><dt>VRAM</dt><dd>${bar(g.vramUsedGb / g.vramTotalGb, `${g.name} VRAM`)}<span>${g.vramUsedGb.toFixed(1)}/${g.vramTotalGb} GB</span></dd></div>
-            <div><dt>Power</dt><dd><span class="num">${g.watts} W · ${g.tempC} °C</span></dd></div>
+            <div><dt>Load</dt><dd>${g.load != null ? html`${bar(g.load, `${g.name} load`)}<span>${pct(g.load)}</span>` : html`<span class="muted">…</span>`}</dd></div>
+            ${g.vramTotalGb ? html`<div><dt>VRAM</dt><dd>${bar((g.vramUsedGb ?? 0) / g.vramTotalGb, `${g.name} VRAM`)}<span>${(g.vramUsedGb ?? 0).toFixed(1)}/${g.vramTotalGb.toFixed(0)} GB</span></dd></div>` : ""}
+            ${facts ? html`<div><dt>Now</dt><dd><span class="num">${facts}</span></dd></div>` : ""}
           </dl>
-        </div>`)}
+        </div>`;
+      })}
     </li>`;
 }
 

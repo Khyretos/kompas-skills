@@ -255,10 +255,10 @@ export class MockApi implements KompanionApi {
       const jitter = () => (Math.random() - 0.5) * 0.08;
       m.cpu = clamp(m.cpu + jitter());
       for (const g of m.gpus) {
-        g.load = clamp(g.load + jitter());
+        g.load = clamp((g.load ?? 0) + jitter());
         g.watts = Math.round(40 + g.load * 175);
       }
-      m.history = [...m.history.slice(-23), Math.round(m.gpus.reduce((w, g) => w + g.watts, 0) + 60 * m.cpu)];
+      m.history = [...m.history.slice(-23), Math.round(m.gpus.reduce((w, g) => w + (g.watts ?? 0), 0) + 60 * m.cpu)];
     }
     this.emit({ type: "machines", machines: structuredClone(machines) });
     for (const t of tasks) {

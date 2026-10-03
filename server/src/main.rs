@@ -133,8 +133,13 @@ async fn main() -> anyhow::Result<()> {
         .route("/tasks/{id}", patch(tasks::update).delete(tasks::delete))
         .route("/tasks/{id}/events", get(tasks::events))
         .route("/projects/{id}", patch(tasks::set_project_kind))
-        .route("/machines", get(api::machines))
-        .route("/machines/live", post(api::machines_live))
+        .route("/machines", get(hoststats::list).post(hoststats::create))
+        .route("/machines/live", post(hoststats::live))
+        .route("/machines/{id}", axum::routing::delete(hoststats::delete))
+        .route(
+            "/machines/{id}/stats",
+            post(hoststats::report).layer(axum::extract::DefaultBodyLimit::max(64 * 1024)),
+        )
         .route("/me/prefs", axum::routing::put(admin::set_prefs))
         .route("/events", get(api::events))
         .layer(middleware::from_fn_with_state(state.clone(), auth::guard))

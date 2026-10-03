@@ -3,3 +3,5 @@
 **/target
 **/*.db*
 .git
+runner/target
+machine-stats/target

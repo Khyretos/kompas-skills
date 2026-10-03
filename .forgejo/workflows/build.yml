@@ -12,9 +12,10 @@ jobs:
       image: rust:1
     steps:
       - uses: https://code.forgejo.org/actions/checkout@v4
-      - name: Test the server
-        working-directory: server
-        run: cargo test --locked
+      - name: Test the shared stats crate and the server
+        run: |
+          (cd machine-stats && cargo test)
+          (cd server && cargo test --locked)
 
   web:
     runs-on: soucouyant
@@ -28,6 +29,22 @@ jobs:
           npm ci
           npm run typecheck
           npm run build
+
+  runner:
+    runs-on: soucouyant
+    container:
+      image: rust:1-alpine
+    steps:
+      - uses: https://code.forgejo.org/actions/checkout@v4
+      - name: Build the static runner binary
+        run: |
+          apk add --no-cache musl-dev
+          cd runner && cargo build --release
+          cp target/release/kompanion-runner ../kompanion-runner-x86_64-linux-musl
+      - uses: https://code.forgejo.org/forgejo/upload-artifact@v4
+        with:
+          name: kompanion-runner-x86_64-linux-musl
+          path: kompanion-runner-x86_64-linux-musl
 
   image:
     runs-on: soucouyant

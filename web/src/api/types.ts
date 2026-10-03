@@ -122,16 +122,25 @@ export interface MachineStats {
   history: number[]; // recent total power draw in W (or CPU share 0..1 when historyKind is "cpu"), oldest first
   historyKind?: "watts" | "cpu";
   sampledAt?: string; // ISO time of the newest sample
+  powerHistory?: number[]; // total GPU power in W, oldest first
+  diskUsedGb?: number;
+  diskTotalGb?: number;
+  cpuCount?: number;
 }
 
 export interface GpuStats {
   name: string;
-  load: number; // 0..1
-  vramUsedGb: number;
-  vramTotalGb: number;
-  watts: number;
-  tempC: number;
-  use: string; // "Qwen3.5-9B (OVMS)"
+  pciSlot?: string;
+  driver?: string;
+  load: number | null; // 0..1
+  vramUsedGb: number | null;
+  vramTotalGb: number | null;
+  watts: number | null;
+  tempC: number | null;
+  coreMhz?: number | null;
+  memMhz?: number | null;
+  fanRpm?: number | null;
+  use: string; // what it is used for, e.g. "AI: OVMS (Qwen)"
 }
 
 export interface DaySummary {
