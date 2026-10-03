@@ -4,18 +4,18 @@
 // event handlers, which the CSP blocks.)
 import { html, type SafeHtml } from "../core/html";
 
-export interface GrantView { target: string; rights: string[]; grantedBy: string; grantedAt: string; expires: string | null }
+export interface GrantView { target: string; rights: string[]; grantedBy: string; grantedAt: string; expires: string | null; pending?: "add" | "revoke" }
 export interface AccessEvent { at: string; kind: "granted" | "revoked" | "used" | "refused"; target: string | null; detail: string | null; machine: string }
 
 const day = (iso: string) => (iso ? new Date(iso).toLocaleDateString() : "");
 
 function grantRow(machineId: string, g: GrantView): SafeHtml {
   return html`
-    <li class="grant-row">
+    <li class="grant-row ${g.pending ? "pending" : ""}">
       <code>${g.target}</code>
       <span class="grant-rights">${g.rights.map((r) => html`<span class="chip ${r === "root" ? "root" : ""}">${r}</span>`)}</span>
-      <span class="muted small">by ${g.grantedBy}, ${day(g.grantedAt)}${g.expires ? `, expires ${day(g.expires)}` : ""}</span>
-      <button class="btn small danger" data-action="grant-revoke" data-machine="${machineId}" data-target="${g.target}">Revoke</button>
+      ${g.pending ? html`<span class="muted small" role="status">${g.pending === "add" ? "waiting for the computer to apply it…" : "revoking, waiting for the computer…"}</span>` : html`<span class="muted small">by ${g.grantedBy}, ${day(g.grantedAt)}${g.expires ? `, expires ${day(g.expires)}` : ""}</span>`}
+      <button class="btn small danger" data-action="grant-revoke" data-machine="${machineId}" data-target="${g.target}" ${g.pending ? "disabled" : ""}>Revoke</button>
     </li>`;
 }
 

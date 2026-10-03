@@ -6,6 +6,7 @@ mod config;
 mod contrast;
 mod error;
 mod events;
+mod live;
 mod hoststats;
 mod import;
 mod llm;
@@ -170,6 +171,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/me/notifications", get(notify::get_prefs).put(notify::put_prefs))
         .route("/me/prefs", axum::routing::put(admin::set_prefs))
         .route("/events", get(api::events))
+        // Inside the guard, so the signed-in user is known.
+        .layer(middleware::from_fn_with_state(state.clone(), live::notify_changes))
         .layer(middleware::from_fn_with_state(state.clone(), auth::guard))
         .layer(SetResponseHeaderLayer::overriding(
             header::CACHE_CONTROL,

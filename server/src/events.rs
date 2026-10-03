@@ -21,6 +21,15 @@ pub enum Event {
     Machines {
         machines: Vec<serde_json::Value>,
     },
+    /// Something the user can see changed (by another tab, a runner or the server):
+    /// the web app reloads that list. `what` is one of tasks, projects, chats,
+    /// machines, access, settings.
+    #[serde(rename_all = "camelCase")]
+    Changed {
+        what: &'static str,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        machine_id: Option<String>,
+    },
 }
 
 /// One channel for everyone; each listener only passes on its own user's events.

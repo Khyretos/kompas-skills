@@ -52,3 +52,14 @@
 {"name": "F6 access.ts: system grants and expiry", "out": "web/src/views/access.ts", "gpu_seconds": 104.3, "tokens": 2664, "lines": 91, "at": "2026-10-04T00:08:50"}
 {"name": "access.ts fixes", "out": "web/src/views/access.ts", "gpu_seconds": 62.2, "tokens": 1332, "lines": 91, "review": "skipped", "at": "2026-10-04T00:10:12"}
 {"name": "runner now() and job ok", "out": "runner/src/main.rs", "gpu_seconds": 81.1, "tokens": 2425, "lines": 246, "review": "skipped", "at": "2026-10-04T00:23:33"}
+{"name": "R1 events: Changed", "out": "server/src/events.rs", "mode": "patch", "gpu_seconds": 9.1, "tokens": 181, "lines": 1, "attempts": 1, "at": "2026-10-04T00:29:59"}
+{"name": "R1 live.rs", "out": "server/src/live.rs", "gpu_seconds": 76.9, "tokens": 1723, "lines": 90, "at": "2026-10-04T00:31:16"}
+{"name": "R1 runner results notify", "out": "server/src/access/runner.rs", "mode": "patch", "gpu_seconds": 15.6, "tokens": 298, "lines": 2, "attempts": 1, "at": "2026-10-04T00:31:32"}
+{"name": "R2 live.rs fixes", "out": "server/src/live.rs", "mode": "patch", "gpu_seconds": 16.7, "tokens": 306, "lines": 1, "attempts": 1, "at": "2026-10-04T00:31:59"}
+{"name": "C1 html.ts busy actions", "out": "web/src/core/html.ts", "mode": "patch", "gpu_seconds": 46.9, "tokens": 626, "lines": 1, "attempts": 1, "at": "2026-10-04T00:33:24"}
+{"name": "C1 access.ts pending rows", "out": "web/src/views/access.ts", "mode": "patch", "gpu_seconds": 200.7, "tokens": 501, "lines": 2, "attempts": 1, "at": "2026-10-04T00:36:45"}
+{"name": "C2 html.ts busy at module level", "out": "web/src/core/html.ts", "mode": "patch", "gpu_seconds": 17.3, "tokens": 424, "lines": 1, "attempts": 1, "at": "2026-10-04T00:38:03"}
+{"name": "C2 main.ts live refetch", "out": "web/src/main.ts", "mode": "patch", "gpu_seconds": 52.8, "tokens": 1324, "lines": 4, "attempts": 2, "at": "2026-10-04T00:38:56"}
+{"name": "C3 main.ts move refetch", "out": "web/src/main.ts", "mode": "patch", "gpu_seconds": 43.0, "tokens": 875, "lines": 2, "attempts": 1, "at": "2026-10-04T00:39:51"}
+{"name": "C4 main.ts optimistic grants", "out": "web/src/main.ts", "mode": "patch", "gpu_seconds": 36.4, "tokens": 645, "lines": 3, "attempts": 1, "at": "2026-10-04T00:40:50"}
+{"name": "C4 main.ts optimistic chats and tasks", "out": "web/src/main.ts", "mode": "patch", "gpu_seconds": 51.4, "tokens": 1070, "lines": 4, "attempts": 1, "at": "2026-10-04T00:41:42"}

@@ -18,3 +18,6 @@
     and disables its button with a spinner while pending. Live changes from the server
     arrive over the `/api/events` SSE stream. Each page has a Playwright test that does an
     action and checks the screen without reloading.
+12. Code you are given "at module level" or "after the function" stays outside the function.
+    State that two exported functions share (like a `busy` Set) must be declared at the top
+    level of the module, or the second function can't see it.

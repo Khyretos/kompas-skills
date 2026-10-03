@@ -13,6 +13,7 @@ use serde_json::{Value, json};
 use crate::{
     AppState,
     error::{ApiError, ApiResult},
+    events::Event,
     util,
 };
 
@@ -165,6 +166,8 @@ pub async fn results(
     if let Some(grants) = &b.grants {
         mirror_grants(&s.db, &machine_id, grants).await?;
     }
+    // The Access tab of every open tab reloads this machine's grants and history.
+    s.bus.send(&user_id, Event::Changed { what: "access", machine_id: Some(machine_id.clone()) });
     Ok(StatusCode::NO_CONTENT)
 }
 

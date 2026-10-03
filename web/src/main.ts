@@ -1,6 +1,6 @@
 import { showSignIn } from "./views/signin";
 import { HttpApi } from "./api/http";
-import { $, html, mount, onAction } from "./core/html";
+import { $, html, mount, onAction, restoreBusy } from "./core/html";
 import { MockApi } from "./api/mock";
 import type { KompanionApi, ServerEvent } from "./api/client";
 import type { AdminSettings, Role, Server, TaskState, ThemeChoice } from "./api/types";
@@ -13,7 +13,17 @@ import { composer, fillMessage, messageViews, renderEmpty, renderHeader, renderM
 import { KeyedList } from "./core/keyed";
 import { paneTabs, renderTasks } from "./views/tasks";
 import { renderMachines, REFRESH_STEPS, setGpuView } from "./views/machines";
-import { grantFromForm, renderAccess } from "./views/access";
+import { grantFromForm, renderAccess, type GrantView } from "./views/access";
+
+/** Shows a grant change at once, marked pending until the computer confirms it. */
+function markGrant(machineId: string, target: string, pending: "add" | "revoke", g?: Partial<GrantView>): void {
+  const grants = { ...store.get().grants };
+  const list = (grants[machineId] ?? []).filter((x) => x.target !== target || pending === "revoke");
+  grants[machineId] = pending === "revoke"
+    ? list.map((x) => (x.target === target ? { ...x, pending } : x))
+    : [...list, { target, rights: [], grantedBy: store.get().userName ?? "you", grantedAt: new Date().toISOString(), expires: null, ...g, pending }];
+  store.set({ grants });
+}
 
 let savePrefs: ReturnType<typeof setTimeout> | undefined;
 import { html as h } from "./core/html";
@@ -187,6 +197,7 @@ function render(s: AppState, prev: AppState): void {
     remount(settings, renderSettings(s));
   }
   firstRender = false;
+  restoreBusy(shell);
 }
 
 function applyEvent(ev: ServerEvent): void {
@@ -199,6 +210,8 @@ function applyEvent(ev: ServerEvent): void {
       const last = [...s.messages].reverse().find((m) => m.author === "orchestrator");
       if (last) store.set({ messages: store.get().messages.map((m) => (m.id === last.id ? { ...m, taskIds: [ev.task.id] } : m)) });
     }
+  } else if (ev.type === "changed") {
+    refetch(ev.what);
   } else if (ev.type === "resync") {
     reload();
   } else if (ev.type === "machines") {
@@ -211,6 +224,26 @@ function applyEvent(ev: ServerEvent): void {
         m.id === ev.messageId ? { ...m, text: m.text + ev.text, streaming: !ev.done } : m),
     });
   }
+}
+
+let refetchTimers = new Map<string, number>();
+function refetch(what: string): void {
+  if (refetchTimers.has(what)) return;
+  refetchTimers.set(what, window.setTimeout(async () => {
+    refetchTimers.delete(what);
+    const s = store.get();
+    try {
+      if (what === "tasks") store.set({ tasks: await api.listTasks() });
+      else if (what === "projects") store.set({ projects: await api.listProjects(), tasks: await api.listTasks() });
+      else if (what === "chats") store.set({ chats: await api.listChats() });
+      else if (what === "machines") store.set({ machines: await api.listMachines() });
+      else if (what === "access") await loadAccess();
+      else if (what === "settings" && s.settingsOpen) {
+        store.set({ notifications: await api.getNotifications(), roles: await api.listRoles() });
+        if (s.isAdmin) store.set({ admin: await api.getAdmin() });
+      }
+    } catch { /* the next event or a resync tries again */ }
+  }, 250));
 }
 
 async function reload(): Promise<void> {
@@ -261,7 +294,7 @@ function wire(shell: HTMLElement): void {
     unpair: (el) => {
       const m = store.get().machines.find((x) => x.id === el.dataset.id);
       if (!m || !confirm(`Unpair ${m.name}? Its runner stops being accepted.`)) return;
-      api.unpairMachine(m.id).then(() => api.listMachines()).then((machines) => store.set({ machines }), showError);
+      return api.unpairMachine(m.id).then(() => api.listMachines()).then((machines) => store.set({ machines }), showError);
     },
     "new-task": () => store.set({ editingTaskId: "new" }),
     "edit-task": (el) => store.set({ editingTaskId: el.dataset.id }),
@@ -270,15 +303,15 @@ function wire(shell: HTMLElement): void {
     "delete-task": (el) => {
       const t = store.get().tasks.find((x) => x.id === el.dataset.id);
       if (!t || !confirm(`Delete "${t.title}"?${t.source?.startsWith("windshift:") ? " It is closed in Windshift too." : ""}`)) return;
-      api.deleteTask(t.id).then(() => store.set({
-        tasks: store.get().tasks.filter((x) => x.id !== t.id), openTaskId: undefined,
-      }), showError);
+      const before = store.get().tasks;
+      store.set({ tasks: before.filter((x) => x.id !== t.id), openTaskId: undefined });
+      return api.deleteTask(t.id).catch((e) => { store.set({ tasks: before }); showError(e); });
     },
     "move-task": (el) => moveTask(el.dataset.id ?? "", Number(el.dataset.dir)),
     "make-internal": (el) => {
       if (!confirm("Stop syncing this project with Windshift? Everything stays here as an internal project.")) return;
       const id = el.dataset.id ?? "";
-      api.makeProjectInternal(id).then(() => store.set({
+      return api.makeProjectInternal(id).then(() => store.set({
         projects: store.get().projects.map((p) => (p.id === id ? { ...p, kind: "internal" } : p)),
       }), showError);
     },
@@ -306,8 +339,10 @@ function wire(shell: HTMLElement): void {
     },
     "grant-revoke": (el) => {
       const target = el.dataset.target ?? "";
+      const machineId = el.dataset.machine ?? "";
       if (!confirm(`Revoke access to ${target}? The computer applies it at its next report.`)) return;
-      api.revokeGrant(el.dataset.machine ?? "", target).then(() => setTimeout(loadAccess, 1500), showError);
+      markGrant(machineId, target, "revoke");
+      return api.revokeGrant(machineId, target).catch((e) => { showError(e); void loadAccess(); });
     },
     "close-task": () => store.set({ openTaskId: undefined }),
     scope: (el) => store.set({ taskScope: el.dataset.scope as AppState["taskScope"] }),
@@ -320,7 +355,7 @@ function wire(shell: HTMLElement): void {
     },
     "remove-logo": () => {
       if (!confirm("Go back to the built-in logo?")) return;
-      api.removeLogo().then(() => store.set({ logoVersion: null }), showError);
+      return api.removeLogo().then(() => store.set({ logoVersion: null }), showError);
     },
     "test-mail": () => {
       const to = (document.getElementById("test-to") as HTMLInputElement | null)?.value.trim() ?? "";
@@ -382,8 +417,10 @@ function wire(shell: HTMLElement): void {
     if (grantForm) {
       ev.preventDefault();
       const g = grantFromForm(grantForm);
-      api.addGrant(grantForm.dataset.machine ?? "", g.target, g.rights, g.expiresHours)
-        .then(() => setTimeout(loadAccess, 1500), showError);
+      const machineId = grantForm.dataset.machine ?? "";
+      markGrant(machineId, g.target, "add", { rights: g.rights });
+      grantForm.reset();
+      api.addGrant(machineId, g.target, g.rights, g.expiresHours).catch((e) => { showError(e); void loadAccess(); });
       return;
     }
     const pairForm = (ev.target as HTMLElement).closest("#pair-form") as HTMLFormElement | null;
@@ -587,21 +624,30 @@ async function loadAccess(): Promise<void> {
 }
 
 async function changeChat(id: string, change: { title?: string; pinned?: boolean; archived?: boolean; projectId?: string }): Promise<void> {
-  store.set({ chatMenuId: undefined });
+  const before = store.get().chats;
+  store.set({
+    chatMenuId: undefined,
+    chats: before.flatMap((c) => (c.id !== id ? [c] : change.archived ? [] : [{ ...c, ...change }])),
+  });
+  if (change.archived && store.get().activeChatId === id) store.set({ activeChatId: undefined, messages: [] });
   try {
     await api.updateChat(id, change);
-    if (change.archived && store.get().activeChatId === id) store.set({ activeChatId: undefined, messages: [] });
-    store.set({ chats: await api.listChats() });
-  } catch (e) { showError(e); }
+  } catch (e) {
+    store.set({ chats: before });
+    showError(e);
+  }
 }
 
 async function removeChat(id: string): Promise<void> {
-  store.set({ chatMenuId: undefined });
+  const before = store.get().chats;
+  store.set({ chatMenuId: undefined, chats: before.filter((c) => c.id !== id) });
+  if (store.get().activeChatId === id) store.set({ activeChatId: undefined, messages: [] });
   try {
     await api.deleteChat(id);
-    if (store.get().activeChatId === id) store.set({ activeChatId: undefined, messages: [] });
-    store.set({ chats: await api.listChats() });
-  } catch (e) { showError(e); }
+  } catch (e) {
+    store.set({ chats: before });
+    showError(e);
+  }
 }
 
 function showError(e: unknown): void {

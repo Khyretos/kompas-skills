@@ -75,11 +75,73 @@ def strip(text):
         body = body[:end]
     return body.strip() + "\n"
 
+PATCH_RULES = """Answer ONLY with edit blocks for the file, no whole file and no prose. Each block:
+<<<<<<< SEARCH
+(lines copied EXACTLY from the current file, enough to be unique, usually 2-6 lines)
+=======
+(the new lines that replace them)
+>>>>>>> REPLACE
+Use several blocks for several places. To add code, SEARCH for the lines next to where it goes
+and repeat them in REPLACE with the new code added. Never SEARCH for lines that are not in the file."""
+
+BLOCK = re.compile(r"<<<<<<< SEARCH\n(.*?)\n?=======\n(.*?)\n?>>>>>>> REPLACE", re.S)
+
+def find(text, search):
+    """(start, end) of the one run of whole lines equal to `search`, comparing lines
+    without indentation and trailing spaces. None when missing or not unique."""
+    want = [l.strip() for l in search.strip("\n").split("\n")]
+    lines = text.split("\n")
+    hits = [i for i in range(len(lines) - len(want) + 1)
+            if [l.strip() for l in lines[i:i + len(want)]] == want]
+    if len(hits) != 1:
+        return None
+    start = sum(len(l) + 1 for l in lines[:hits[0]])
+    end = start + sum(len(l) + 1 for l in lines[hits[0]:hits[0] + len(want)]) - 1
+    return start, end
+
+def apply_patch(text, answer):
+    """Applies the edit blocks; returns (new text, error or None)."""
+    blocks = BLOCK.findall(answer)
+    if not blocks:
+        return text, "no edit blocks found in the answer"
+    for search, replace in blocks:
+        where = find(text, search)
+        if where is None:
+            return text, "this SEARCH text is missing from the file or not unique:\n" + search[:600]
+        text = text[:where[0]] + replace + text[where[1]:]
+    return text, None
+
+def patch_job(job, log):
+    """mode "patch": the model answers with search/replace blocks for job["out"];
+    a block that doesn't apply goes back to the model once with the error."""
+    out = os.path.join(REPO, job["out"])
+    text = open(out).read()
+    system = "You edit code in this repository with exact, compiling changes. Follow these rules strictly:\n\n" + skills(job["role"])
+    ctx = "".join(f"\n--- {c} ---\n{open(os.path.join(REPO, c)).read()}" for c in job.get("context", []) if c != job["out"])
+    prompt = job["prompt"] + "\n\n" + PATCH_RULES + (("\n\nOther files, for reference only:" + ctx) if ctx else "") + f"\n\nThe file to edit, `{job['out']}`:\n```\n{text}```"
+    secs = toks = 0
+    for attempt in range(2):
+        answer, s, t = ask(system, prompt, job.get("max_tokens", 3000))
+        secs += s; toks += t
+        new, err = apply_patch(text, answer)
+        if not err:
+            break
+        prompt += f"\n\nYour previous answer could not be applied: {err}\nAnswer again with blocks whose SEARCH lines are copied exactly from the file."
+    if err:
+        raise RuntimeError(f"patch failed twice: {err[:300]}")
+    open(out, "w").write(new)
+    rec = {"name": job["name"], "out": job["out"], "mode": "patch", "gpu_seconds": round(secs, 1), "tokens": toks,
+           "lines": len(BLOCK.findall(answer)), "attempts": attempt + 1, "at": time.strftime("%Y-%m-%dT%H:%M:%S")}
+    log.write(json.dumps(rec) + "\n"); log.flush(); print(json.dumps(rec), flush=True)
+
 def main():
     jobs = json.load(open(sys.argv[1]))
     log = open(sys.argv[2] if len(sys.argv) > 2 else os.devnull, "a")
     for job in jobs:
       try:
+        if job.get("mode") == "patch":
+            patch_job(job, log)
+            continue
         rules = skills(job["role"])
         ctx = "".join(f"\n--- {c} ---\n{open(os.path.join(REPO, c)).read()}" for c in job.get("context", []))
         system = "You write exact, compiling code for this repository. Follow these rules strictly:\n\n" + rules

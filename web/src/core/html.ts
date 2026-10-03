@@ -60,21 +60,45 @@ export function $(selector: string, root: ParentNode = document): HTMLElement {
   return el;
 }
 
+// Actions still running, by a key built from the element's data attributes, so
+// the busy state survives a re-render that replaces the element.
+const busy = new Set<string>();
+const busyKey = (el: HTMLElement) => JSON.stringify(Object.entries(el.dataset).sort());
+
+function markBusy(el: HTMLElement, on: boolean): void {
+  if (on) el.setAttribute("aria-busy", "true");
+  else el.removeAttribute("aria-busy");
+  if (el instanceof HTMLButtonElement) el.disabled = on;
+}
+
 /**
  * Event delegation: one listener on `root` handles clicks on any element with
  * data-action="name", now or added later by a re-render.
  */
 export function onAction(
   root: HTMLElement,
-  handlers: Record<string, (el: HTMLElement, ev: Event) => void>,
+  handlers: Record<string, (el: HTMLElement, ev: Event) => void | Promise<unknown>>,
 ): void {
   root.addEventListener("click", (ev) => {
     const el = (ev.target as HTMLElement).closest<HTMLElement>("[data-action]");
-    if (!el || !root.contains(el)) return;
+    if (!el || !root.contains(el) || el.getAttribute("aria-busy") === "true") return;
     const handler = handlers[el.dataset.action ?? ""];
-    if (handler) {
-      ev.preventDefault();
-      handler(el, ev);
-    }
+    if (!handler) return;
+    ev.preventDefault();
+    const result = handler(el, ev);
+    if (!(result instanceof Promise)) return;
+    const key = busyKey(el);
+    busy.add(key);
+    markBusy(el, true);
+    result.catch(() => undefined).finally(() => {
+      busy.delete(key);
+      for (const x of root.querySelectorAll<HTMLElement>("[aria-busy]")) if (busyKey(x) === key) markBusy(x, false);
+    });
   });
+}
+
+/** Call after re-rendering: marks the new elements of actions that are still running. */
+export function restoreBusy(root: HTMLElement): void {
+  if (busy.size === 0) return;
+  for (const el of root.querySelectorAll<HTMLElement>("[data-action]")) if (busy.has(busyKey(el))) markBusy(el, true);
 }

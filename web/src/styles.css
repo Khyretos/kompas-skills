@@ -561,3 +561,14 @@ a { color: var(--link); }
 .hljs-deletion { color: var(--hl-del); }
 .hljs-addition { color: var(--hl-add); }
 .hljs-meta, .hljs-section, .hljs-variable, .hljs-template-variable { color: var(--hl-meta); }
+
+/* An action that is still running: its button waits with a small spinner. */
+[aria-busy="true"] { cursor: progress; opacity: 0.75; }
+button[aria-busy="true"]::after {
+  content: ""; display: inline-block; width: 0.8em; height: 0.8em; margin-left: 0.4em;
+  vertical-align: -0.1em; border: 2px solid currentColor; border-right-color: transparent;
+  border-radius: 50%; animation: kk-spin 0.7s linear infinite;
+}
+/* Rows the computer hasn't confirmed yet. */
+.pending { opacity: 0.6; }
+@media (prefers-reduced-motion: reduce) { button[aria-busy="true"]::after { animation-duration: 2.4s; } }
