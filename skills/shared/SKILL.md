@@ -40,3 +40,15 @@ DMS regenerates most app colours from one theme file, so edit that and let it pr
 - Back up first: `~/.config-backups/kreative-kompas-theme-<timestamp>.tar.gz` holds the previous state.
 - Reload without restarting apps: kitty `pkill -USR1 -x kitty`; Code - OSS picks up settings.json live.
 - Don't send a full-desktop screenshot as proof: the screen usually shows private documents.
+
+## 3. Brand colour roles: purple first, orange second, text white (2026-10-03, from Kees)
+
+Kees's correction after the desktop theme: "purple is a main color and orange secondary,
+i will always prefer my text white or at least readable".
+
+- Primary (fills, active workspace, selection, GTK/KDE accent): purple, lilac `#cca9ff` with night `#0c0917` text.
+- Secondary (highlights, focus details, a few icons and links): orange `#f3941f`.
+- Body and label text: white / mist `#e9e1f7`. Never colour ordinary UI text orange (or any accent).
+- In DMS keep `widgetColorMode: "default"`; "colorful" paints bar text in the primary colour.
+- The VS Code theme's orange keywords are fine: that is syntax colouring, not UI text.
+- Lesson 2 originally set DMS `primary` to orange; that was wrong and is fixed in theme.json v1.1.0.
