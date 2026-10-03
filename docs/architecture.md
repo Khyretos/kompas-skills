@@ -339,6 +339,21 @@ image builds run on the faster PC instead of kireserver.
 Already in milestone 1: sign out (sidebar, bottom), the logo top left, chat
 menu, expandable projects, the server's own machine in the Machines tab.
 
+### Model choice result (2026-10-03 benchmark)
+
+| Model | Where | Speed | Tool use | Screen grounding | Text |
+|---|---|---|---|---|---|
+| Qwen3.5-9B int8 ("Coder") | OVMS, A770 on kireserver | 33 tok/s | 5/6 | 18/20 | good |
+| gemma4:12b-it-qat | Ollama, RX 9070 XT on soucouyant | 68 tok/s | 4/6, loops on a repeated command | 5/20 | equal to Coder |
+
+Role slots: everything that calls tools or looks at screens uses Coder, the
+fast text work uses gemma4.
+- orchestrator → Coder (plans and calls tools in W2)
+- PC-control agent (F6), vision and test-driver roles (W2/W3) → Coder
+- reviewer → Coder
+- worker and drafting (code, tests, docs) → gemma4 on soucouyant
+New role slots get these defaults when they are added.
+
 ### Milestone 1.5 status (2026-10-03)
 
 Done:
