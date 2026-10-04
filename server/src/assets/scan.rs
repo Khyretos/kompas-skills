@@ -42,7 +42,7 @@ fn set(bus: &Bus, f: impl FnOnce(&mut Progress)) {
         f(&mut p);
         p.clone()
     };
-    bus.send_all(crate::events::Event::Assets { scan: serde_json::to_value(snapshot).ok(), previews: None });
+    bus.send_all(crate::events::Event::Assets { scan: serde_json::to_value(snapshot).ok(), previews: None, ai: None });
 }
 
 /// A file on disk, relative to the library root.
@@ -346,8 +346,9 @@ async fn save_rows(db: &SqlitePool, pack_id: i64, container: &str, rows: Vec<Row
             "INSERT INTO asset (pack_id, container, path, name, ext, size, mtime, entry_offset, category, rule, is_meta, seen_scan)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT(container, path) DO UPDATE SET pack_id = excluded.pack_id, size = excluded.size,
-               mtime = excluded.mtime, entry_offset = excluded.entry_offset, category = excluded.category,
-               rule = excluded.rule, is_meta = excluded.is_meta, seen_scan = excluded.seen_scan, missing_since = NULL,
+               mtime = excluded.mtime, entry_offset = excluded.entry_offset,
+               category = CASE asset.category_by WHEN 'kees' THEN asset.category ELSE excluded.category END,
+               rule = CASE asset.category_by WHEN 'kees' THEN asset.rule ELSE excluded.rule END, is_meta = excluded.is_meta, seen_scan = excluded.seen_scan, missing_since = NULL,
                preview_state = CASE WHEN asset.size <> excluded.size THEN NULL ELSE asset.preview_state END",
         )
         .bind(pack_id)
@@ -371,7 +372,9 @@ async fn save_rows(db: &SqlitePool, pack_id: i64, container: &str, rows: Vec<Row
 
 /// After a classifier change: every row gets its category again from its path.
 async fn reclassify_all(db: &SqlitePool) -> Result<()> {
-    let rows: Vec<(i64, String, String)> = sqlx::query_as("SELECT id, container, path FROM asset").fetch_all(db).await?;
+    // Categories Kees set himself are never changed by a rule.
+    let rows: Vec<(i64, String, String)> =
+        sqlx::query_as("SELECT id, container, path FROM asset WHERE category_by = 'rule'").fetch_all(db).await?;
     let mut tx = db.begin().await?;
     for (id, container, path) in rows {
         let (_, _, cat, why, meta) = classified(&container, &path);
@@ -435,9 +438,13 @@ async fn rebuild_search(db: &SqlitePool) -> Result<()> {
     let mut tx = db.begin().await?;
     sqlx::query("DELETE FROM asset_fts").execute(&mut *tx).await?;
     sqlx::query(
-        "INSERT INTO asset_fts (rowid, name, path, pack, category)
-         SELECT a.id, a.name, CASE a.container WHEN '' THEN a.path ELSE a.container || '/' || a.path END, p.name, a.category
-         FROM asset a JOIN asset_pack p ON p.id = a.pack_id WHERE a.missing_since IS NULL",
+        &format!(
+            "INSERT INTO asset_fts (rowid, name, path, pack, category, ai)
+             SELECT a.id, a.name, CASE a.container WHEN '' THEN a.path ELSE a.container || '/' || a.path END, p.name,
+                    a.category, {}
+             FROM asset a JOIN asset_pack p ON p.id = a.pack_id WHERE a.missing_since IS NULL",
+            super::ai::FTS_AI_TEXT
+        ),
     )
     .execute(&mut *tx)
     .await?;
