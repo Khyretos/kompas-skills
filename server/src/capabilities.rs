@@ -131,17 +131,17 @@ pub fn tools() -> Vec<Value> {
 
 /// Index status for asset search.
 pub async fn indexes(s: &AppState) -> Vec<Value> {
-    let total = sqlx::query_as::<_, (i64,)>("SELECT COUNT(*) FROM asset WHERE is_meta = 0 AND dup_of IS NULL")
+    let (total,) = sqlx::query_as::<_, (i64,)>("SELECT COUNT(*) FROM asset WHERE is_meta = 0 AND dup_of IS NULL")
         .fetch_one(&s.db)
         .await
         .unwrap_or((0,));
     
-    let done = sqlx::query_as::<_, (i64,)>("SELECT COUNT(*) FROM asset WHERE is_meta = 0 AND dup_of IS NULL AND ai_state = 'ok'")
+    let (done,) = sqlx::query_as::<_, (i64,)>("SELECT COUNT(*) FROM asset WHERE is_meta = 0 AND dup_of IS NULL AND ai_state = 'ok'")
         .fetch_one(&s.db)
         .await
         .unwrap_or((0,));
     
-    let failed = sqlx::query_as::<_, (i64,)>("SELECT COUNT(*) FROM asset WHERE is_meta = 0 AND dup_of IS NULL AND ai_state = 'error'")
+    let (failed,) = sqlx::query_as::<_, (i64,)>("SELECT COUNT(*) FROM asset WHERE is_meta = 0 AND dup_of IS NULL AND ai_state = 'error'")
         .fetch_one(&s.db)
         .await
         .unwrap_or((0,));

@@ -41,6 +41,7 @@ test.describe("Capabilities", () => {
     // Revoke it from the Access tab, then come back.
     await page.click('[data-action="new-chat"]');
     await page.click('[data-action="tab"][data-tab="access"]');
+    page.on("dialog", (d) => d.accept()); // "Revoke access to …?"
     const row = page.locator("li.grant-row", { hasText: "/home/kees/projects/kompanion" });
     await row.locator('[data-action="grant-revoke"]').click();
     await expect(row).toHaveCount(0);
