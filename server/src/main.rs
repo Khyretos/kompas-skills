@@ -8,6 +8,7 @@ mod config;
 mod contrast;
 mod error;
 mod events;
+mod folders;
 mod gpus;
 mod live;
 mod pairing;
@@ -198,6 +199,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/machines/{id}/grants/revoke", post(access::revoke_grant))
         .route("/access", get(access::history))
         .route("/activity", get(activity::list))
+        .route("/machines/{id}/folder", post(folders::api))
         .route("/gpus", get(gpus::list))
         .route("/gpus/jobs", get(gpus::jobs::list))
         .route("/capabilities", get(capabilities::list))

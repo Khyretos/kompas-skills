@@ -738,3 +738,10 @@ button[aria-busy="true"]::after {
 .act-card.denied { opacity: 0.75; }
 .chip.done { background: #d9f2e3; color: #14532d; }
 .chip.failed, .chip.refused { background: #fde2e1; color: #8b1a14; }
+
+/* Run form: the folder is checked on the chosen computer; a small folder browser. */
+.folder-check { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.folder-check .good { color: var(--good); }
+.folder-check .bad { color: var(--bad); }
+.folder-list { list-style: none; margin: 0; padding: 0.25rem 0.5rem; max-height: 12rem; overflow: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-2); font-size: 0.85rem; }
+.folder-list li { padding: 0.15rem 0; }

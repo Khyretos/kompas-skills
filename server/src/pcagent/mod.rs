@@ -83,7 +83,7 @@ pub async fn run(s: AppState, user_id: String, chat_id: String, machine_id: Stri
         let role = if author == "user" { "user" } else { "assistant" };
         messages.push(json!({ "role": role, "content": text }));
     }
-    let agent = Agent { s: s.clone(), user_id: user_id.clone(), chat_id: chat_id.clone(), machine_id, role, auto: false, max_steps: MAX_STEPS };
+    let agent = Agent { s: s.clone(), user_id: user_id.clone(), chat_id: chat_id.clone(), machine_id, role, auto: false, max_steps: MAX_STEPS, folder: None };
     let text = match agent.run(messages).await {
         Ok(t) => t,
         Err(e) => e,
@@ -103,6 +103,20 @@ pub struct Agent {
     /// grants); anything else still waits for the user's decision.
     pub auto: bool,
     pub max_steps: usize,
+    /// W2 tasks: every path and working folder must be inside this folder, so the check
+    /// and the diff always see the folder that was worked in (never two mixed folders).
+    pub folder: Option<String>,
+}
+
+/// The paths a runner job touches (path, or the working folder of a command).
+fn job_paths(job: &Value) -> Vec<&str> {
+    ["path", "cwd"].iter().filter_map(|k| job[*k].as_str()).collect()
+}
+
+/// Inside `folder` (the folder itself or below it), compared as clean absolute paths.
+pub fn inside(folder: &str, path: &str) -> bool {
+    let f = folder.trim_end_matches('/');
+    path.starts_with('/') && !path.split('/').any(|c| c == "..") && (path == f || path.starts_with(&format!("{f}/")))
 }
 
 impl Agent {
@@ -142,6 +156,12 @@ impl Agent {
                     None => "Unknown tool or wrong arguments.".to_string(),
                     // Guardrail: a file found missing earlier in this answer is not created
                     // behind the user's back.
+                    Some(job) if self.folder.as_deref().is_some_and(|f| job_paths(&job).iter().any(|p| !inside(f, p))) => {
+                        format!(
+                            "Blocked: outside the task's folder {}. Work only there; if the work belongs in another folder, stop and say which.",
+                            self.folder.as_deref().unwrap_or("")
+                        )
+                    }
                     Some(job) if job["tool"] == "write_file" && job["path"].as_str().is_some_and(|p| missing.contains(p)) => {
                         "Blocked: that file did not exist when you looked. Ask the user before creating a new file.".to_string()
                     }
@@ -461,6 +481,16 @@ fn needs_text(job: &Value) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_task_folder_confines_paths() {
+        assert!(inside("/home/k/demo", "/home/k/demo"));
+        assert!(inside("/home/k/demo/", "/home/k/demo/names.py"));
+        assert!(!inside("/home/k/demo", "/home/k/demo2/x"));
+        assert!(!inside("/home/k/demo", "/home/k/demo/../etc"));
+        assert!(!inside("/home/k/demo", "names.py"));
+        assert_eq!(job_paths(&json!({ "tool": "shell", "cwd": "/a", "command": "ls" })), ["/a"]);
+    }
 
     #[test]
     fn prompt_names_the_machine() {

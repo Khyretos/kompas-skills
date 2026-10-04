@@ -77,6 +77,8 @@ export interface KompanionApi {
   listActions(chatId: string): Promise<PcAction[]>;
   /** W2: run a task by itself on a computer, in a folder, checked by a command. */
   startTask(id: string, machineId: string, folder: string, check: string): Promise<void>;
+  /** Does this folder exist on that computer, and which folders are in it (needs a read grant)? */
+  checkFolder(machineId: string, path: string): Promise<{ state: "ok" | "nogrant" | "missing" | "notfolder" | "noanswer"; path: string; folders?: string[]; files?: number; message?: string }>;
   listActivity(): Promise<import("../views/activity").ActivityItem[]>;
   /** What Kompanion can use right now (W3): models, computers, tools, MCP servers, indexes, skills. */
   getCapabilities(): Promise<import("../views/capabilities").Capabilities>;

@@ -201,7 +201,7 @@ function render(s: AppState, prev: AppState): void {
   }
   lastPcKey = pcKey;
   const rightKeys: (keyof AppState)[] = s.rightTab === "tasks"
-    ? ["rightTab", "tasks", "projects", "openTaskId", "editingTaskId", "taskScope", "activeProjectId", "activeChatId", "chats", "projectAssets", "assetPick"]
+    ? ["rightTab", "tasks", "projects", "openTaskId", "editingTaskId", "taskScope", "activeProjectId", "activeChatId", "chats", "projectAssets", "assetPick", "runCheck"]
     : s.rightTab === "access" ? ["rightTab", "grants", "accessHistory", "machines"]
     : s.rightTab === "activity" ? ["rightTab", "activity", "activityFilter"]
     : ["rightTab", "machines", "today", "machinesRefresh", "tasks", "pairing", "gpuOpen", "gpuPins"];
@@ -287,6 +287,30 @@ function applyEvent(ev: ServerEvent): void {
     });
     if (ev.done) readAloud(store.get().messages.find((m) => m.id === ev.messageId)?.text ?? "");
   }
+}
+
+// The Run form checks the folder on the chosen computer (exists? which folders?) when the
+// computer or folder changes, when browsing, and once more before Start.
+let checkGen = 0;
+async function folderCheck(taskId: string, machine: string, path: string) {
+  const gen = ++checkGen;
+  const clean = path.trim().replace(/\/+$/, "") || "/";
+  store.set({ runCheck: { taskId, machine, path: clean, busy: true } });
+  try {
+    const result = await api.checkFolder(machine, clean);
+    if (gen === checkGen) store.set({ runCheck: { taskId, machine, path: clean, busy: false, result } });
+    return result;
+  } catch (e) {
+    if (gen === checkGen) store.set({ runCheck: { taskId, machine, path: clean, busy: false } });
+    showError(e);
+    return undefined;
+  }
+}
+
+function runFields(id: string): { machine: string; folder: string } {
+  const form = document.querySelector<HTMLFormElement>(`form.task-run[data-id="${CSS.escape(id)}"]`);
+  const f = form ? new FormData(form) : undefined;
+  return { machine: String(f?.get("machine") ?? ""), folder: String(f?.get("folder") ?? "") };
 }
 
 // W4 voice. Push-to-talk: a short click starts and a second click stops; holding the
@@ -622,6 +646,15 @@ function wire(shell: HTMLElement): void {
       if (store.get().recording === "recording") void stopRecording(); else void startRecording();
     },
     "voice-stop": () => reader.stop(),
+    "folder-browse": (el) => {
+      const id = el.dataset.id ?? "";
+      const { machine, folder } = runFields(id);
+      return folderCheck(id, machine, folder.trim() || "/home");
+    },
+    "folder-open": (el) => {
+      const id = el.dataset.id ?? "";
+      return folderCheck(id, runFields(id).machine, el.dataset.path ?? "/");
+    },
     "project-more": (el) => {
       const all = new Set(store.get().allTasksShown);
       const id = el.dataset.id ?? "";
@@ -674,6 +707,13 @@ function wire(shell: HTMLElement): void {
   });
   shell.addEventListener("change", async (ev) => {
     const fid = (ev.target as HTMLElement).id;
+    const runField = (ev.target as HTMLElement).closest("form.task-run") as HTMLFormElement | null;
+    if (runField && ["machine", "folder"].includes((ev.target as HTMLInputElement).name)) {
+      const id = runField.dataset.id ?? "";
+      const { machine, folder } = runFields(id);
+      if (folder.trim()) void folderCheck(id, machine, folder);
+      return;
+    }
     if (fid === "voice-input" || fid === "voice-read") {
       setVoicePrefs({ [fid === "voice-input" ? "input" : "readAloud"]: (ev.target as HTMLInputElement).checked });
       return;
@@ -784,7 +824,15 @@ function wire(shell: HTMLElement): void {
       const f = new FormData(runForm);
       const id = runForm.dataset.id ?? "";
       const t = store.get().tasks.find((x) => x.id === id);
-      void busyWhile(runForm, api.startTask(id, String(f.get("machine") ?? ""), String(f.get("folder") ?? "").trim(), String(f.get("check") ?? "").trim())
+      const machine = String(f.get("machine") ?? ""), folder = String(f.get("folder") ?? "").trim();
+      // Never start in a folder the computer doesn't have.
+      const ok = (r?: { state: string }) => r?.state === "ok" || r?.state === "nogrant";
+      const rc = store.get().runCheck;
+      const known = rc?.taskId === id && rc.machine === machine && rc.path === (folder.replace(/\/+$/, "") || "/") ? rc.result : undefined;
+      void busyWhile(runForm, (ok(known) ? Promise.resolve(known) : folderCheck(id, machine, folder)).then((r) => {
+        if (!ok(r)) throw new Error(r?.message ?? "That folder could not be checked.");
+        return api.startTask(id, machine, folder, String(f.get("check") ?? "").trim());
+      })
         .then(async () => {
           // Open the task's own chat, where the plan, the steps and the review show.
           const chats = await api.listChats();

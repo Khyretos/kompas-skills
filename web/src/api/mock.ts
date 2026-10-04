@@ -485,6 +485,15 @@ export class MockApi implements KompanionApi {
     ];
   }
   async startTask() {}
+  /** Demo computers: /home/kees and its projects exist, everything else is missing. */
+  async checkFolder(_machineId: string, path: string) {
+    await new Promise((r) => setTimeout(r, 150));
+    const tree: Record<string, string[]> = { "/": ["home"], "/home": ["kees"], "/home/kees": ["projects", "notes"], "/home/kees/projects": ["kk-engine", "kompanion"],
+      "/home/kees/projects/kk-engine": ["src", "games"], "/home/kees/projects/kompanion": ["server", "web"], "/home/kees/notes": [] };
+    const p = path.replace(/\/+$/, "") || "/";
+    return p in tree ? { state: "ok" as const, path: p, folders: tree[p], files: 3 }
+      : { state: "missing" as const, path: p, message: `Folder not found on soucouyant: ${p}` };
+  }
   async decideAction(id: string, decision: "approve" | "always" | "deny") {
     const a = actions.find((x) => x.id === id);
     if (!a || a.state !== "pending") throw new Error("This step was already decided.");

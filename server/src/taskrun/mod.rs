@@ -190,6 +190,7 @@ fn agent(s: &AppState, r: &Run, max_steps: usize) -> pcagent::Agent {
         role: r.worker.clone(),
         auto: true,
         max_steps,
+        folder: Some(r.folder.clone()),
     }
 }
 
@@ -220,6 +221,21 @@ fn cut(text: &str, max: usize) -> String {
 }
 
 async fn run(s: AppState, r: Run) {
+    // 0. The folder must exist on that computer: otherwise stop at once and say so (a wrong
+    // folder once cost three empty review rounds).
+    progress(&s, &r, 0.0, "checking the folder").await;
+    let why = match crate::folders::check(&s, &r.user_id, &r.machine_id, &r.folder, std::time::Duration::from_secs(90)).await {
+        Ok(crate::folders::Folder::Missing) => Some(format!("Folder not found on {}: {}. Pick the folder as {} sees it and start again.", r.machine_name, r.folder, r.machine_name)),
+        Ok(crate::folders::Folder::NotAFolder) => Some(format!("{} on {} is a file, not a folder.", r.folder, r.machine_name)),
+        Ok(crate::folders::Folder::NoAnswer) => Some(format!("{} didn't answer (offline?), so I couldn't check {}.", r.machine_name, r.folder)),
+        Err(e) => Some(format!("I couldn't check the folder: {e}")),
+        Ok(_) => None,
+    };
+    if let Some(why) = why {
+        note(&s, &r, &why).await;
+        return finish(&s, &r, "needs_input", "folder not found").await;
+    }
+
     // 1. Plan.
     let plan_user = format!(
         "Task: {}\n\n{}\n\nWork in the folder {} on {}.\n\nWhat Kompanion has (for planning only):\n{}",

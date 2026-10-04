@@ -147,6 +147,12 @@ function editor(t: Task | undefined, projectId: string, s: AppState): SafeHtml {
 /** W2: run the task by itself on a paired computer, in a folder, checked by a command. */
 /** Every known computer for the Run form; one that can't run steps now is shown disabled with
  *  the reason (never hidden). This server's own entry has no runner unless one is paired. */
+function folderStatus(r: { state: "ok" | "nogrant" | "missing" | "notfolder" | "noanswer"; path: string; folders?: string[]; files?: number; message?: string }): SafeHtml {
+  if (r.state === "ok") return html`<span class="good small" role="status">Found: ${String(r.folders?.length ?? 0)} folders, ${String(r.files ?? 0)} files</span>`;
+  if (r.state === "nogrant") return html`<span class="muted small" role="status">${r.message ?? "Found"}</span>`;
+  return html`<span class="bad small" role="alert">${r.message ?? "Not found"}</span>`;
+}
+
 export function runTargets(s: AppState): { id: string; name: string; why: string }[] {
   const paired = s.machines.filter((m) => m.id !== "server");
   return [
@@ -163,13 +169,26 @@ function runForm(t: Task, s: AppState): SafeHtml {
   // A programming project's repo is the default computer and folder.
   const project = s.projects.find((p) => p.id === t.projectId);
   const repo = project?.type === "programming" ? project : undefined;
+  const rc = s.runCheck?.taskId === t.id ? s.runCheck : undefined;
   return html`
     <form class="task-run" data-id="${t.id}">
       <h4 class="label">Run it on a computer</h4>
       <label>Computer <select name="machine">${targets.map((m) => html`<option value="${m.id}" ${m.why ? "disabled" : ""}
-        ${!m.why && m.id === repo?.repoMachineId ? "selected" : ""}>${m.name}${m.why ? ` (${m.why})` : ""}</option>`)}</select></label>
+        ${!m.why && m.id === (rc?.machine || repo?.repoMachineId) ? "selected" : ""}>${m.name}${m.why ? ` (${m.why})` : ""}</option>`)}</select></label>
       ${machines.length === 0 ? html`<p class="warn small">No computer can run steps right now: pair one in the Machines tab, or wait until it is online.</p>` : ""}
-      <label>Folder <input name="folder" value="${repo?.repoFolder ?? ""}" placeholder="/home/you/projects/app" required></label>
+      <label>Folder <input name="folder" value="${rc?.path ?? repo?.repoFolder ?? ""}" placeholder="/home/you/projects/app" required autocomplete="off"></label>
+      <div class="folder-check">
+        <button class="btn small" type="button" data-action="folder-browse" data-id="${t.id}">Browse</button>
+        ${rc?.busy ? html`<span class="muted small" role="status">Checking on the computer…</span>`
+          : rc?.result ? folderStatus(rc.result) : ""}
+      </div>
+      ${rc?.result?.state === "ok" && rc.result.folders ? html`
+        <ul class="folder-list" aria-label="Folders in ${rc.result.path}">
+          ${rc.result.path !== "/" ? html`<li><button class="link" type="button" data-action="folder-open" data-id="${t.id}"
+            data-path="${rc.result.path.replace(/\/[^/]*$/, "") || "/"}">.. (up)</button></li>` : ""}
+          ${rc.result.folders.map((f) => html`<li><button class="link" type="button" data-action="folder-open" data-id="${t.id}"
+            data-path="${`${rc.result!.path === "/" ? "" : rc.result!.path}/${f}`}">${f}/</button></li>`)}
+        </ul>` : ""}
       <label>Check <input name="check" placeholder="cargo test (optional)"></label>
       <p class="muted small">Kompanion plans, works step by step and reviews the result (up to 3 rounds). Steps your grants allow run by themselves; anything else asks you first. Progress shows in the task's own chat.</p>
       <button class="btn primary small" type="submit">Start</button>
