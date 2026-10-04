@@ -12,6 +12,7 @@ mod pairing;
 mod pcagent;
 mod cli;
 mod activity;
+mod taskrun;
 mod hoststats;
 mod import;
 mod llm;
@@ -160,6 +161,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/tasks/order", axum::routing::put(tasks::reorder))
         .route("/tasks/{id}", patch(tasks::update).delete(tasks::delete))
         .route("/tasks/{id}/events", get(tasks::events))
+        .route("/tasks/{id}/start", post(taskrun::start))
         .route("/projects/{id}", patch(tasks::set_project_kind))
         .route("/machines", get(hoststats::list).post(hoststats::create))
         .route("/machines/live", post(hoststats::live))

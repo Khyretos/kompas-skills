@@ -69,6 +69,8 @@ export interface KompanionApi {
   /** With `machineId`, the answer may use that computer's tools (each step needs approval). */
   send(chatId: string, text: string, machineId?: string): Promise<void>;
   listActions(chatId: string): Promise<PcAction[]>;
+  /** W2: run a task by itself on a computer, in a folder, checked by a command. */
+  startTask(id: string, machineId: string, folder: string, check: string): Promise<void>;
   listActivity(): Promise<import("../views/activity").ActivityItem[]>;
   decideAction(id: string, decision: "approve" | "always" | "deny"): Promise<void>;
   answer(taskId: string, optionId: string): Promise<void>;

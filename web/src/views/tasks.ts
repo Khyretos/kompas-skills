@@ -137,6 +137,21 @@ function editor(t: Task | undefined, projectId: string, s: AppState): SafeHtml {
     </form>`;
 }
 
+/** W2: run the task by itself on a paired computer, in a folder, checked by a command. */
+function runForm(t: Task, s: AppState): SafeHtml {
+  const machines = s.machines.filter((m) => m.id !== "server");
+  if (t.state === "running" || t.state === "done" || machines.length === 0 || !t.description) return html``;
+  return html`
+    <form class="task-run" data-id="${t.id}">
+      <h4 class="label">Run it on a computer</h4>
+      <label>Computer <select name="machine">${machines.map((m) => html`<option value="${m.id}">${m.name}</option>`)}</select></label>
+      <label>Folder <input name="folder" placeholder="/home/you/projects/app" required></label>
+      <label>Check <input name="check" placeholder="cargo test (optional)"></label>
+      <p class="muted small">Kompanion plans, works step by step and reviews the result (up to 3 rounds). Steps your grants allow run by themselves; anything else asks you first. Progress shows in the task's own chat.</p>
+      <button class="btn primary small" type="submit">Start</button>
+    </form>`;
+}
+
 function detail(t: Task, s: AppState): SafeHtml {
   const project = s.projects.find((p) => p.id === t.projectId);
   const pct = Math.round(t.progress * 100);
@@ -164,6 +179,7 @@ function detail(t: Task, s: AppState): SafeHtml {
         <span class="chip state s-${t.state}">${stateLabel(t.state)}</span>
         <span class="muted">${pct}% · ${t.step}</span>
       </div>
+      ${runForm(t, s)}
       <dl class="facts">
         <div><dt>Model</dt><dd>${t.model} <span class="muted">(${t.role})</span></dd></div>
         ${t.runner ? html`<div><dt>Computer</dt><dd>${t.runner}</dd></div>` : ""}
