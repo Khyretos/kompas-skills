@@ -32,6 +32,7 @@ export type LicenceInput = { name: string; commercial: boolean; attribution: boo
 
 export interface AssetDetail extends AssetItem {
   licence: Licence | null; // the pack's licence
+  usedIn: { gameId: number; game: string; scenes: { scene: string; count: number }[] }[]; // from the games' scene files
   packKind: string;
   mtime: number | null;
   rule: string; // why it got its category
@@ -90,7 +91,7 @@ export interface Game {
   profileBy: "none" | "ai" | "kees"; // "ai": a draft to confirm
   missingSince: string | null;
   drafting: boolean;
-  needs?: number; candidates?: number; // in the list only
+  needs?: number; candidates?: number; used?: number; // in the list only (used: assets its scenes place)
 }
 export type PickStatus = "suggested" | "candidate" | "rejected";
 export interface GamePick {
@@ -109,6 +110,8 @@ export interface GameDetail extends Omit<Game, "needs" | "candidates"> {
   needs: Need[];
   styleWarning: string | null;
   aiOn: boolean;
+  /** What the game's scene files use; missing: names not found in the library. */
+  scenes: { assets: number; packs: number; scenes: number; missing: { kind: "pack" | "asset"; name: string; scene: string }[] };
 }
 export type GameProfile = Pick<Game, "genre" | "artStyle" | "setting" | "commercial">;
 
@@ -146,6 +149,8 @@ export interface AssetFilter {
   similar?: number; // assets most like this one
   similarName?: string; // (shown in the chip only, not sent)
   meaning?: boolean; // search q by meaning instead of words
+  usedBy?: number; // only assets this game's scenes use
+  usedByName?: string; // (shown in the chip only, not sent)
 }
 
 export interface PackFacet {
@@ -208,6 +213,7 @@ function query(f: AssetFilter, extra: Record<string, number> = {}): string {
   if (f.tag) p.set("tag", f.tag);
   if (f.similar !== undefined) p.set("similar", String(f.similar));
   if (f.meaning && f.q?.trim()) p.set("meaning", "true");
+  if (f.usedBy !== undefined) p.set("used_by", String(f.usedBy));
   for (const [k, v] of Object.entries(extra)) p.set(k, String(v));
   const s = p.toString();
   return s ? `?${s}` : "";

@@ -720,3 +720,12 @@ p.small {
 .assets-pane.games-tab .assets-body {
   display: none;
 }
+
+/* "Used in" (milestone 5) */
+.asset-used { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.2rem; }
+.game-scenes { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; margin: 0.5rem 0 1rem; padding: 0.6rem 0.8rem;
+  border-radius: var(--radius); background: var(--surface); border: 1px solid var(--line); }
+.game-scenes p { margin: 0; }
+.game-missing { flex-basis: 100%; font-size: 0.85rem; }
+.game-missing summary { cursor: pointer; color: var(--attn); }
+.game-missing ul { margin: 0.4rem 0 0; padding-left: 1.2rem; }

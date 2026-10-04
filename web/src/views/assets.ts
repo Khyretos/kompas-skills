@@ -210,6 +210,7 @@ export class AssetsView {
       "asset-open": (b) => this.open(Number(b.dataset.id)),
       "asset-close": () => this.closeDetail(),
       "asset-tab": (b) => this.setTab(b.dataset.tab === "games" ? "games" : "library"),
+      "asset-used-game": (b) => { this.closeDetail(); this.setTab("games", Number(b.dataset.game)); },
       "asset-pack": (b) => {
         this.closeDetail();
         const pack = Number(b.dataset.pack);
@@ -233,7 +234,8 @@ export class AssetsView {
         this.el.querySelector<HTMLInputElement>("#asset-q")!.value = "";
       },
       "asset-tag-filter": (b) => { this.closeDetail(); this.setFilter({ tag: b.dataset.tag }); },
-      "asset-unfilter": (b) => this.setFilter(b.dataset.what === "similar" ? { similar: undefined, similarName: undefined } : { tag: undefined }),
+      "asset-unfilter": (b) => this.setFilter(b.dataset.what === "similar" ? { similar: undefined, similarName: undefined }
+        : b.dataset.what === "used" ? { usedBy: undefined, usedByName: undefined } : { tag: undefined }),
       "asset-tag-remove": (b) => this.removeTag(Number(b.dataset.asset), Number(b.dataset.tag)),
       "asset-cat-accept": (b) => this.setCategory(Number(b.dataset.id), b.dataset.cat ?? ""),
       "asset-cat-keep": (b) => this.keepCategory(Number(b.dataset.id)),
@@ -350,8 +352,8 @@ export class AssetsView {
   }
 
   /** Library (the grid) or Games (profiles, needs and picks). */
-  private setTab(tab: "library" | "games"): void {
-    if (tab === this.tab) return;
+  setTab(tab: "library" | "games", game?: number): void {
+    if (tab === this.tab) { if (game !== undefined) this.gamesView?.select(game); return; }
     this.tab = tab;
     for (const b of this.el.querySelectorAll<HTMLElement>('[data-action="asset-tab"]')) b.setAttribute("aria-pressed", String(b.dataset.tab === tab));
     this.el.classList.toggle("games-tab", tab === "games");
@@ -361,8 +363,11 @@ export class AssetsView {
       this.gamesView ??= new GamesView(games, this.api, () => this.status?.categories ?? [], (id) => {
         this.setTab("library");
         void this.open(id);
+      }, (id, name) => {
+        this.setTab("library");
+        this.setFilter({ usedBy: id, usedByName: name });
       });
-      this.gamesView.show();
+      this.gamesView.show(game);
     } else {
       this.renderGrid(true);
     }
@@ -585,6 +590,8 @@ export class AssetsView {
     const parts: ReturnType<typeof html>[] = [];
     if (this.filter.similar !== undefined) parts.push(html`<button class="chip-btn" data-action="asset-unfilter" data-what="similar"
       aria-label="Stop showing assets like ${this.filter.similarName ?? "this one"}">Like ${this.filter.similarName ?? `#${this.filter.similar}`} ×</button>`);
+    if (this.filter.usedBy !== undefined) parts.push(html`<button class="chip-btn" data-action="asset-unfilter" data-what="used"
+      aria-label="Stop showing what ${this.filter.usedByName ?? "this game"} uses">Used in ${this.filter.usedByName ?? `game #${this.filter.usedBy}`} ×</button>`);
     if (this.filter.tag) parts.push(html`<button class="chip-btn" data-action="asset-unfilter" data-what="tag"
       aria-label="Stop filtering by ${this.filter.tag}">${this.filter.tag.replace(":", ": ")} ×</button>`);
     active.hidden = parts.length === 0;
@@ -614,7 +621,7 @@ export class AssetsView {
     empty.hidden = this.total > 0 || !this.status;
     if (!empty.hidden) {
       const filtered = this.filter.q || this.filter.category || this.filter.pack !== undefined || this.filter.review
-        || this.filter.tag || this.filter.similar !== undefined;
+        || this.filter.tag || this.filter.similar !== undefined || this.filter.usedBy !== undefined;
       mount(empty, filtered
         ? html`<p>Nothing matches these filters.</p><button class="btn" data-action="asset-clear">Clear filters</button>`
         : html`<p>The index is empty.${this.isAdmin() ? " Start a scan to fill it." : ""}</p>`);
@@ -849,6 +856,10 @@ export class AssetsView {
         <dt>Where</dt><dd><code>${where}</code></dd>
         <dt>Pack</dt><dd><button class="link" data-action="asset-pack" data-pack="${d.packId}">${d.pack}</button></dd>
         <dt>Licence</dt><dd>${this.licenceRow(d)}</dd>
+        <dt>Used in</dt><dd>${d.usedIn.length
+          ? html`<ul class="asset-used">${d.usedIn.map((u) => html`<li><button class="link" data-action="asset-used-game" data-game="${u.gameId}">${u.game}</button>
+              <small class="muted">${u.scenes.map((x) => `${x.scene.split("/").pop()}${x.count > 1 ? ` (${x.count}×)` : ""}`).join(", ")}</small></li>`)}</ul>`
+          : html`<small class="muted">No game scene uses it yet.</small>`}</dd>
         <dt>Category</dt><dd>${label1(d.category)} <small class="muted">(${d.rule})</small>
           <select id="asset-cat-select" class="asset-cat-select" aria-label="Change the category">
             <option value="">Change…</option>

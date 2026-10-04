@@ -156,6 +156,7 @@ export class MockAssets implements AssetsApi {
       (skip === "pack" || f.pack === undefined || a.packId === f.pack) &&
       (skip === "review" || !f.review || a.aiCategory !== null) &&
       (!f.tag || (this.tags.get(a.id) ?? []).some((t) => `${t.kind}:${t.name}` === f.tag)) &&
+      (f.usedBy === undefined || this.demoUses.some((u) => u.gameId === f.usedBy && u.assetId === a.id)) &&
       (f.similar === undefined || (a.id !== f.similar && a.category === this.items.find((x) => x.id === f.similar)?.category)) &&
       words.every((w) => `${a.name} ${a.container}/${a.path} ${a.pack} ${a.category}`.toLowerCase().split(/[^\p{L}\p{N}]+/u).some((t) => t.startsWith(w))));
   }
@@ -208,6 +209,10 @@ export class MockAssets implements AssetsApi {
     return { 
       ...a, 
       licence: this.licenceOfPack(a.packId),
+      usedIn: this.demoGames.flatMap((g) => {
+        const scenes = this.demoUses.filter((u) => u.gameId === g.id && u.assetId === a.id).map((u) => ({ scene: u.scene, count: u.count }));
+        return scenes.length ? [{ gameId: g.id, game: g.name, scenes }] : [];
+      }),
       packKind: "zip", 
       mtime: null, 
       rule: `path word in "${a.pack}"`, 
@@ -296,6 +301,9 @@ export class MockAssets implements AssetsApi {
     { id: 1, gameId: 2, position: 0, text: "footsteps on grass", category: "sound-effect", by: "kees", pickedAt: null, error: null },
     { id: 2, gameId: 2, position: 1, text: "pine trees", category: "3d-model", by: "kees", pickedAt: null, error: null },
   ];
+  // "Used in": KKE Showcase's scene places six nature models (one of them twice).
+  private demoUses = this.items.filter((a) => a.category === "3d-model" && a.pack.startsWith("POLYGON_Nature")).slice(0, 6)
+    .map((a, i) => ({ gameId: 1, assetId: a.id, scene: "games/showcase/course_art.scene.json", count: i === 0 ? 2 : 1 }));
   private demoPicks: { needId: number; assetId: number; status: PickStatus; reason: string | null; by: "ai" | "kees"; rank: number }[] = [];
   private nextGameId = 3;
   private nextNeedId = 3;
@@ -325,6 +333,7 @@ export class MockAssets implements AssetsApi {
       const needIds = this.demoNeeds.filter((n) => n.gameId === g.id).map((n) => n.id);
       return {
         ...g, drafting: this.draftingGames.has(g.id), needs: needIds.length,
+        used: new Set(this.demoUses.filter((u) => u.gameId === g.id).map((u) => u.assetId)).size,
         candidates: this.demoPicks.filter((p) => needIds.includes(p.needId) && p.status === "candidate").length,
       };
     }).sort((a, b) => (a.source === "own" ? 0 : 1) - (b.source === "own" ? 0 : 1) || a.name.localeCompare(b.name));
@@ -348,7 +357,14 @@ export class MockAssets implements AssetsApi {
             return item ? [{ asset: { ...item, licence: this.licenceOfPack(item.packId) }, status: p.status, reason: p.reason, by: p.by }] : [];
           }),
       }));
-    return { ...game, needs, styleWarning: null, aiOn: this.aiMode !== "off", drafting: this.draftingGames.has(id) };
+    const uses = this.demoUses.filter((u) => u.gameId === id);
+    const scenes = {
+      assets: new Set(uses.map((u) => u.assetId)).size,
+      packs: new Set(uses.map((u) => this.items.find((i) => i.id === u.assetId)?.packId)).size,
+      scenes: new Set(uses.map((u) => u.scene)).size,
+      missing: uses.length ? [{ kind: "asset" as const, name: "SM_Prop_Lantern_01", scene: uses[0].scene }] : [],
+    };
+    return { ...game, needs, styleWarning: null, aiOn: this.aiMode !== "off", drafting: this.draftingGames.has(id), scenes };
   }
 
   async addGame(name: string): Promise<Game> {

@@ -145,4 +145,50 @@ test.describe("Games", () => {
     
     await expect(page.locator("#game-profile input[name='genre']")).toHaveValue("Puzzle");
   });
+
+  // "Used in" (milestone 5). Drafted by the local Coder; selectors fixed by Claude.
+  test('KKE Showcase scene summary shows missing asset code', async ({ page }) => {
+    await page.locator('.game-list .game-item', { hasText: 'KKE Showcase' }).click();
+    await expect(page.locator('.game-main h2')).toHaveText('KKE Showcase');
+  
+    const details = page.locator('.game-scenes details.game-missing').first();
+    await expect(details).toBeVisible();
+  
+    await details.click();
+    await expect(details.locator('summary')).toBeVisible();
+    await expect(details.locator('ul li code')).toHaveText('SM_Prop_Lantern_01');
+  });
+
+  test('Show used assets in library and remove filter', async ({ page }) => {
+    await page.locator('.game-list .game-item', { hasText: 'KKE Showcase' }).click();
+    await expect(page.locator('.game-main h2')).toHaveText('KKE Showcase');
+  
+    await page.click('[data-action="game-show-used"]');
+    await expect(page.locator('[data-action="asset-tab"][data-tab="library"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('li.asset-cell')).toHaveCount(6);
+    await expect(page.locator('#asset-active')).toContainText('Used in KKE Showcase ×');
+  
+    await page.click('#asset-active [data-what="used"]');
+    await expect(page.locator('#asset-active')).toBeHidden();
+    await expect.poll(() => page.locator('li.asset-cell').count()).toBeGreaterThan(6);
+  });
+
+  test('Details panel links back to game via Used in row', async ({ page }) => {
+    await page.locator('.game-list .game-item', { hasText: 'KKE Showcase' }).click();
+    await expect(page.locator('.game-main h2')).toHaveText('KKE Showcase');
+  
+    await page.click('[data-action="game-show-used"]');
+    await expect(page.locator('[data-action="asset-tab"][data-tab="library"]')).toHaveAttribute('aria-pressed', 'true');
+  
+    await page.locator('li.asset-cell button.asset-card').first().click();
+    await expect(page.locator('#asset-detail')).toBeVisible();
+  
+    const usedInRow = page.locator('#asset-detail dt:has-text("Used in") + dd');
+    await expect(usedInRow).toContainText('KKE Showcase');
+    await expect(usedInRow.locator('small')).toHaveText('course_art.scene.json (2×)');
+  
+    await usedInRow.locator('[data-action="asset-used-game"]').click();
+    await expect(page.locator('[data-action="asset-tab"][data-tab="games"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('.game-main h2')).toHaveText('KKE Showcase');
+  });
 });
