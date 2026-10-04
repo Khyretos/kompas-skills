@@ -11,14 +11,6 @@ export interface ActivityItem {
   chat?: string;
 }
 
-const stateMap = {
-  pending: "waiting",
-  done: "done",
-  failed: "failed",
-  refused: "not allowed",
-  denied: "declined",
-};
-
 function getStateText(kind: string, state?: string): string {
   if (kind === "step") {
     if (state === "pending") return "waiting";

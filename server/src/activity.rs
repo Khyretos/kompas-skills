@@ -21,7 +21,7 @@ pub async fn list(
         "#,
     )
     .bind(&u.id)
-    .fetch_all(&s.pool)
+    .fetch_all(&s.db)
     .await?;
 
     let access_log = sqlx::query_as::<_, (String, String, Option<String>, Option<String>, String, String)>(
@@ -36,7 +36,7 @@ pub async fn list(
         "#,
     )
     .bind(&u.id)
-    .fetch_all(&s.pool)
+    .fetch_all(&s.db)
     .await?;
 
     let mut combined: Vec<(String, Value)> = Vec::with_capacity(pc_actions.len() + access_log.len());
