@@ -134,3 +134,10 @@ Details: ~/Docker/docs/ai-capability/assets-previews-2026-10.md.
   Guard in code, not only in the prompt: filter the plan, and let the check decide after a cap.
   In patch mode (search/replace) it is reliable for small, exactly specified changes; asked for
   "a function plus tests" it skipped the tests and dropped one input shape (array of objects).
+- (2026-10-04, web views) In views with nested ternaries inside `html` templates it leaves a template
+  unclosed, joins `html` arrays with `.join("")` or `.concat`, writes `${String(x)}` as a bare
+  attribute instead of `${x ? "selected" : ""}`, and uses icon names that don't exist. Ask for one
+  small function per branch (repoForm, gameAssets) and list the available icon names in the prompt.
+- (2026-10-04, binary formats) Writing a WAV parser and its own test fixture, it put every header
+  field two bytes early in both, so its tests passed and real audio would have broken. For byte
+  layouts, give the offsets in the prompt and check them against a real file in review.
