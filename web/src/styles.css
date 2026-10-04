@@ -212,7 +212,8 @@ input[type="url"]:focus, select:focus, textarea:focus { outline: none; border-co
 .rename { flex: 1; padding: 0.15rem 0.25rem; }
 .rename input { width: 100%; padding: 0.3rem 0.45rem; font-size: 0.9rem; }
 /* Tasks listed under an open project */
-.task-line { display: flex; align-items: center; gap: 0.5rem; padding: 0.3rem 0.5rem; font-size: 0.85rem; color: var(--muted); }
+.task-line > button { display: flex; align-items: center; gap: 0.5rem; width: 100%; padding: 0.3rem 0.5rem; font-size: 0.85rem; color: var(--muted); text-align: left; }
+.task-line > button:hover, .task-line > button.active { color: var(--fg); }
 .task-dot { width: 0.45rem; height: 0.45rem; border-radius: 50%; flex: none; background: var(--muted); }
 .task-line.state-running .task-dot, .task-line.state-in_review .task-dot { background: var(--link); }
 .task-line.state-needs_input .task-dot, .task-line.state-waiting_resources .task-dot { background: var(--attn); }

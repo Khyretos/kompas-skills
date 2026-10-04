@@ -86,13 +86,16 @@ export function renderSidebar(s: AppState): SafeHtml {
             ${open ? html`
               <ul>
                 ${s.chats.filter((c) => c.projectId === p.id && !c.pinned).map((c) => chatRow(c))}
-                ${shown.slice(0, TASKS_SHOWN).map((t) => html`
-                  <li class="task-line state-${t.state}" title="${t.title}">
-                    <span class="task-dot" aria-hidden="true"></span><span class="nav-title">${t.title}</span>
+                ${shown.slice(0, s.allTasksShown.has(p.id) ? undefined : TASKS_SHOWN).map((t) => html`
+                  <li class="task-line state-${t.state}">
+                    <button class="nav-item ${s.openTaskId === t.id ? "active" : ""}" data-action="open-task" data-id="${t.id}" title="${t.title}">
+                      <span class="task-dot" aria-hidden="true"></span><span class="nav-title">${t.title}</span>
+                    </button>
                   </li>`)}
                 ${shown.length > TASKS_SHOWN ? html`
-                  <li class="more"><button class="nav-item" data-action="project-tasks" data-id="${p.id}">
-                    ${shown.length - TASKS_SHOWN} more in the task list</button></li>` : ""}
+                  <li class="more"><button class="nav-item" data-action="project-more" data-id="${p.id}"
+                    aria-expanded="${String(s.allTasksShown.has(p.id))}">
+                    ${s.allTasksShown.has(p.id) ? "Show fewer" : `${shown.length - TASKS_SHOWN} more`}</button></li>` : ""}
                 <li><button class="nav-item new-in-project" data-action="new-chat" data-project="${p.id}">${icon("plus")} New chat here</button></li>
               </ul>` : ""}
           </li>`;

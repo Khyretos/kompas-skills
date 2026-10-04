@@ -191,6 +191,12 @@ export function initResize(shell: HTMLElement): void {
     }
   }
 
+  // Opening a task from the sidebar shows the right panel even when it was collapsed.
+  shell.addEventListener("kk-expand", (e) => {
+    const side = (e as CustomEvent<Side>).detail;
+    if (shell.hasAttribute(`data-${side}-collapsed`)) setCollapsed(side, false);
+  });
+
   load();
 
   const handles = [makeHandle("left"), makeHandle("right")];

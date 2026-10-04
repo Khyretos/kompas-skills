@@ -38,6 +38,7 @@ export interface AppState {
   section: "chat" | "assets" | "capabilities"; // what the middle of the screen shows
   capabilities?: import("./views/capabilities").Capabilities; // loaded when the Capabilities section opens
   expandedProjects: Set<string>; // projects open in the sidebar
+  allTasksShown: Set<string>; // projects whose sidebar task list shows every task ("N more" pressed)
   activeProjectId?: string; // project picked in the sidebar (tasks pane, new chats)
   chatMenuId?: string; // chat whose options menu is open
   movingChatId?: string; // chat whose "Move to project" list is open
@@ -59,6 +60,7 @@ export const store = new Store<AppState>({
   pane: "main",
   section: "chat",
   expandedProjects: new Set(),
+  allTasksShown: new Set(),
   isAdmin: false,
   theme: "system",
   machinesRefresh: 5,

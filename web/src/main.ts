@@ -165,7 +165,7 @@ function render(s: AppState, prev: AppState): void {
   if (s.section === "capabilities" && changed(s, prev, ["capabilities", "section"])) mount($("#caps"), renderCapabilities(s.capabilities));
 
   if (changed(s, prev, ["chats", "projects", "tasks", "activeChatId", "activeProjectId", "expandedProjects",
-    "chatMenuId", "movingChatId", "renamingChatId", "server", "userName", "logoVersion", "section"])) {
+    "chatMenuId", "movingChatId", "renamingChatId", "server", "userName", "logoVersion", "section", "allTasksShown", "openTaskId"])) {
     remount($("#left"), renderSidebar(s));
   }
   if (s.renamingChatId && s.renamingChatId !== prev.renamingChatId) {
@@ -367,7 +367,6 @@ function wire(shell: HTMLElement): void {
       else expanded.add(id);
       store.set({ expandedProjects: expanded, activeProjectId: id, taskScope: "project" });
     },
-    "project-tasks": (el) => store.set({ activeProjectId: el.dataset.id, taskScope: "project", rightTab: "tasks", pane: "right" }),
     "gpu-toggle": (el) => {
       const open = new Set(store.get().gpuOpen);
       const k = el.dataset.gpu ?? "";
@@ -462,7 +461,18 @@ function wire(shell: HTMLElement): void {
       if (c && confirm(`Delete "${c.title}" and its messages? This can't be undone.`)) removeChat(c.id);
       else store.set({ chatMenuId: undefined });
     },
-    "open-task": (el) => store.set({ openTaskId: el.dataset.id, rightTab: "tasks", pane: "right" }),
+    // Opens the task detail from anywhere (sidebar, chat, task list): back to the chat
+    // section, Tasks tab, and the right panel shown even when it was collapsed.
+    "open-task": (el) => {
+      store.set({ openTaskId: el.dataset.id, rightTab: "tasks", pane: "right", section: "chat" });
+      shell.dispatchEvent(new CustomEvent("kk-expand", { detail: "right" }));
+    },
+    "project-more": (el) => {
+      const all = new Set(store.get().allTasksShown);
+      const id = el.dataset.id ?? "";
+      if (all.has(id)) all.delete(id); else all.add(id);
+      store.set({ allTasksShown: all });
+    },
     tab: (el) => {
       store.set({ rightTab: el.dataset.tab as AppState["rightTab"], openTaskId: undefined });
       if (el.dataset.tab === "access") void loadAccess();

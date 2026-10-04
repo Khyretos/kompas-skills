@@ -139,6 +139,10 @@ const tasks: Task[] = [
       { kind: "review", at: ago(10), model: "DeepSeek", verdict: "pass", note: "Matches CMakeLists.txt." },
     ],
   },
+  ...["Profile shader compile times", "Split the asset loader into its own module", "Document the console commands"].map((title, i) => ({
+    id: `t-kk-${i + 1}`, projectId: "p-kk", title, description: `**Goal:** ${title}.`,
+    state: "queued" as const, progress: 0, step: "Waiting", role: "worker" as const, model: "Qwen3.5-9B", events: [],
+  })),
   {
     id: "t4", projectId: "p-kk", title: "Benchmark the renderer at 1440p",
     state: "waiting_resources", progress: 0, step: "Needs the GPU", role: "worker",
