@@ -2,7 +2,8 @@
 // visible rows are in the DOM), with search, category chips, a pack filter and a
 // detail panel. Scan progress and its results arrive live; nothing needs a reload.
 import { html, mount, onAction, type SafeHtml } from "../core/html";
-import type { AiMode, AssetDetail, AssetFacets, AssetFilter, AssetItem, AssetsApi, AssetsLive, AssetStatus, PreviewProgress, ScanProgress } from "../api/assets";
+import { GamesView } from "./games";
+import type { AiMode, AssetDetail, Licence, AssetFacets, AssetFilter, AssetItem, AssetsApi, AssetsLive, AssetStatus, PreviewProgress, ScanProgress } from "../api/assets";
 import { icon } from "./icons";
 import { relTime } from "../core/time";
 
@@ -24,7 +25,7 @@ const ONE: Record<string, string> = {
   image: "Image", shader: "Shader", font: "Font", "print-model": "3D print", "engine-file": "Engine file",
   archive: "Archive", doc: "Doc", material: "Material",
 };
-const label1 = (c: string) => ONE[c] ?? LABEL[c] ?? c;
+export const label1 = (c: string) => ONE[c] ?? LABEL[c] ?? c;
 
 // Category glyphs (same stroke style as views/icons.ts).
 const GLYPH: Record<string, string> = {
@@ -45,7 +46,7 @@ const GLYPH_OF: Record<string, string> = {
   animation: "anim", texture: "image", sprite: "image", image: "image", vfx: "vfx", font: "font", shader: "code",
   "engine-file": "code", material: "image", junk: "junk",
 };
-function glyph(category: string): SafeHtml {
+export function glyph(category: string): SafeHtml {
   const d = GLYPH[GLYPH_OF[category] ?? "file"];
   return html`<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`;
 }
@@ -87,7 +88,7 @@ export function bytes(n: number): string {
   return i === 0 ? `${n} B` : `${n.toFixed(n < 10 ? 1 : 0)} ${units[i]}`;
 }
 
-function toast(message: string): void {
+export function toast(message: string): void {
   const t = document.createElement("div");
   t.className = "toast";
   t.setAttribute("role", "alert");
@@ -117,6 +118,11 @@ export class AssetsView {
   private stale = new Set<number>(); // pages to reload because previews arrived
   private staleTimer = 0;
 
+  private tab: "library" | "games" = "library";
+  private shownAiMode?: AiMode;
+  private gamesView?: GamesView;
+  private licences?: Licence[]; // for the admin's licence picker, loaded on first need
+
   constructor(private el: HTMLElement, private api: AssetsApi, private isAdmin: () => boolean) {}
 
   /** Builds the page the first time it is shown; later calls only refresh it. */
@@ -127,7 +133,11 @@ export class AssetsView {
       <header class="assets-head">
         <button class="icon-btn only-phone" data-action="pane" data-pane="left" aria-label="Projects and chats">${icon("menu")}</button>
         <div class="assets-title">
-          <h1>Assets</h1>
+          <div class="assets-title-row"><h1>Assets</h1>
+            <div class="seg asset-tabs" role="group" aria-label="View">
+              <button data-action="asset-tab" data-tab="library" aria-pressed="true">Library</button>
+              <button data-action="asset-tab" data-tab="games" aria-pressed="false">Games</button>
+            </div></div>
           <p class="muted" id="asset-summary" aria-live="polite"></p>
           <p class="asset-previews-left" id="asset-previews" hidden></p>
           <p class="asset-ai-line" id="asset-ai" aria-live="polite"></p>
@@ -149,7 +159,8 @@ export class AssetsView {
           <div class="asset-empty" id="asset-empty" hidden></div>
         </div>
         <aside class="asset-detail" id="asset-detail" aria-label="Asset details" hidden></aside>
-      </div>`);
+      </div>
+      <div class="asset-games" id="asset-games" hidden></div>`);
 
     const q = this.el.querySelector<HTMLInputElement>("#asset-q")!;
     q.addEventListener("input", () => {
@@ -171,9 +182,16 @@ export class AssetsView {
       const t = ev.target as HTMLSelectElement;
       if (t.id === "asset-ai-mode") void this.setAiMode(t.value as AiMode);
       else if (t.id === "asset-cat-select" && this.selected !== undefined && t.value) void this.setCategory(this.selected, t.value);
+      else if (t.id === "asset-licence-select") {
+        if (t.value === "new") {
+          const form = this.el.querySelector<HTMLFormElement>("#asset-licence-form");
+          if (form) { form.hidden = false; form.querySelector("input")?.focus(); }
+        } else void this.linkLicence(Number(t.dataset.pack), t.value ? Number(t.value) : null);
+      }
     });
     this.el.addEventListener("submit", (ev) => {
       const form = ev.target as HTMLFormElement;
+      if (form.id === "asset-licence-form") { ev.preventDefault(); void this.addLicence(form); return; }
       if (form.id !== "asset-tag-form") return;
       ev.preventDefault();
       const input = form.querySelector<HTMLInputElement>("input")!;
@@ -191,6 +209,7 @@ export class AssetsView {
       "asset-cat": (b) => this.setFilter({ category: b.dataset.cat || undefined }),
       "asset-open": (b) => this.open(Number(b.dataset.id)),
       "asset-close": () => this.closeDetail(),
+      "asset-tab": (b) => this.setTab(b.dataset.tab === "games" ? "games" : "library"),
       "asset-pack": (b) => {
         this.closeDetail();
         const pack = Number(b.dataset.pack);
@@ -330,9 +349,29 @@ export class AssetsView {
       ? html`<button class="btn" data-action="asset-scan">${icon("spark")} Scan now</button>` : ""}`);
   }
 
+  /** Library (the grid) or Games (profiles, needs and picks). */
+  private setTab(tab: "library" | "games"): void {
+    if (tab === this.tab) return;
+    this.tab = tab;
+    for (const b of this.el.querySelectorAll<HTMLElement>('[data-action="asset-tab"]')) b.setAttribute("aria-pressed", String(b.dataset.tab === tab));
+    this.el.classList.toggle("games-tab", tab === "games");
+    const games = this.el.querySelector<HTMLElement>("#asset-games")!;
+    games.hidden = tab !== "games";
+    if (tab === "games") {
+      this.gamesView ??= new GamesView(games, this.api, () => this.status?.categories ?? [], (id) => {
+        this.setTab("library");
+        void this.open(id);
+      });
+      this.gamesView.show();
+    } else {
+      this.renderGrid(true);
+    }
+  }
+
   private onLive(ev: AssetsLive): void {
     if (!this.started) return;
     if (ev === null) { void this.refresh(false); return; } // missed events: reload
+    if (ev.games) this.gamesView?.onGames(ev.games);
     if (ev.scan) this.onProgress(ev.scan);
     if (ev.previews) this.onPreviews(ev.previews.ids, ev.previews.progress);
     if (ev.ai) {
@@ -362,6 +401,9 @@ export class AssetsView {
     const box = this.el.querySelector<HTMLElement>("#asset-ai");
     const p = this.status?.ai;
     if (!box || !p) return;
+    // The Games tab offers drafts and picks only while AI tagging is on.
+    if (this.shownAiMode !== undefined && this.shownAiMode !== p.mode) this.gamesView?.onGames({ game: 0 });
+    this.shownAiMode = p.mode;
     const state = p.mode === "off" ? "AI tagging is off"
       : p.waiting ? `AI tagging waits for the night (${nightWindow()})`
       : p.running ? `Describing assets · ${num.format(p.todo)} left`
@@ -689,6 +731,7 @@ export class AssetsView {
     this.el.classList.add("detail-open");
     if (opening) this.renderGrid(true);
     try {
+      if (this.isAdmin() && !this.licences) this.licences = await this.api.licences().catch(() => undefined);
       const d = await this.api.detail(id);
       if (this.selected !== id) return;
       if (!d.preview && d.previewState === null && PREVIEWABLE.has(d.ext)) void this.api.wantPreviews([id]).catch(() => undefined);
@@ -746,6 +789,53 @@ export class AssetsView {
       </div></section>`;
   }
 
+  /** The pack's licence, and for an admin the picker that links one (never guessed). */
+  private licenceRow(d: AssetDetail): SafeHtml {
+    const l = d.licence;
+    const shown = l
+      ? html`<span class="chip ${l.commercial ? "ship-ok" : "ship-no"}">${l.commercial ? "OK to ship" : "Not for a sold game"}</span>
+        ${l.url ? html`<a href="${l.url}" target="_blank" rel="noopener noreferrer">${l.name}</a>` : html`<span>${l.name}</span>`}
+        ${l.attribution ? html`<small class="muted">Credit the author.</small>` : ""}`
+      : html`<span class="chip ship-no">Not cleared to ship</span> <small class="muted">No licence linked to this pack yet.</small>`;
+    if (!this.isAdmin() || !this.licences) return shown;
+    return html`${shown}
+      <select id="asset-licence-select" class="asset-cat-select" data-pack="${d.packId}" aria-label="Licence of the pack ${d.pack}">
+        <option value="">${l ? "Unlink the licence" : "Link a licence…"}</option>
+        ${this.licences.map((x) => html`<option value="${x.id}" ${x.id === l?.id ? "selected" : ""}>${x.name}${x.commercial ? "" : " (not for sale)"}</option>`)}
+        <option value="new">New licence…</option>
+      </select>
+      <form id="asset-licence-form" class="asset-licence-form" data-pack="${d.packId}" hidden>
+        <input name="name" maxlength="80" placeholder="Licence name, e.g. Synty Standard EULA" aria-label="Licence name" required>
+        <input name="url" type="url" placeholder="https://… link to the licence text" aria-label="Link to the licence text">
+        <label class="asset-check"><input type="checkbox" name="commercial"> Allows selling the game</label>
+        <label class="asset-check"><input type="checkbox" name="attribution"> Credit required</label>
+        <div class="row"><button class="btn primary" type="submit">Add and link</button></div>
+      </form>`;
+  }
+
+  private async linkLicence(pack: number, licence: number | null): Promise<void> {
+    try {
+      await this.api.linkLicence(pack, licence);
+      this.licences = await this.api.licences();
+      if (this.selected !== undefined) await this.open(this.selected, false);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : String(e));
+      if (this.selected !== undefined) void this.open(this.selected, false);
+    }
+  }
+
+  private async addLicence(form: HTMLFormElement): Promise<void> {
+    const v = (k: string) => form.elements.namedItem(k) as HTMLInputElement;
+    try {
+      const l = await this.api.addLicence({
+        name: v("name").value, url: v("url").value || undefined, commercial: v("commercial").checked, attribution: v("attribution").checked,
+      });
+      await this.linkLicence(Number(form.dataset.pack), l.id);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : String(e));
+    }
+  }
+
   private renderDetail(d: AssetDetail): SafeHtml {
     const where = d.container ? `${d.container} › ${d.path}` : d.path;
     return html`
@@ -758,8 +848,7 @@ export class AssetsView {
       <dl class="asset-facts">
         <dt>Where</dt><dd><code>${where}</code></dd>
         <dt>Pack</dt><dd><button class="link" data-action="asset-pack" data-pack="${d.packId}">${d.pack}</button></dd>
-        <dt>Licence</dt><dd><span class="chip ship-no">Not cleared to ship</span>
-          <small class="muted">No licence linked to this pack yet.</small></dd>
+        <dt>Licence</dt><dd>${this.licenceRow(d)}</dd>
         <dt>Category</dt><dd>${label1(d.category)} <small class="muted">(${d.rule})</small>
           <select id="asset-cat-select" class="asset-cat-select" aria-label="Change the category">
             <option value="">Change…</option>

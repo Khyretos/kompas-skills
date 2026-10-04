@@ -4,6 +4,7 @@
 
 pub mod ai;
 mod classify;
+mod games;
 mod preview;
 mod scan;
 mod zipindex;
@@ -53,6 +54,7 @@ pub fn routes() -> Router<AppState> {
         .route("/assets/{id}/category/keep", post(keep_category))
         .route("/assets/{id}/tags", post(add_tag))
         .route("/assets/{id}/tags/{tag}", axum::routing::delete(remove_tag))
+        .merge(games::routes())
 }
 
 /// sqlite-vec for every SQLite connection opened from now on (call before the pool).
@@ -73,6 +75,11 @@ pub fn spawn(state: AppState) {
     tokio::spawn(async move {
         tokio::time::sleep(Duration::from_secs(60)).await;
         loop {
+            match games::discover(&state.db).await {
+                Ok(n) if n > 0 => tracing::info!(games = n, "asset games found in the repos"),
+                Ok(_) => {}
+                Err(e) => tracing::warn!(error = ?e, "asset games"),
+            }
             if root.is_dir() {
                 if let Err(e) = scan::run(&state.db, &state.bus, &root).await {
                     tracing::error!(error = ?e, "asset scan");
@@ -413,8 +420,10 @@ async fn detail(State(s): State<AppState>, Path(id): Path<i64>) -> ApiResult<Jso
             .bind(pack_id)
             .fetch_all(&s.db)
             .await?;
+    let licence = games::licence_of_pack(&s.db, pack_id).await?;
     let mut out = item_json(item);
     let extra = json!({
+        "licence": licence,
         "packKind": pack_kind, "mtime": mtime, "rule": rule, "missingSince": missing, "sampleRate": rate,
         "channels": channels, "hasAlpha": alpha, "previewState": state, "previewError": error,
         "aiState": ai_state, "aiError": ai_error, "aiCaption": caption, "aiSubject": subject, "transcript": transcript,
@@ -440,7 +449,7 @@ async fn require_admin(s: &AppState, u: &User) -> ApiResult<()> {
 /// Tell every signed-in user that this asset changed (their grid and details update).
 fn changed(s: &AppState, id: i64) {
     let p = ai::PROGRESS.lock().unwrap().clone();
-    s.bus.send_all(crate::events::Event::Assets { scan: None, previews: None, ai: Some(json!({ "ids": [id], "progress": p })) });
+    s.bus.send_all(crate::events::Event::Assets { scan: None, previews: None, ai: Some(json!({ "ids": [id], "progress": p })), games: None });
 }
 
 async fn ai_status(State(s): State<AppState>) -> ApiResult<Json<Value>> {

@@ -199,6 +199,12 @@ impl Ai {
         }
     }
 
+    /// An OVMS stand-in for tests (chat and embeddings at the same URL).
+    #[cfg(test)]
+    pub fn fake(url: &str) -> Self {
+        Ai { http: reqwest::Client::new(), chat_url: url.into(), embed_url: url.into(), key: None, model: "Fake".into() }
+    }
+
     fn auth(&self, r: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
         match &self.key {
             Some(k) => r.bearer_auth(k),
@@ -245,6 +251,22 @@ impl Ai {
             .iter()
             .map(|d| shorten(&d["embedding"].as_array().map(|a| a.iter().filter_map(|x| x.as_f64()).map(|x| x as f32).collect::<Vec<_>>()).unwrap_or_default()))
             .collect())
+    }
+
+    /// Orders documents by how well they answer the query (`Reranker` on ovms-cpu):
+    /// (index into `docs`, score), best first.
+    pub async fn rerank(&self, query: &str, docs: &[String]) -> Result<Vec<(usize, f64)>> {
+        let body = json!({ "model": "Reranker", "query": query, "documents": docs, "top_n": docs.len() });
+        let r = self.auth(self.http.post(format!("{}/rerank", self.embed_url)).json(&body)).send().await?;
+        let v = Self::ok_json(r).await?;
+        let results = v["results"].as_array().context("no results in the rerank answer")?;
+        let mut out: Vec<(usize, f64)> = results
+            .iter()
+            .filter_map(|x| Some((x["index"].as_u64()? as usize, x["relevance_score"].as_f64()?)))
+            .filter(|(i, _)| *i < docs.len())
+            .collect();
+        out.sort_by(|a, b| b.1.total_cmp(&a.1));
+        Ok(out)
     }
 }
 
@@ -530,7 +552,7 @@ fn facts(r: &Row) -> String {
 
 fn publish(bus: &Bus, ids: Vec<i64>) {
     let p = PROGRESS.lock().unwrap().clone();
-    bus.send_all(Event::Assets { scan: None, previews: None, ai: Some(json!({ "ids": ids, "progress": p })) });
+    bus.send_all(Event::Assets { scan: None, previews: None, ai: Some(json!({ "ids": ids, "progress": p })), games: None });
 }
 
 pub fn spawn(db: SqlitePool, bus: Bus, ai: Ai, previews: std::path::PathBuf) {

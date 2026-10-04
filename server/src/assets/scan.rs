@@ -42,7 +42,7 @@ fn set(bus: &Bus, f: impl FnOnce(&mut Progress)) {
         f(&mut p);
         p.clone()
     };
-    bus.send_all(crate::events::Event::Assets { scan: serde_json::to_value(snapshot).ok(), previews: None, ai: None });
+    bus.send_all(crate::events::Event::Assets { scan: serde_json::to_value(snapshot).ok(), previews: None, ai: None, games: None });
 }
 
 /// A file on disk, relative to the library root.

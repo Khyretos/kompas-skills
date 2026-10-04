@@ -29,6 +29,9 @@ pub enum Event {
         previews: Option<serde_json::Value>,
         #[serde(skip_serializing_if = "Option::is_none")]
         ai: Option<serde_json::Value>,
+        /// A game's profile, needs or picks changed: { game } (and { error } when a draft failed).
+        #[serde(skip_serializing_if = "Option::is_none")]
+        games: Option<serde_json::Value>,
     },
     /// Something the user can see changed (by another tab, a runner or the server):
     /// the web app reloads that list. `what` is one of tasks, projects, chats,

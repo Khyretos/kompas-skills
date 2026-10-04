@@ -26,7 +26,12 @@ export interface AssetItem {
 
 export interface AssetTag { id: number; kind: string; name: string; by: "ai" | "kees" }
 
+/** A licence Kees links to packs (never guessed). */
+export interface Licence { id: number; name: string; commercial: boolean; attribution: boolean; url: string | null; notes?: string | null; packs?: number }
+export type LicenceInput = { name: string; commercial: boolean; attribution: boolean; url?: string; notes?: string };
+
 export interface AssetDetail extends AssetItem {
+  licence: Licence | null; // the pack's licence
   packKind: string;
   mtime: number | null;
   rule: string; // why it got its category
@@ -77,11 +82,42 @@ export interface AiProgress {
   lastError: string | null;
 }
 
+/** A game the picks are for: from a game repo (kk-engine) or added by hand ("own"). */
+export interface Game {
+  id: number; key: string; name: string; source: string; path: string | null; about: string;
+  genre: string; artStyle: string; setting: string;
+  commercial: boolean; // will be sold: only packs whose licence allows it
+  profileBy: "none" | "ai" | "kees"; // "ai": a draft to confirm
+  missingSince: string | null;
+  drafting: boolean;
+  needs?: number; candidates?: number; // in the list only
+}
+export type PickStatus = "suggested" | "candidate" | "rejected";
+export interface GamePick {
+  asset: AssetItem & { licence: Licence | null };
+  status: PickStatus;
+  reason: string | null; // the AI's one-line reason
+  by: "ai" | "kees";
+}
+export interface Need {
+  id: number; text: string; category: string | null; by: "ai" | "kees";
+  pickedAt: string | null; error: string | null;
+  state: null | "queued" | "picking";
+  picks: GamePick[];
+}
+export interface GameDetail extends Omit<Game, "needs" | "candidates"> {
+  needs: Need[];
+  styleWarning: string | null;
+  aiOn: boolean;
+}
+export type GameProfile = Pick<Game, "genre" | "artStyle" | "setting" | "commercial">;
+
 /** A live Assets event: scan progress, or previews that are ready. `null`: events were missed. */
 export type AssetsLive = null | {
   scan?: ScanProgress;
   previews?: { ids: number[]; progress: PreviewProgress };
   ai?: { ids: number[]; progress: AiProgress };
+  games?: { game: number; error?: string }; // a game's profile, needs or picks changed
 };
 
 export interface AssetStatus {
@@ -136,6 +172,24 @@ export interface AssetsApi {
   keepCategory(id: number): Promise<void>;
   addTag(id: number, name: string): Promise<AssetTag>;
   removeTag(id: number, tagId: number): Promise<void>;
+  games(): Promise<Game[]>;
+  game(id: number): Promise<GameDetail>;
+  addGame(name: string): Promise<Game>;
+  removeGame(id: number): Promise<void>;
+  setProfile(id: number, p: GameProfile): Promise<void>;
+  /** The AI drafts the profile and needs from the game's own docs (arrives live). */
+  draftProfile(id: number): Promise<void>;
+  addNeed(game: number, text: string, category: string | null): Promise<void>;
+  editNeed(id: number, text: string, category: string | null): Promise<void>;
+  removeNeed(id: number): Promise<void>;
+  /** Search, rerank and let the AI pick (arrives live). */
+  pickNeed(id: number): Promise<void>;
+  pickAll(game: number): Promise<void>;
+  setPick(need: number, asset: number, status: "candidate" | "rejected"): Promise<void>;
+  removePick(need: number, asset: number): Promise<void>;
+  licences(): Promise<Licence[]>;
+  addLicence(l: LicenceInput): Promise<Licence>;
+  linkLicence(pack: number, licence: number | null): Promise<void>;
   /** Asks for these previews first (the cards on screen). */
   wantPreviews(ids: number[]): Promise<void>;
   /** URL of a preview: t = 256 px image, l = 1024 px image, a = audio clip. */
@@ -190,6 +244,22 @@ export class HttpAssets implements AssetsApi {
   keepCategory(id: number) { return this.send("POST", `/assets/${id}/category/keep`); }
   addTag(id: number, name: string) { return this.send<AssetTag>("POST", `/assets/${id}/tags`, { name }); }
   removeTag(id: number, tagId: number) { return this.send("DELETE", `/assets/${id}/tags/${tagId}`); }
+  games() { return this.get<Game[]>("/assets/games"); }
+  game(id: number) { return this.get<GameDetail>(`/assets/games/${id}`); }
+  addGame(name: string) { return this.send<Game>("POST", "/assets/games", { name }); }
+  removeGame(id: number) { return this.send("DELETE", `/assets/games/${id}`); }
+  setProfile(id: number, p: GameProfile) { return this.send("PUT", `/assets/games/${id}`, p); }
+  draftProfile(id: number) { return this.send("POST", `/assets/games/${id}/draft`); }
+  addNeed(game: number, text: string, category: string | null) { return this.send("POST", `/assets/games/${game}/needs`, { text, category }).then(() => undefined); }
+  editNeed(id: number, text: string, category: string | null) { return this.send("PUT", `/assets/needs/${id}`, { text, category }); }
+  removeNeed(id: number) { return this.send("DELETE", `/assets/needs/${id}`); }
+  pickNeed(id: number) { return this.send("POST", `/assets/needs/${id}/pick`); }
+  pickAll(game: number) { return this.send("POST", `/assets/games/${game}/pick`); }
+  setPick(need: number, asset: number, status: "candidate" | "rejected") { return this.send("PUT", `/assets/needs/${need}/picks/${asset}`, { status }); }
+  removePick(need: number, asset: number) { return this.send("DELETE", `/assets/needs/${need}/picks/${asset}`); }
+  licences() { return this.get<Licence[]>("/assets/licences"); }
+  addLicence(l: LicenceInput) { return this.send<Licence>("POST", "/assets/licences", l); }
+  linkLicence(pack: number, licence: number | null) { return this.send("PUT", `/assets/packs/${pack}/licence`, { licence }); }
   async wantPreviews(ids: number[]) {
     await fetch("/api/assets/previews/want", {
       method: "POST", credentials: "same-origin",
