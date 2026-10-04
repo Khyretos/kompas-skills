@@ -113,6 +113,28 @@ afterwards.
 Known gap: the runner handles jobs on its polling thread, so it stops sending stats while
 a job waits for the prompt. Jobs should get their own thread (W2).
 
+### UI libraries and motion (decision, 2026-10-04)
+
+Kees's order: performance, then usability, then looks. The web app stays vanilla TypeScript.
+- No React-based kits (Kokonut UI; bklit ui if it is React/shadcn). manus.im is an AI product,
+  not a library: ideas only.
+- Motion uses plain CSS transitions (expand/collapse, card enter) and respects
+  prefers-reduced-motion.
+- A JS animation library is allowed only if CSS can't do the job, it is MIT and tiny (Motion's
+  vanilla `animate` mini, or anime.js v4), and the bundle size is measured. Anything that adds
+  noticeable weight is rejected.
+
+### PC agent guardrails (after the Hyprland test, 2026-10-04)
+
+- Never create a config or system file the user didn't ask to create. If the target is
+  missing, stop, report what is there, and ask. In code: a write_file to a path that a read in
+  the same answer found missing is blocked.
+- Never route around a refused or declined step with another tool; report it.
+- Check the live config format first: system_info reports the home folder, the Hyprland version
+  and which config exists (hyprland.lua or hyprland.conf).
+- Verify an effect before claiming success (`hyprctl getoption ...`), else say "not verified".
+- The runner reports a missing path as "no such file or folder", distinct from "not granted".
+
 ### Snappy and live, never a refresh (standing UI rule, Kees 2026-10-03)
 
 The app must feel quick and reactive. Nothing may need a page reload.

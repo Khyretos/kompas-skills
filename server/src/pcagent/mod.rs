@@ -27,7 +27,14 @@ fn system_prompt(machine: &str) -> String {
          Do every part of the request: after each result, call the next tool until all parts are done \
          (for \"install X and show its version\": install, then run the version command). Only say a step \
          worked when its result is \"done\" with \"exit: 0\", and quote the key output line. When a step \
-         failed, was refused or declined, say so plainly and stop."
+         failed, was refused or declined, say so plainly and stop. \
+         Never route around a refused or declined step with another tool (for example reading a refused \
+         file with shell); report it instead. Never create a config or system file the user did not ask \
+         you to create: if the file you were asked to change does not exist, stop, say what is there \
+         (list the folder) and ask. Before changing desktop or app settings, call system_info and use the \
+         config it reports (Hyprland: hyprland.lua or hyprland.conf, whichever exists). After a change, \
+         check its effect with a read-only command (Hyprland: `hyprctl getoption general:gaps_out`) before \
+         saying it worked; if you can't check, say it is not verified."
     )
 }
 
@@ -72,6 +79,8 @@ pub async fn run(s: AppState, user_id: String, chat_id: String, machine_id: Stri
         messages.push(json!({ "role": role, "content": text }));
     }
     let tools = tools::schema();
+    // Paths a read found missing during this answer (see the write_file guardrail).
+    let mut missing = std::collections::HashSet::<String>::new();
 
     for _ in 0..MAX_STEPS {
         let msg = match llm::chat_with_tools(&s.http, p, &role.model_id, &messages, &tools).await {
@@ -96,7 +105,18 @@ pub async fn run(s: AppState, user_id: String, chat_id: String, machine_id: Stri
                 .unwrap_or_else(|| json!({}));
             let result = match tools::to_job(name, &args) {
                 None => "Unknown tool or wrong arguments.".to_string(),
-                Some(job) => step(&s, &user_id, &chat_id, &machine_id, &job).await,
+                // Guardrail: a file found missing earlier in this answer is not created
+                // behind the user's back.
+                Some(job) if job["tool"] == "write_file" && job["path"].as_str().is_some_and(|p| missing.contains(p)) => {
+                    "Blocked: that file did not exist when you looked. Ask the user before creating a new file.".to_string()
+                }
+                Some(job) => {
+                    let r = step(&s, &user_id, &chat_id, &machine_id, &job).await;
+                    if r.contains("no such file") && let Some(p) = job["path"].as_str() {
+                        missing.insert(p.to_string());
+                    }
+                    r
+                }
             };
             messages.push(json!({ "role": "tool", "tool_call_id": call["id"], "content": result }));
         }

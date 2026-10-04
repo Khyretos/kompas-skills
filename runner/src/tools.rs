@@ -28,6 +28,7 @@ pub fn run(grants: &Grants, tool: &Tool, now: &str) -> Outcome {
             let path = Path::new(path);
             let canonical_path = match canonicalize(path) {
                 Ok(p) => p,
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Outcome { ok: false, output: format!("no such file or folder: {}", path.display()) },
                 Err(_) => return Outcome { ok: false, output: format!("not granted: {:?} on {}", Right::Read, path.display()) },
             };
 
@@ -60,6 +61,7 @@ pub fn run(grants: &Grants, tool: &Tool, now: &str) -> Outcome {
             let parent_path = path.parent().unwrap_or(Path::new("."));
             let canonical_parent = match canonicalize(parent_path) {
                 Ok(p) => p,
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Outcome { ok: false, output: format!("no such folder: {}", parent_path.display()) },
                 Err(_) => return Outcome { ok: false, output: format!("not granted: {:?} on {}", Right::Write, path.display()) },
             };
 
@@ -87,6 +89,7 @@ pub fn run(grants: &Grants, tool: &Tool, now: &str) -> Outcome {
             let path = Path::new(path);
             let canonical_path = match canonicalize(path) {
                 Ok(p) => p,
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Outcome { ok: false, output: format!("no such file or folder: {}", path.display()) },
                 Err(_) => return Outcome { ok: false, output: format!("not granted: {:?} on {}", Right::Read, path.display()) },
             };
 
@@ -134,6 +137,7 @@ pub fn run(grants: &Grants, tool: &Tool, now: &str) -> Outcome {
             let cwd = Path::new(cwd);
             let canonical_cwd = match canonicalize(cwd) {
                 Ok(p) => p,
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Outcome { ok: false, output: format!("no such folder: {}", cwd.display()) },
                 Err(_) => return Outcome { ok: false, output: format!("not granted: {:?} on {}", Right::Shell, cwd.display()) },
             };
 

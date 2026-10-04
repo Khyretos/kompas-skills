@@ -10,6 +10,10 @@ pub fn system_info() -> Outcome {
     let hostname = read_trim("/proc/sys/kernel/hostname");
     let package_managers = find_package_managers();
     let desktop = env::var("XDG_CURRENT_DESKTOP").ok().and_then(|v| if v.is_empty() { None } else { Some(v) });
+    let home = env::var("HOME").ok();
+    let user = env::var("USER").ok();
+    let hyprland_version = hyprland_version();
+    let hyprland_config = hyprland_config();
     let hyprland = hypr_runtime_exists();
     let polkit_agent = polkit_agent();
 
@@ -19,6 +23,10 @@ pub fn system_info() -> Outcome {
         "hostname": hostname,
         "package_managers": package_managers,
         "desktop": desktop,
+        "home": home,
+        "user": user,
+        "hyprland_version": hyprland_version,
+        "hyprland_config": hyprland_config,
         "hyprland": hyprland,
         "polkit_agent": polkit_agent
     });
@@ -61,6 +69,24 @@ fn find_package_managers() -> Vec<String> {
         .iter()
         .filter(|n| on_path(n))
         .map(|n| n.to_string())
+        .collect()
+}
+
+fn hyprland_version() -> Option<String> {
+    let out = std::process::Command::new("hyprctl")
+        .args(["version", "-j"])
+        .output()
+        .ok()?;
+    let v: serde_json::Value = serde_json::from_slice(&out.stdout).ok()?;
+    v["tag"].as_str().map(str::to_string)
+}
+
+fn hyprland_config() -> Vec<String> {
+    let Ok(home) = env::var("HOME") else { return Vec::new() };
+    ["hyprland.lua", "hyprland.conf"]
+        .iter()
+        .map(|f| format!("{home}/.config/hypr/{f}"))
+        .filter(|p| std::path::Path::new(p).is_file())
         .collect()
 }
 

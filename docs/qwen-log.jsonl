@@ -119,3 +119,5 @@
 {"name": "T3 approval card tests", "out": "web/tests/pcagent.spec.ts", "gpu_seconds": 62.1, "tokens": 1340, "lines": 66, "model": "Coder", "at": "2026-10-04T04:54:23"}
 {"name": "O1 pcactions uses output", "out": "web/src/views/pcactions.ts", "mode": "patch", "gpu_seconds": 9.8, "tokens": 150, "lines": 2, "attempts": 1, "model": "Coder", "at": "2026-10-04T05:13:39"}
 {"name": "O1 output.ts", "out": "web/src/core/output.ts", "gpu_seconds": 246.5, "tokens": 4755, "lines": 288, "model": "Coder", "at": "2026-10-04T05:17:36"}
+{"name": "R5 sysinfo home and hyprland", "out": "runner/src/sysinfo.rs", "mode": "patch", "gpu_seconds": 31.5, "tokens": 595, "lines": 2, "attempts": 1, "model": "Coder", "at": "2026-10-04T05:29:44"}
+{"name": "R5 tools missing paths", "out": "runner/src/tools.rs", "mode": "patch", "gpu_seconds": 42.5, "tokens": 847, "lines": 4, "attempts": 1, "model": "Coder", "at": "2026-10-04T05:29:55"}

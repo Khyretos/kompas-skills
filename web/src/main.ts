@@ -129,6 +129,7 @@ async function openChat(chatId?: string): Promise<void> {
 let messageList: KeyedList<MessageView> | undefined;
 
 let firstRender = true;
+let lastPcKey = "";
 
 /** True when any of these state fields changed since the last render. */
 const changed = (s: AppState, prev: AppState, keys: (keyof AppState)[]) => firstRender || keys.some((k) => s[k] !== prev[k]);
@@ -163,12 +164,20 @@ function render(s: AppState, prev: AppState): void {
   if (changed(s, prev, ["chats", "projects", "activeChatId", "activeProjectId", "messages", "roles", "tasks"])) {
     mount($("#conv-head"), renderHeader(s));
   }
-  if (changed(s, prev, ["machines", "pcMachineId"])) {
+  // Machine stats tick every second on "Live": only re-mount the picker and the cards
+  // when the list of computers or the cards really changed (a re-mount on every tick
+  // closed the dropdown and made the chat jump).
+  const pcKey = s.machines.filter((m) => m.id !== "server").map((m) => `${m.id}:${m.name}:${m.online}`).join("|");
+  if (firstRender || pcKey !== lastPcKey || s.pcMachineId !== prev.pcMachineId) {
     mount($("#pc-slot"), renderPcPicker(s.machines.filter((m) => m.id !== "server"), s.pcMachineId));
   }
-  if (changed(s, prev, ["pcActions", "machines"])) {
+  if (firstRender || s.pcActions !== prev.pcActions || pcKey !== lastPcKey) {
+    const box = $("#messages");
+    const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
     mount($("#pc-actions"), renderPcActions(s.pcActions, Object.fromEntries(s.machines.map((m) => [m.id, m.name]))));
+    if (atBottom) box.scrollTop = box.scrollHeight;
   }
+  lastPcKey = pcKey;
   const rightKeys: (keyof AppState)[] = s.rightTab === "tasks"
     ? ["rightTab", "tasks", "projects", "openTaskId", "editingTaskId", "taskScope", "activeProjectId", "activeChatId", "chats"]
     : s.rightTab === "access" ? ["rightTab", "grants", "accessHistory", "machines"]
