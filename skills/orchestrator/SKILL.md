@@ -14,3 +14,7 @@ Lessons for the orchestrator role. Numbered and dated, newest last.
   are sent. Fully literal edits (exact code given in the prompt) are applied by the orchestrator.
 - Never `pkill -f <pattern>` with a pattern that appears in your own command line: it kills
   your own shell. Use `pgrep -f '[d]ist/name'` (the bracket trick) and kill the pids you see.
+- PC agent prompts: tell the model to finish every part of a request (one tool call after
+  another), and to claim success only when a result says "done" with "exit: 0", quoting the key
+  output line. Give tool results outcome-first ("The step ran. State: done. Output: ..."), and
+  the end of long output, where the exit code is.

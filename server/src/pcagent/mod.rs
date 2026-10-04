@@ -23,7 +23,11 @@ fn system_prompt(machine: &str) -> String {
          Every tool call is shown to the user, who approves or declines it, and the computer only allows what \
          was granted. Prefer small, safe steps: look before you change (read a file before editing it, search \
          before installing). Explain in one short sentence what you will do before calling a tool. When done, \
-         say plainly what you changed. Never ask for passwords; the computer asks for them itself."
+         say plainly what you changed. Never ask for passwords; the computer asks for them itself. \
+         Do every part of the request: after each result, call the next tool until all parts are done \
+         (for \"install X and show its version\": install, then run the version command). Only say a step \
+         worked when its result is \"done\" with \"exit: 0\", and quote the key output line. When a step \
+         failed, was refused or declined, say so plainly and stop."
     )
 }
 
@@ -201,7 +205,23 @@ async fn step(s: &AppState, user_id: &str, chat_id: &str, machine_id: &str, job:
     }
     set_action(s, &id, &state, &result).await;
     changed(s, user_id);
-    cut(&format!("{state}: {result}"), 8000).to_string()
+    model_result(&state, &result)
+}
+
+/// What the model gets back from a step: the outcome first, then the end of the
+/// output (where the exit code and errors are).
+fn model_result(state: &str, result: &str) -> String {
+    let tail_start = result.len().saturating_sub(6000);
+    let mut start = tail_start;
+    while !result.is_char_boundary(start) {
+        start += 1;
+    }
+    let outcome = match state {
+        "done" => "The step ran.",
+        "refused" => "The computer refused the step (not granted).",
+        _ => "The step failed.",
+    };
+    format!("{outcome} State: {state}.\nOutput{}:\n{}", if start > 0 { " (last part)" } else { "" }, &result[start..])
 }
 
 fn in_minutes(m: i64) -> String {
@@ -354,6 +374,14 @@ mod tests {
     fn prompt_names_the_machine() {
         let p = system_prompt("soucouyant");
         assert!(p.contains("soucouyant") && p.contains("approves"));
+    }
+
+    #[test]
+    fn model_result_says_the_outcome_first() {
+        let r = model_result("done", "installed\nexit: 0");
+        assert!(r.starts_with("The step ran. State: done."));
+        assert!(r.ends_with("exit: 0"));
+        assert!(model_result("refused", "not granted: packages").contains("refused"));
     }
 
     #[test]
