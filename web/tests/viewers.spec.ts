@@ -14,7 +14,8 @@ test("a model opens the 3D viewer only on demand and closes cleanly", async ({ p
   const chunks: string[] = [];
   page.on("request", (r) => { if (r.url().includes("/chunks/model-")) chunks.push(r.url()); });
   await page.click('[data-action="asset-cat"][data-cat="3d-model"]');
-  await page.locator("li.asset-cell button.asset-card").first().click();
+  // The filtered grid arrives a moment later: click a card of that category, not the old first one.
+  await page.locator("li.asset-cell button.asset-card.cat-3d-model").first().click();
   expect(chunks).toHaveLength(0);
   const open = page.locator('#asset-detail [data-action="asset-view"]');
   await expect(open).toHaveText("View in 3D");
@@ -30,7 +31,8 @@ test("a model opens the 3D viewer only on demand and closes cleanly", async ({ p
 
 test("a picture opens in the zoomable viewer", async ({ page }) => {
   await page.click('[data-action="asset-cat"][data-cat="sprite"]');
-  await page.locator("li.asset-cell button.asset-card").first().click();
+  // The filtered grid arrives a moment later: click a card of that category, not the old first one.
+  await page.locator("li.asset-cell button.asset-card.cat-sprite").first().click();
   await page.locator('#asset-detail [data-action="asset-view"]').click();
   const dlg = page.locator("dialog.asset-viewer");
   await expect(dlg.locator(".img-stage[data-state=ready]")).toBeVisible();
