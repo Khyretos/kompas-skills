@@ -31,7 +31,7 @@ pub async fn ask(
         .bind(&machine_id)
         .fetch_one(&s.db)
         .await
-        .map_err(|_| ApiError::NotFound("Machine not found.".into()))?;
+        .map_err(|_| ApiError::NotFound("Machine not found."))?;
 
     let title = format!("kompanion ask ({})", machine_name);
     let chat_id = sqlx::query_scalar::<_, String>(
@@ -83,7 +83,7 @@ pub async fn ask(
         r.remove(&chat_id);
     });
 
-    Ok((StatusCode::ACCEPTED, json!({ "chatId": chat_id, "after": msg.at })))
+    Ok((StatusCode::ACCEPTED, json!({ "chatId": chat_id, "after": msg.at }).into()))
 }
 
 #[derive(Deserialize)]
@@ -106,7 +106,7 @@ pub async fn poll(
     .bind(&user_id)
     .fetch_optional(&s.db)
     .await?
-    .ok_or_else(|| ApiError::NotFound("Chat not found.".into()))?;
+    .ok_or_else(|| ApiError::NotFound("Chat not found."))?;
 
     let messages = sqlx::query_as::<_, (String, String, String)>(
         "SELECT author, text, at FROM messages WHERE chat_id = ? AND at > ? AND author <> 'user' ORDER BY at, rowid"
@@ -119,12 +119,15 @@ pub async fn poll(
     .map(|(author, text, at)| json!({ "author": author, "text": text, "at": at }))
     .collect::<Vec<_>>();
 
-    let pending = sqlx::query_as::<_, String>(
+    let pending = sqlx::query_as::<_, (String,)>(
         "SELECT summary FROM pc_actions WHERE chat_id = ? AND state = 'pending' ORDER BY created_at"
     )
     .bind(&chat_id)
     .fetch_all(&s.db)
-    .await?;
+    .await?
+    .into_iter()
+    .map(|r| r.0)
+    .collect::<Vec<_>>();
 
     let running = RUNNING.lock().unwrap().contains(&chat_id);
 

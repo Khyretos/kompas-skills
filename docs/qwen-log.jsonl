@@ -113,3 +113,5 @@
 {"name": "C6 main.ts change listener", "out": "web/src/main.ts", "mode": "patch", "gpu_seconds": 5.7, "tokens": 100, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-04T04:28:04"}
 {"name": "K2 runner ask.rs", "out": "runner/src/ask.rs", "gpu_seconds": 47.6, "tokens": 928, "lines": 105, "review": "skipped", "model": "Coder", "at": "2026-10-04T04:38:07"}
 {"name": "K2 server cli.rs", "out": "server/src/cli.rs", "gpu_seconds": 71.7, "tokens": 1400, "lines": 138, "review": "skipped", "model": "Coder", "at": "2026-10-04T04:38:31"}
+{"name": "fix runner/src/ask.rs", "out": "runner/src/ask.rs", "gpu_seconds": 46.0, "tokens": 958, "lines": 108, "review": "skipped", "model": "Coder", "at": "2026-10-04T04:40:30"}
+{"name": "fix server/src/cli.rs", "out": "server/src/cli.rs", "gpu_seconds": 71.7, "tokens": 1405, "lines": 139, "review": "skipped", "model": "Coder", "at": "2026-10-04T04:40:56"}

@@ -3,7 +3,7 @@
 use std::{thread, time::Duration};
 
 use serde_json::json;
-use ureq::Agent;
+use ureq::AgentBuilder;
 
 pub fn ask(server: &str, machine_id: &str, token: &str, question: &str) -> Result<(), String> {
     let agent = AgentBuilder::new()
@@ -13,12 +13,15 @@ pub fn ask(server: &str, machine_id: &str, token: &str, question: &str) -> Resul
     let base = server.trim_end_matches('/');
 
     // Step 2: Initial POST request
-    let mut resp = agent
+    let mut resp = match agent
         .post(format!("{base}/api/machines/{machine_id}/ask"))
         .header("Authorization", format!("Bearer {token}"))
         .header("X-Kompanion", "1")
         .send_json(&json!({"text": question}))
-        .call()?;
+    {
+        Ok(r) => r,
+        Err(e) => return Err(format!("can't reach {base}: {e}")),
+    };
 
     let body: serde_json::Value = resp.into_json().map_err(|e| e.to_string())?;
 
