@@ -2,11 +2,12 @@
 // Everything here is example data.
 import type { AccessEvent, GrantView } from "../views/access";
 import type { KompanionApi, ServerEvent } from "./client";
-import type { TaskState, AdminSettings, DaySummary, MachineStats, Chat, Message, ModelProvider, Project, RoleAssignment, Server, Task } from "./types";
+import type { PcAction, TaskState, AdminSettings, DaySummary, MachineStats, Chat, Message, ModelProvider, Project, RoleAssignment, Server, Task } from "./types";
 
 const grants: Record<string, GrantView[]> = {
   soucouyant: [{ target: "/home/kees/projects/kompanion", rights: ["read", "write"], grantedBy: "demo", grantedAt: "2026-10-01T10:00:00Z", expires: null }],
 };
+const actions: PcAction[] = [];
 const history: AccessEvent[] = [];
 
 const now = Date.now();
@@ -387,9 +388,29 @@ export class MockApi implements KompanionApi {
     if (i >= 0) chats.splice(i, 1);
   }
 
-  async listActions() { return []; }
-  async decideAction() {}
-  async send(chatId: string, text: string) {
+  async listActions(chatId: string) { return structuredClone(actions.filter((a) => (a as PcAction & { chatId?: string }).chatId === chatId)); }
+  async decideAction(id: string, decision: "approve" | "always" | "deny") {
+    const a = actions.find((x) => x.id === id);
+    if (!a || a.state !== "pending") throw new Error("This step was already decided.");
+    const step = (state: PcAction["state"], result: string | null, ms: number) =>
+      setTimeout(() => { a.state = state; a.result = result; this.emit({ type: "changed", what: "actions" }); }, ms);
+    if (decision === "deny") return step("denied", null, 0);
+    step("granting", null, 0);
+    if (decision === "always") {
+      (grants[a.machineId] ??= []).push({ target: "system", rights: ["packages", "root"], grantedBy: "demo",
+        grantedAt: new Date().toISOString(), expires: new Date(Date.now() + 86_400_000).toISOString() });
+      this.emit({ type: "changed", what: "access", machineId: a.machineId });
+    }
+    step("running", null, 300);
+    step("done", "htop 3.3.0 installed", 600);
+  }
+  async send(chatId: string, text: string, machineId?: string) {
+    if (machineId) {
+      const a = { id: id("a"), chatId, machineId, summary: "install htop with paru", needs: "packages + root (asks for the password on the PC)",
+        state: "pending", result: null, createdAt: new Date().toISOString() } as PcAction & { chatId: string };
+      actions.push(a);
+      setTimeout(() => this.emit({ type: "changed", what: "actions" }), 100);
+    }
     const user: Message = { id: id("m"), chatId, author: "user", text, at: new Date().toISOString() };
     messages.push(user);
     this.emit({ type: "message", message: structuredClone(user) });

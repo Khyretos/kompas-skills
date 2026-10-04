@@ -12,3 +12,5 @@ Lessons for the orchestrator role. Numbered and dated, newest last.
 - OVMS Coder cuts prompts at about 8k tokens (prompt_tokens 8194 is the sign). For files over
   about 20k characters, use patch mode with `"focus": [regex, ...]` so only the relevant lines
   are sent. Fully literal edits (exact code given in the prompt) are applied by the orchestrator.
+- Never `pkill -f <pattern>` with a pattern that appears in your own command line: it kills
+  your own shell. Use `pgrep -f '[d]ist/name'` (the bracket trick) and kill the pids you see.
