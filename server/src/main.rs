@@ -203,6 +203,8 @@ async fn main() -> anyhow::Result<()> {
         // One-line runner install (F6): public, the pairing code is the proof.
         .route("/install.sh", get(pairing::install_script))
         .route("/download/{file}", get(pairing::download))
+        // Asset previews: signed-in only, outside /api so the browser may cache them.
+        .route("/asset-preview/{file}", get(assets::preview_file))
         .fallback_service(web)
         // A route may set a stricter policy of its own (the uploaded logo).
         .layer(SetResponseHeaderLayer::if_not_present(

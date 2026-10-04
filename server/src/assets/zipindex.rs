@@ -20,6 +20,10 @@ pub struct Entry {
     pub size: u64,
     /// Where the entry's local header starts (zips only), for reading it later.
     pub offset: u64,
+    /// Packed size and compression method (zips only): 0 stored, 8 deflate.
+    pub csize: u64,
+    pub method: u16,
+    pub encrypted: bool,
 }
 
 fn u16_at(b: &[u8], i: usize) -> u16 {
@@ -102,8 +106,9 @@ pub fn zip_entries(path: &Path) -> io::Result<Vec<Entry>> {
     let mut i = 0;
     while i + 46 <= cd.len() && u32_at(&cd, i) == 0x0201_4b50 {
         let flags = u16_at(&cd, i + 8);
+        let method = u16_at(&cd, i + 10);
         let mut size = u32_at(&cd, i + 24) as u64;
-        let csize = u32_at(&cd, i + 20);
+        let mut csize = u32_at(&cd, i + 20) as u64;
         let name_len = u16_at(&cd, i + 28) as usize;
         let extra_len = u16_at(&cd, i + 30) as usize;
         let comment_len = u16_at(&cd, i + 32) as usize;
@@ -128,6 +133,7 @@ pub fn zip_entries(path: &Path) -> io::Result<Vec<Entry>> {
                     k += 8;
                 }
                 if csize == 0xFFFF_FFFF && body.len() >= k + 8 {
+                    csize = u64_at(body, k);
                     k += 8;
                 }
                 if offset == 0xFFFF_FFFF && body.len() >= k + 8 {
@@ -146,9 +152,32 @@ pub fn zip_entries(path: &Path) -> io::Result<Vec<Entry>> {
         if name.ends_with('/') {
             continue;
         }
-        out.push(Entry { name, size, offset: offset + shift });
+        out.push(Entry { name, size, offset: offset + shift, csize, method, encrypted: flags & 1 != 0 });
     }
     Ok(out)
+}
+
+/// Copies one zip entry, unpacked, into `out` (at most `limit` bytes). Stored and deflate only.
+pub fn copy_entry(zip: &Path, e: &Entry, out: &mut impl io::Write, limit: u64) -> io::Result<u64> {
+    if e.encrypted {
+        return Err(bad("encrypted entry"));
+    }
+    let mut f = File::open(zip)?;
+    let mut head = [0u8; 30];
+    f.seek(SeekFrom::Start(e.offset))?;
+    f.read_exact(&mut head)?;
+    if u32_at(&head, 0) != 0x0403_4b50 {
+        return Err(bad("no local header at the entry's offset"));
+    }
+    // The local header has its own name and extra lengths (the extra field often differs).
+    let skip = u16_at(&head, 26) as i64 + u16_at(&head, 28) as i64;
+    f.seek(SeekFrom::Current(skip))?;
+    let packed = io::BufReader::with_capacity(1 << 16, f).take(e.csize);
+    match e.method {
+        0 => io::copy(&mut packed.take(limit), out),
+        8 => io::copy(&mut flate2::read::DeflateDecoder::new(packed).take(limit), out),
+        m => Err(io::Error::new(io::ErrorKind::Unsupported, format!("compression method {m} is not supported"))),
+    }
 }
 
 /// Every asset in a Unity package, by the path it gets in the Unity project.
@@ -177,7 +206,7 @@ pub fn unitypackage_entries(path: &Path) -> io::Result<Vec<Entry>> {
     }
     let mut out: Vec<Entry> = sizes
         .into_iter()
-        .filter_map(|(guid, size)| names.remove(&guid).filter(|n| !n.is_empty()).map(|name| Entry { name, size, offset: 0 }))
+        .filter_map(|(guid, size)| names.remove(&guid).filter(|n| !n.is_empty()).map(|name| Entry { name, size, offset: 0, csize: 0, method: 0, encrypted: false }))
         .collect();
     out.sort_by(|a, b| a.name.cmp(&b.name));
     Ok(out)
@@ -243,9 +272,64 @@ mod tests {
         // The offset points at the entry's local header.
         let bytes = std::fs::read(&p).unwrap();
         assert_eq!(u32_at(&bytes, e[1].offset as usize), 0x0403_4b50);
+        let mut data = vec![];
+        copy_entry(&p, &e[0], &mut data, u64::MAX).unwrap();
+        assert_eq!(data, b"abcde");
+        let mut data = vec![];
+        copy_entry(&p, &e[0], &mut data, 3).unwrap();
+        assert_eq!(data, b"abc", "the limit caps the copy");
         std::fs::write(&p, b"not a zip at all, just text").unwrap();
         assert!(zip_entries(&p).is_err());
         std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn unpacks_a_deflated_entry() {
+        // Built with the flate2 encoder: one deflated entry, read back through the directory.
+        use flate2::{Compression, write::DeflateEncoder};
+        let body = b"RIFF....WAVEfmt the same words again and again and again and again".repeat(20);
+        let mut enc = DeflateEncoder::new(vec![], Compression::default());
+        enc.write_all(&body).unwrap();
+        let packed = enc.finish().unwrap();
+        let name = b"Tracks/a.wav";
+        let mut z = vec![];
+        z.extend(0x0403_4b50u32.to_le_bytes());
+        z.extend([20, 0, 0, 0, 8, 0]);
+        z.extend([0u8; 8]);
+        z.extend((packed.len() as u32).to_le_bytes());
+        z.extend((body.len() as u32).to_le_bytes());
+        z.extend((name.len() as u16).to_le_bytes());
+        z.extend(4u16.to_le_bytes());
+        z.extend(name);
+        z.extend([0xAA, 0xBB, 0, 0]); // a local-only extra field
+        z.extend(&packed);
+        let cd_off = z.len() as u32;
+        let mut cd = vec![];
+        cd.extend(0x0201_4b50u32.to_le_bytes());
+        cd.extend([20, 0, 20, 0, 0, 0, 8, 0]);
+        cd.extend([0u8; 8]);
+        cd.extend((packed.len() as u32).to_le_bytes());
+        cd.extend((body.len() as u32).to_le_bytes());
+        cd.extend((name.len() as u16).to_le_bytes());
+        cd.extend([0u8; 12]);
+        cd.extend(0u32.to_le_bytes());
+        cd.extend(name);
+        z.extend(&cd);
+        z.extend(0x0605_4b50u32.to_le_bytes());
+        z.extend([0u8; 4]);
+        z.extend(1u16.to_le_bytes());
+        z.extend(1u16.to_le_bytes());
+        z.extend((cd.len() as u32).to_le_bytes());
+        z.extend(cd_off.to_le_bytes());
+        z.extend([0, 0]);
+        let p = std::env::temp_dir().join(format!("kk-deflate-{}.zip", std::process::id()));
+        std::fs::write(&p, z).unwrap();
+        let e = zip_entries(&p).unwrap();
+        assert_eq!((e[0].method, e[0].csize as usize), (8, packed.len()));
+        let mut out = vec![];
+        copy_entry(&p, &e[0], &mut out, u64::MAX).unwrap();
+        assert_eq!(out, body);
+        std::fs::remove_file(&p).unwrap();
     }
 
     #[test]
@@ -268,7 +352,8 @@ mod tests {
         add("def/pathname", b"Assets/Goblin"); // a folder: no asset file
         t.into_inner().unwrap().finish().unwrap().flush().unwrap();
         let e = unitypackage_entries(&p).unwrap();
-        assert_eq!(e, vec![Entry { name: "Assets/Goblin/Run.fbx".into(), size: 7, offset: 0 }]);
+        assert_eq!(e.len(), 1);
+        assert_eq!((e[0].name.as_str(), e[0].size), ("Assets/Goblin/Run.fbx", 7));
         std::fs::remove_dir_all(&dir).unwrap();
     }
 }

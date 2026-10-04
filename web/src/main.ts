@@ -18,7 +18,8 @@ import { renderMachines, REFRESH_STEPS, setGpuView } from "./views/machines";
 import { grantFromForm, renderAccess, type GrantView } from "./views/access";
 import { renderPcActions, renderPcPicker } from "./views/pcactions";
 import { AssetsView } from "./views/assets";
-import { HttpAssets, MockAssets } from "./api/assets";
+import { HttpAssets } from "./api/assets";
+import { MockAssets } from "./api/assets-mock";
 import { renderActivity } from "./views/activity";
 
 let settingsModal: Modal | undefined;

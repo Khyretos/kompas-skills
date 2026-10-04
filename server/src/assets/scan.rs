@@ -42,7 +42,7 @@ fn set(bus: &Bus, f: impl FnOnce(&mut Progress)) {
         f(&mut p);
         p.clone()
     };
-    bus.send_all(crate::events::Event::Assets { scan: serde_json::to_value(snapshot).unwrap_or_default() });
+    bus.send_all(crate::events::Event::Assets { scan: serde_json::to_value(snapshot).ok(), previews: None });
 }
 
 /// A file on disk, relative to the library root.
@@ -347,7 +347,8 @@ async fn save_rows(db: &SqlitePool, pack_id: i64, container: &str, rows: Vec<Row
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT(container, path) DO UPDATE SET pack_id = excluded.pack_id, size = excluded.size,
                mtime = excluded.mtime, entry_offset = excluded.entry_offset, category = excluded.category,
-               rule = excluded.rule, is_meta = excluded.is_meta, seen_scan = excluded.seen_scan, missing_since = NULL",
+               rule = excluded.rule, is_meta = excluded.is_meta, seen_scan = excluded.seen_scan, missing_since = NULL,
+               preview_state = CASE WHEN asset.size <> excluded.size THEN NULL ELSE asset.preview_state END",
         )
         .bind(pack_id)
         .bind(&r.container)

@@ -2,7 +2,7 @@
 // visible rows are in the DOM), with search, category chips, a pack filter and a
 // detail panel. Scan progress and its results arrive live; nothing needs a reload.
 import { html, mount, onAction, type SafeHtml } from "../core/html";
-import type { AssetDetail, AssetFacets, AssetFilter, AssetItem, AssetsApi, AssetStatus, ScanProgress } from "../api/assets";
+import type { AssetDetail, AssetFacets, AssetFilter, AssetItem, AssetsApi, AssetsLive, AssetStatus, PreviewProgress, ScanProgress } from "../api/assets";
 import { icon } from "./icons";
 import { relTime } from "../core/time";
 
@@ -50,6 +50,25 @@ function glyph(category: string): SafeHtml {
   return html`<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`;
 }
 
+/** Extensions the server makes previews for (assets/preview.rs). */
+const PREVIEWABLE = new Set("png jpg jpeg tga bmp gif webp tif tiff psd dds exr hdr wav ogg mp3 flac aif aiff m4a aac opus wma".split(" "));
+
+/** 64 waveform levels (base-36 characters) as bars around the middle of a 64 x 36 box. */
+export function waveform(peaks: string): SafeHtml {
+  let d = "";
+  for (let i = 0; i < peaks.length; i++) {
+    const h = Math.max(0.5, (parseInt(peaks[i], 36) / 35) * 16);
+    d += `M${i + 0.5} ${(18 - h).toFixed(1)}v${(2 * h).toFixed(1)}`;
+  }
+  return html`<svg class="wave" viewBox="0 0 64 36" preserveAspectRatio="none" aria-hidden="true"><path d="${d}"/></svg>`;
+}
+
+export function clockTime(seconds: number): string {
+  if (seconds < 10) return `${seconds.toFixed(1)} s`; // short sound effects: "0.6 s", not "0:00"
+  const s = Math.round(seconds);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
 const num = new Intl.NumberFormat("en");
 export function bytes(n: number): string {
   const units = ["B", "KB", "MB", "GB", "TB"];
@@ -81,6 +100,12 @@ export class AssetsView {
   private frame = 0;
   private qTimer = 0;
   private started = false;
+  private audio = new Audio();
+  private playing?: number; // asset whose clip is playing
+  private wanted = new Set<number>(); // previews already asked for
+  private wantTimer = 0;
+  private stale = new Set<number>(); // pages to reload because previews arrived
+  private staleTimer = 0;
 
   constructor(private el: HTMLElement, private api: AssetsApi, private isAdmin: () => boolean) {}
 
@@ -94,6 +119,7 @@ export class AssetsView {
         <div class="assets-title">
           <h1>Assets</h1>
           <p class="muted" id="asset-summary" aria-live="polite"></p>
+          <p class="asset-previews-left" id="asset-previews" hidden></p>
         </div>
         <div class="asset-scan" id="asset-scan"></div>
       </header>
@@ -148,9 +174,15 @@ export class AssetsView {
         this.setFilter({});
       },
       "asset-scan": () => this.scan(),
+      "asset-play": (b) => this.play(Number(b.dataset.id)),
     });
+    this.audio.preload = "none";
+    this.audio.addEventListener("timeupdate", () => this.showPlayback());
+    this.audio.addEventListener("ended", () => this.stopPlayback());
+    this.audio.addEventListener("pause", () => this.showPlayback());
+    this.audio.addEventListener("error", () => { if (this.playing !== undefined) { this.stopPlayback(); toast("This clip can't be played."); } });
 
-    this.api.onScan((p) => this.onProgress(p));
+    this.api.onLive((ev) => this.onLive(ev));
     void this.refresh(true);
   }
 
@@ -183,6 +215,7 @@ export class AssetsView {
       this.pages.set(first.offset / PAGE, first.items);
       this.total = first.total;
       this.renderHead();
+      this.renderPreviewProgress();
       this.renderFilters();
       this.renderGrid(true);
       if (this.selected !== undefined) void this.open(this.selected, false);
@@ -252,9 +285,45 @@ export class AssetsView {
       ? html`<button class="btn" data-action="asset-scan">${icon("spark")} Scan now</button>` : ""}`);
   }
 
-  private onProgress(p: ScanProgress | null): void {
+  private onLive(ev: AssetsLive): void {
     if (!this.started) return;
-    if (p === null) { void this.refresh(false); return; } // missed events: reload
+    if (ev === null) { void this.refresh(false); return; } // missed events: reload
+    if (ev.scan) this.onProgress(ev.scan);
+    if (ev.previews) this.onPreviews(ev.previews.ids, ev.previews.progress);
+  }
+
+  /** Previews arrived: reload only the loaded pages that hold them, then redraw. */
+  private onPreviews(ids: number[], progress: PreviewProgress): void {
+    if (this.status) this.status = { ...this.status, previews: progress };
+    this.renderPreviewProgress();
+    if (!ids.length) return;
+    const want = new Set(ids);
+    for (const [page, items] of this.pages) if (items.some((a) => want.has(a.id))) this.stale.add(page);
+    if (this.selected !== undefined && want.has(this.selected)) void this.open(this.selected, false);
+    if (!this.stale.size || this.staleTimer) return;
+    this.staleTimer = window.setTimeout(async () => {
+      this.staleTimer = 0;
+      const pages = [...this.stale];
+      this.stale.clear();
+      const gen = this.gen;
+      try {
+        const got = await Promise.all(pages.map((p) => this.api.list(this.filter, p * PAGE, PAGE)));
+        if (gen !== this.gen) return;
+        got.forEach((res, i) => this.pages.set(pages[i], res.items));
+        this.renderGrid(true);
+      } catch { /* the next event tries again */ }
+    }, 700);
+  }
+
+  private renderPreviewProgress(): void {
+    const p = this.status?.previews;
+    const box = this.el.querySelector<HTMLElement>("#asset-previews");
+    if (!box) return;
+    box.hidden = !p?.running || !p.todo;
+    if (!box.hidden && p) box.textContent = `Making previews · ${num.format(p.todo)} left`;
+  }
+
+  private onProgress(p: ScanProgress): void {
     const wasRunning = this.status?.scan.running;
     if (this.status) this.status = { ...this.status, scan: p };
     this.renderScan(p);
@@ -329,23 +398,91 @@ export class AssetsView {
       }
       cards.push(this.card(item));
     }
-    // Keep keyboard focus on the same card across redraws.
-    const focused = (document.activeElement as HTMLElement | null)?.closest<HTMLElement>(".asset-card")?.dataset.id;
+    // Keep keyboard focus on the same card (or its play button) across redraws.
+    const active = document.activeElement as HTMLElement | null;
+    const focused = active?.closest<HTMLElement>(".asset-cell")?.dataset.id;
+    const onPlay = active?.classList.contains("asset-play");
     mount(list, html`${cards}`);
-    if (focused) list.querySelector<HTMLElement>(`.asset-card[data-id="${focused}"]`)?.focus();
+    if (focused) list.querySelector<HTMLElement>(`.asset-cell[data-id="${focused}"] ${onPlay ? ".asset-play" : ".asset-card"}`)?.focus();
+    this.showPlayback();
+    this.askForPreviews(from, to);
+  }
+
+  /** The cards on screen without a preview yet: ask the server to make theirs first. */
+  private askForPreviews(from: number, to: number): void {
+    const ids: number[] = [];
+    for (let i = from; i < to; i++) {
+      const a = this.pages.get(this.pageOf(i))?.[i % PAGE];
+      if (a && !a.preview && PREVIEWABLE.has(a.ext) && !this.wanted.has(a.id) && !a.container.endsWith(".unitypackage")) ids.push(a.id);
+    }
+    if (!ids.length) return;
+    ids.forEach((id) => this.wanted.add(id));
+    clearTimeout(this.wantTimer);
+    this.wantTimer = window.setTimeout(() => void this.api.wantPreviews(ids).catch(() => undefined), 400);
+  }
+
+  private play(id: number): void {
+    const a = this.find(id);
+    if (!a || a.preview !== "audio") return;
+    if (this.playing === id && !this.audio.paused) { this.audio.pause(); return; }
+    if (this.playing !== id) {
+      this.stopPlayback();
+      this.playing = id;
+      this.audio.src = this.api.previewUrl(a, "a");
+    }
+    this.audio.play().catch(() => { this.stopPlayback(); toast("This clip can't be played."); });
+    this.showPlayback();
+  }
+
+  private stopPlayback(): void {
+    this.audio.pause();
+    this.playing = undefined;
+    this.showPlayback();
+  }
+
+  /** Marks the playing card and its progress (no redraw: only a class and a CSS variable). */
+  private showPlayback(): void {
+    for (const el of this.el.querySelectorAll<HTMLElement>(".asset-cell.playing")) {
+      if (Number(el.dataset.id) !== this.playing || this.audio.paused) {
+        el.classList.remove("playing");
+        el.querySelector(".asset-play")?.setAttribute("aria-pressed", "false");
+      }
+    }
+    if (this.playing === undefined) return;
+    const cell = this.el.querySelector<HTMLElement>(`.asset-cell[data-id="${this.playing}"]`);
+    if (!cell) return;
+    const on = !this.audio.paused;
+    cell.classList.toggle("playing", on);
+    cell.querySelector(".asset-play")?.setAttribute("aria-pressed", String(on));
+    const d = this.audio.duration;
+    cell.style.setProperty("--played", d > 0 ? String(this.audio.currentTime / d) : "0");
+  }
+
+  private find(id: number): AssetItem | undefined {
+    for (const items of this.pages.values()) {
+      const a = items.find((x) => x.id === id);
+      if (a) return a;
+    }
+    return undefined;
   }
 
   private card(a: AssetItem): SafeHtml {
     const where = a.container ? `${a.container}/${a.path}` : a.path;
-    return html`<li><button class="asset-card cat-${a.category}" data-action="asset-open" data-id="${a.id}"
+    const thumb = a.preview === "image"
+      ? html`<img src="${this.api.previewUrl(a, "t")}" alt="" loading="lazy" decoding="async">`
+      : a.preview === "audio" && a.peaks ? waveform(a.peaks) : glyph(a.category);
+    const audio = a.preview === "audio";
+    return html`<li class="asset-cell ${audio ? "has-audio" : ""}" data-id="${a.id}"><button class="asset-card cat-${a.category}" data-action="asset-open" data-id="${a.id}"
         aria-pressed="${String(this.selected === a.id)}" title="${where}">
-      <span class="asset-thumb">${glyph(a.category)}<span class="asset-ext">${a.ext}</span></span>
+      <span class="asset-thumb ${a.preview ? `is-${a.preview}` : ""}">${thumb}<span class="asset-ext">${a.ext}</span>
+        ${a.duration ? html`<span class="asset-dur">${clockTime(a.duration)}</span>` : ""}</span>
       <span class="asset-text">
         <span class="asset-name">${a.name}</span>
         <span class="asset-pack">${a.pack}</span>
         <span class="asset-meta"><span>${label1(a.category)}</span><span>${bytes(a.size)}</span></span>
       </span>
-    </button></li>`;
+    </button>${audio ? html`<button class="asset-play" data-action="asset-play" data-id="${a.id}" aria-pressed="false"
+      aria-label="Play ${a.name}"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-play" d="M8 5v14l11-7z"/><path class="i-pause" d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg></button>` : ""}</li>`;
   }
 
   private async open(id: number, focus = true): Promise<void> {
@@ -358,6 +495,7 @@ export class AssetsView {
     try {
       const d = await this.api.detail(id);
       if (this.selected !== id) return;
+      if (!d.preview && d.previewState === null && PREVIEWABLE.has(d.ext)) void this.api.wantPreviews([id]).catch(() => undefined);
 
       mount(panel, this.renderDetail(d));
       if (focus && opening) panel.querySelector<HTMLElement>("h2")?.focus();
@@ -376,6 +514,20 @@ export class AssetsView {
     if (id !== undefined) this.el.querySelector<HTMLElement>(`.asset-card[data-id="${id}"]`)?.focus();
   }
 
+  private detailPreview(d: AssetDetail): SafeHtml {
+    if (d.preview === "image") {
+      return html`<div class="asset-preview is-image"><img src="${this.api.previewUrl(d, "l")}" alt="Preview of ${d.name}"></div>`;
+    }
+    if (d.preview === "audio") {
+      return html`<div class="asset-preview is-audio">${d.peaks ? waveform(d.peaks) : ""}
+        <audio controls preload="none" src="${this.api.previewUrl(d, "a")}" aria-label="Play ${d.name}"></audio></div>`;
+    }
+    const why = d.previewState === "none" || d.previewState === "error"
+      ? `No preview: ${d.previewError ?? "this file can't be read"}`
+      : PREVIEWABLE.has(d.ext) && !d.container.endsWith(".unitypackage") ? "Making the preview…" : "No preview for this kind of file yet";
+    return html`<div class="asset-preview cat-${d.category}">${glyph(d.category)}<span class="hint">${why}</span></div>`;
+  }
+
   private renderDetail(d: AssetDetail): SafeHtml {
     const where = d.container ? `${d.container} › ${d.path}` : d.path;
     return html`
@@ -383,7 +535,7 @@ export class AssetsView {
         <h2 tabindex="-1">${d.name}</h2>
         <button class="icon-btn" data-action="asset-close" aria-label="Close details">${icon("close")}</button>
       </div>
-      <div class="asset-preview cat-${d.category}">${glyph(d.category)}<span class="hint">Preview comes in the next update</span></div>
+      ${this.detailPreview(d)}
       ${d.missingSince ? html`<p class="warn">Gone from the library since ${relTime(d.missingSince)}.</p>` : ""}
       <dl class="asset-facts">
         <dt>Where</dt><dd><code>${where}</code></dd>
@@ -391,7 +543,11 @@ export class AssetsView {
         <dt>Licence</dt><dd><span class="chip ship-no">Not cleared to ship</span>
           <small class="muted">No licence linked to this pack yet.</small></dd>
         <dt>Category</dt><dd>${label1(d.category)} <small class="muted">(${d.rule})</small></dd>
-        <dt>Size</dt><dd>${bytes(d.size)} <small class="muted">.${d.ext}</small></dd>
+        <dt>Size</dt><dd>${bytes(d.size)} <small class="muted">.${d.ext}${d.width && d.height
+          ? ` · ${d.width} × ${d.height} px${d.hasAlpha ? ", transparent" : ""}` : ""}</small></dd>
+        ${d.duration ? html`<dt>Length</dt><dd>${clockTime(d.duration)} <small class="muted">${[
+          d.sampleRate ? `${(d.sampleRate / 1000).toFixed(1)} kHz` : "", d.channels === 1 ? "mono" : d.channels === 2 ? "stereo" : d.channels ? `${d.channels} channels` : "",
+        ].filter(Boolean).join(" · ")}${d.duration > 30 ? " · the preview plays the first 30 s" : ""}</small></dd>` : ""}
       </dl>
       ${d.packDocs.length ? html`
         <h3 class="label">Licence and readme files in this pack</h3>

@@ -21,9 +21,12 @@ pub enum Event {
     Machines {
         machines: Vec<serde_json::Value>,
     },
-    /// Asset library scan progress (Assets section), sent to everyone signed in.
+    /// Assets section news for everyone signed in: scan progress, or previews that are ready.
     Assets {
-        scan: serde_json::Value,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        scan: Option<serde_json::Value>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        previews: Option<serde_json::Value>,
     },
     /// Something the user can see changed (by another tab, a runner or the server):
     /// the web app reloads that list. `what` is one of tasks, projects, chats,

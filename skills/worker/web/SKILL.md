@@ -49,3 +49,12 @@
 17. A test must do what its name says. Don't leave the action as a comment ("// check the box");
     write the call (`await page.check("#activity-failed")`). Use the class names the view
     really renders.
+20. A mock that hands its objects to the view must replace changed objects, never edit them in
+    place: the view holds the same objects, so an in-place edit shows up without any event and a
+    "live update" test passes for the wrong reason. `this.items = this.items.map((a) => changed.has(a.id) ? { ...a, x } : a)`.
+21. An `<img>` in a fixed-height grid cell (`display: grid`) can stretch the cell. Give the box
+    `position: relative; overflow: hidden` and the img `position: absolute; inset: 0; object-fit: contain`.
+22. A button inside a card button is invalid HTML (and breaks clicks). Put the second button
+    (play) next to the card button in the same `li`, positioned over it.
+23. Media served to `<audio>` needs HTTP Range support (Safari will not play without it):
+    tower-http `ServeFile` gives it; check with a `Range: bytes=0-99` request expecting 206.

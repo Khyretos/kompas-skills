@@ -72,4 +72,36 @@ test.describe("Assets", () => {
     await page.click('[data-action="assets"]');
     await expect(page.locator(".asset-card:not(.skeleton)").first()).toBeVisible();
   });
+
+  test("sound cards show a waveform, their length and a play button", async ({ page }) => {
+    await page.click('[data-action="asset-cat"][data-cat="music"]');
+    const firstCard = page.locator("li.asset-cell").first();
+    await expect(firstCard.locator("svg.wave")).toBeVisible();
+    const durationText = await firstCard.locator(".asset-dur").textContent();
+    expect(durationText).toMatch(/^(\d+:\d\d|\d+\.\d s)$/);
+    await expect(firstCard.locator("button.asset-play")).toHaveAttribute("aria-label", /^Play /);
+  });
+
+  test("a picture's preview arrives live", async ({ page }) => {
+    await page.click('[data-action="asset-cat"][data-cat="texture"]');
+    const imgLocator = page.locator("li.asset-cell[data-id=\"243\"] .asset-thumb img");
+    await expect(imgLocator).toHaveCount(0);
+    await expect(imgLocator).toBeVisible({ timeout: 5000 });
+  });
+
+  test("a sound's details show a player and its length", async ({ page }) => {
+    await page.click('[data-action="asset-cat"][data-cat="music"]');
+    await page.locator("li.asset-cell").first().locator("button.asset-card").click();
+    const panel = page.locator("#asset-detail");
+    await expect(panel.locator("audio")).toBeAttached();
+    await expect(panel).toContainText("Length");
+  });
+
+  test("a picture's details show the large preview and its size", async ({ page }) => {
+    await page.click('[data-action="asset-cat"][data-cat="texture"]');
+    await page.locator("li.asset-cell[data-id=\"241\"] button.asset-card").click();
+    const panel = page.locator("#asset-detail");
+    await expect(panel.locator(".asset-preview.is-image img")).toBeVisible();
+    await expect(panel).toContainText("1024 × 1024 px");
+  });
 });

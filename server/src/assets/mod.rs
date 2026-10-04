@@ -3,8 +3,11 @@
 //! admin can start a scan. Pack files are listed from their index, never unpacked.
 
 mod classify;
+mod preview;
 mod scan;
 mod zipindex;
+
+pub use preview::serve as preview_file;
 
 use std::{path::PathBuf, time::Duration};
 
@@ -34,6 +37,7 @@ pub fn routes() -> Router<AppState> {
         .route("/assets/status", get(status))
         .route("/assets/facets", get(facets))
         .route("/assets/scan", post(start_scan))
+        .route("/assets/previews/want", post(want_previews))
         .route("/assets/{id}", get(detail))
 }
 
@@ -44,6 +48,7 @@ pub fn spawn(state: AppState) {
         tracing::info!("ASSET_LIBRARY not set: Assets section off");
         return;
     };
+    preview::spawn(state.db.clone(), state.bus.clone(), root.clone(), preview::dir(&state.config.database));
     tokio::spawn(async move {
         tokio::time::sleep(Duration::from_secs(60)).await;
         loop {
@@ -51,6 +56,7 @@ pub fn spawn(state: AppState) {
                 if let Err(e) = scan::run(&state.db, &state.bus, &root).await {
                     tracing::error!(error = ?e, "asset scan");
                 }
+                preview::wake();
             } else {
                 tracing::warn!(path = %root.display(), "asset library not mounted");
             }
@@ -74,8 +80,22 @@ async fn start_scan(State(s): State<AppState>, Extension(u): Extension<User>) ->
         if let Err(e) = scan::run(&s.db, &s.bus, &root).await {
             tracing::error!(error = ?e, "asset scan");
         }
+        preview::wake();
     });
     Ok(StatusCode::ACCEPTED)
+}
+
+#[derive(Deserialize)]
+pub struct Want {
+    ids: Vec<i64>,
+}
+
+/// The cards someone is looking at: their previews are made first.
+async fn want_previews(Json(w): Json<Want>) -> StatusCode {
+    for id in w.ids.into_iter().take(200).rev() {
+        preview::prioritise(id);
+    }
+    StatusCode::NO_CONTENT
 }
 
 async fn status(State(s): State<AppState>) -> ApiResult<Json<Value>> {
@@ -92,11 +112,13 @@ async fn status(State(s): State<AppState>) -> ApiResult<Json<Value>> {
     .fetch_one(&s.db)
     .await?;
     let progress = scan::PROGRESS.lock().unwrap().clone();
+    let previews = preview::PROGRESS.lock().unwrap().clone();
     Ok(Json(json!({
         "configured": root().is_some(),
         "mounted": root().is_some_and(|r| r.is_dir()),
         "assets": assets, "bytes": bytes, "packs": packs,
         "scan": progress,
+        "previews": previews,
         "lastScan": last.map(|(started, finished, files, entries, unity, read, errors, ms)| json!({
             "startedAt": started, "finishedAt": finished, "files": files, "entries": entries, "unity": unity,
             "packsRead": read, "errors": serde_json::from_str::<Value>(&errors).unwrap_or(json!([])), "tookMs": ms,
@@ -181,6 +203,13 @@ struct Item {
     category: String,
     is_meta: bool,
     dup_of: Option<i64>,
+    preview_state: Option<String>,
+    preview_kind: Option<String>,
+    preview_v: i64,
+    duration_s: Option<f64>,
+    peaks: Option<String>,
+    width: Option<i64>,
+    height: Option<i64>,
 }
 
 fn item_json(i: Item) -> Value {
@@ -188,11 +217,14 @@ fn item_json(i: Item) -> Value {
         "id": i.id, "packId": i.pack_id, "pack": i.pack, "container": i.container, "path": i.path,
         "name": i.name, "ext": i.ext, "size": i.size, "category": i.category, "meta": i.is_meta,
         "dupOf": i.dup_of,
+        // Only finished previews; `pv` is part of the preview URL (a new preview, a new URL).
+        "preview": if i.preview_state.as_deref() == Some("ok") { i.preview_kind } else { None },
+        "pv": i.preview_v, "duration": i.duration_s, "peaks": i.peaks, "width": i.width, "height": i.height,
     })
 }
 
-const ITEM_COLUMNS: &str =
-    "a.id, a.pack_id, p.name AS pack, a.container, a.path, a.name, a.ext, a.size, a.category, a.is_meta, a.dup_of";
+const ITEM_COLUMNS: &str = "a.id, a.pack_id, p.name AS pack, a.container, a.path, a.name, a.ext, a.size, a.category, \
+     a.is_meta, a.dup_of, a.preview_state, a.preview_kind, a.preview_v, a.duration_s, a.peaks, a.width, a.height";
 
 async fn list(State(s): State<AppState>, Query(f): Query<Filter>) -> ApiResult<Json<Value>> {
     let (wh, binds) = where_clause(&f, "");
@@ -245,19 +277,24 @@ async fn facets(State(s): State<AppState>, Query(f): Query<Filter>) -> ApiResult
 }
 
 async fn detail(State(s): State<AppState>, Path(id): Path<i64>) -> ApiResult<Json<Value>> {
-    let row: Option<(i64, i64, String, String, String, String, i64, Option<i64>, String, String, bool, Option<i64>, Option<String>, String, String)> =
-        sqlx::query_as(
-            "SELECT a.id, a.pack_id, a.container, a.path, a.name, a.ext, a.size, a.mtime, a.category, a.rule,
-                    a.is_meta, a.dup_of, a.missing_since, p.name, p.kind
-             FROM asset a JOIN asset_pack p ON p.id = a.pack_id WHERE a.id = ?",
-        )
-        .bind(id)
-        .fetch_optional(&s.db)
-        .await?;
-    let Some((id, pack_id, container, path, name, ext, size, mtime, category, rule, meta, dup_of, missing, pack, pack_kind)) = row
-    else {
-        return Err(ApiError::NotFound);
-    };
+    let item: Option<Item> = sqlx::query_as(&format!(
+        "SELECT {ITEM_COLUMNS} FROM asset a JOIN asset_pack p ON p.id = a.pack_id WHERE a.id = ?"
+    ))
+    .bind(id)
+    .fetch_optional(&s.db)
+    .await?;
+    let Some(item) = item else { return Err(ApiError::NotFound) };
+    #[allow(clippy::type_complexity)]
+    let (mtime, rule, missing, pack_kind, rate, channels, alpha, state, error): (
+        Option<i64>, String, Option<String>, String, Option<i64>, Option<i64>, Option<bool>, Option<String>, Option<String>,
+    ) = sqlx::query_as(
+        "SELECT a.mtime, a.rule, a.missing_since, p.kind, a.sample_rate, a.channels, a.has_alpha, a.preview_state, a.preview_error
+         FROM asset a JOIN asset_pack p ON p.id = a.pack_id WHERE a.id = ?",
+    )
+    .bind(id)
+    .fetch_one(&s.db)
+    .await?;
+    let (pack_id, dup_of) = (item.pack_id, item.dup_of);
     // Its copies (or the original and its other copies).
     let keep = dup_of.unwrap_or(id);
     let copies: Vec<(i64, String, String)> = sqlx::query_as(
@@ -274,13 +311,17 @@ async fn detail(State(s): State<AppState>, Path(id): Path<i64>) -> ApiResult<Jso
             .bind(pack_id)
             .fetch_all(&s.db)
             .await?;
-    Ok(Json(json!({
-        "id": id, "packId": pack_id, "pack": pack, "packKind": pack_kind, "container": container, "path": path,
-        "name": name, "ext": ext, "size": size, "mtime": mtime, "category": category, "rule": rule, "meta": meta,
-        "dupOf": dup_of, "missingSince": missing,
+    let mut out = item_json(item);
+    let extra = json!({
+        "packKind": pack_kind, "mtime": mtime, "rule": rule, "missingSince": missing, "sampleRate": rate,
+        "channels": channels, "hasAlpha": alpha, "previewState": state, "previewError": error,
         "copies": copies.into_iter().map(|(id, c, p)| json!({ "id": id, "container": c, "path": p })).collect::<Vec<_>>(),
         "packDocs": docs.into_iter().map(|(id, p)| json!({ "id": id, "path": p })).collect::<Vec<_>>(),
-    })))
+    });
+    if let (Some(o), Value::Object(e)) = (out.as_object_mut(), extra) {
+        o.extend(e);
+    }
+    Ok(Json(out))
 }
 
 #[cfg(test)]
