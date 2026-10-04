@@ -1,10 +1,10 @@
-web/src/views/conversation.ts
 // Middle pane: the conversation with the project's orchestrator.
 import { html, type SafeHtml } from "../core/html";
 import { renderMarkdown } from "../core/markdown";
 import { clock } from "../core/time";
 import { activeChat, activeProject, type AppState } from "../state";
-import type { Message, Task, PcAction } from "../api/types";
+import type { Message, Task } from "../api/types";
+import type { PcAction } from "../api/client";
 import { icon } from "./icons";
 import { stateLabel } from "./tasks";
 import { fromTool, renderOutput } from "../core/output";
@@ -75,7 +75,6 @@ export function messageViews(s: AppState): MessageView[] {
 
   for (const action of s.pcActions) {
     if (action.state === "pending") continue;
-    const msg = s.messages.find((m) => m.at <= action.createdAt && (!byMsg.get(m.id) || byMsg.get(m.id)!.every((a) => a.createdAt !== action.createdAt)));
     // Find the last message with at <= action.createdAt
     let bestMsg: Message | undefined = undefined;
     for (const m of s.messages) {
