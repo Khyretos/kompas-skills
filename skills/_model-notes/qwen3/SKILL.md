@@ -70,6 +70,14 @@ Full write-up: kreative-kompas-vscode-theme `docs/ai-capability/vscode-theme-dra
 - Made selection and current line the same colour; ask for each state as a separately named colour.
 - Invents/uses deprecated theme keys (`tab.unselectedOddBackground`, `scrollbar.background`, ...) and
   mis-maps terminal ANSI and diff colours. Give it the exact key list to fill.
+- (2026-10-04, qwen3.5:9b-q8_0, Kate themes) VS Code theme to Kate `.theme` JSON: valid JSON with every key, dark syntax
+  colours exactly per the role table (~3.5 min per variant, partly on CPU). Wrong: filled background roles with
+  foreground colours (solid orange SearchHighlight/BracketMatching hid orange keywords; solid yellow ReplaceHighlight),
+  `selected-text-color` white everywhere, gutter at 1.5:1, template placeholders as text colours. The light variant
+  copied the dark table (yellow, pink-red, cyan, lilac text on mist under 2:1; a dark plum current line) despite the
+  ink rules in the prompt. Tell it which roles are backgrounds and give pre-blended tints; give the light variant
+  its own value table and don't show it the dark one. Full note: kreative-kompas-vscode-theme
+  `docs/ai-capability/kate-theme-drafting.md`.
 - (2026-10-03) DOM code (code blocks): typechecked first try and avoided innerHTML, but skipped the no-language case with `continue`, forgot button labels, and moved a node before replacing it (`appendChild(pre)` then `replaceChild(..., pre)` throws). Ask it to "insert the wrapper before the node, then move the node in".
 - (2026-10-03) fdinfo reader (Rust): wrong aggregation key, no dedupe, could not parse "123 ns" or a PCI slot with colons, dropped the requested tests. Rewritten. The GPU panel view (TS) was good: only cosmetic fixes.
 

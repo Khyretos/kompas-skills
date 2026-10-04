@@ -114,3 +114,24 @@ Kees's languages, in order: English, Spanish, Dutch. Every other language is for
 ## 9. Long jobs run detached; whoever pauses a job un-pauses it (2026-10-04)
 
 A batch run started from an agent session dies when the session parks (a re-judge stopped after one language at 21:46 and nothing ran for two hours). Start long jobs fully detached, with their own log: `setsid -f script.sh … < /dev/null`, or `docker compose run -d`. Pausing a scheduled job (a `.paused` file) needs a reason, an owner and an expiry line (`expires: 2026-10-05 00:00`) so the job resumes by itself; the one who pauses removes the file as soon as the reason is gone. Don't `pkill -f` a pattern that is also in your own command line: it kills your shell.
+
+## 10. Kate theming: editor theme plus a per-app colour scheme (2026-10-04)
+
+Source: kreative-kompas-vscode-theme `kate/` (themes, colour schemes, `install.sh`, `scripts/check-kate-contrast.mjs`).
+
+- Kate has two parts: a KSyntaxHighlighting editor theme (`~/.local/share/org.kde.syntax-highlighting/themes/*.theme`,
+  set in katerc `[KTextEditor Renderer] Color Theme=<metadata name>`) and a KDE colour scheme for menus, tabs and
+  sidebars (`~/.local/share/color-schemes/*.colors`, set per app in katerc `[UiSettings] ColorScheme=<file basename>`,
+  e.g. `KreativeKompasDark`, not the display name). Per app leaves DMS's `kdeglobals` scheme alone for every other app.
+- Editor roles that sit behind text (TextSelection, CurrentLine, SearchHighlight, ReplaceHighlight, BracketMatching,
+  CodeFolding, Template*) take solid pre-blended tints; Kate has no alpha. Check every text style on each at 4.5:1.
+  Leave `selected-text-color` out so syntax colours survive inside a selection.
+- On soucouyant the session sets `QT_STYLE_OVERRIDE=kvantum` (PurPurNight). Kvantum paints Kate's menu bar, toolbar and
+  tab strip in its own colours whatever the colour scheme says; a light scheme then gives dark bars with invisible
+  dark icons. katerc `[General] widgetStyle` does not beat the variable. Fix per app: a launcher override
+  `~/.local/share/applications/org.kde.kate.desktop` with `Exec=env QT_STYLE_OVERRIDE=Fusion kate -b %U`.
+  Kate started from a terminal still gets Kvantum.
+- Light variants need their own ink colours: orange-ink `#8a5a00` fails 4.5:1 on a visible blue-violet selection; the
+  Kate light theme uses `#7a5000` for keywords. Measure on the selection, not just the background.
+- Screenshot Qt apps in Xvfb (`QT_QPA_PLATFORM=xcb`, `xdotool key --window`, `import -window root`), not on the
+  desktop: a Kate window opened and driven on Kees's screen got closed mid-test.
