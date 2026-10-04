@@ -105,9 +105,15 @@ struct Sample {
     cycles: HashMap<(String, String), (u64, u64)>, // (pdev, engine) -> (sum cycles, max total)
 }
 
+const FULL_SCAN: std::time::Duration = std::time::Duration::from_secs(10);
+
 #[derive(Default)]
 pub struct EngineReader {
     prev: Option<(Instant, Sample)>,
+    /// fdinfo files that belonged to GPU clients at the last full scan.
+    known: Vec<std::path::PathBuf>,
+    /// When /proc was last scanned completely (new GPU clients show up within FULL_SCAN).
+    full_at: Option<Instant>,
 }
 
 impl EngineReader {
@@ -115,25 +121,35 @@ impl EngineReader {
         let mut seen = std::collections::HashSet::new();
         let mut now_s = Sample::default();
         let mut out: HashMap<String, GpuUsage> = HashMap::new();
-        let Ok(pids) = fs::read_dir(proc_root) else { return out };
-        for pid in pids.flatten() {
-            if !pid.file_name().to_string_lossy().chars().all(|c| c.is_ascii_digit()) {
+
+        let full = self.full_at.is_none_or(|t| t.elapsed() >= FULL_SCAN) || self.known.is_empty();
+        let files: Vec<std::path::PathBuf> = if full {
+            let mut all = Vec::new();
+            if let Ok(pids) = fs::read_dir(proc_root) {
+                for pid in pids.flatten() {
+                    if !pid.file_name().to_string_lossy().chars().all(|c| c.is_ascii_digit()) {
+                        continue;
+                    }
+                    let Ok(fds) = fs::read_dir(pid.path().join("fdinfo")) else { continue };
+                    all.extend(fds.flatten().map(|fd| fd.path()));
+                }
+            }
+            self.full_at = Some(Instant::now());
+            self.known.clear();
+            all
+        } else {
+            std::mem::take(&mut self.known)
+        };
+
+        for path in files {
+            let Ok(text) = fs::read_to_string(&path) else { continue };
+            let Some(c) = parse(&text) else { continue };
+            self.known.push(path.clone());
+
+            // Several fds (even in other processes) can share one client.
+            if !seen.insert((c.pdev.clone(), c.client_id.clone())) {
                 continue;
             }
-            let Ok(fds) = fs::read_dir(pid.path().join("fdinfo")) else { continue };
-            for fd in fds.flatten() {
-                let link = pid.path().join("fd").join(fd.file_name());
-                // Only DRM device files carry drm-* stats; a readlink is much cheaper than reading every fdinfo.
-                // Inside a sandbox with a private /dev the link reads "/dri/renderD128", so match on "/dri/".
-                if !fs::read_link(&link).is_ok_and(|t| t.to_string_lossy().contains("/dri/")) {
-                    continue;
-                }
-                let Ok(text) = fs::read_to_string(fd.path()) else { continue };
-                let Some(c) = parse(&text) else { continue };
-                // Several fds (even in other processes) can share one client.
-                if !seen.insert((c.pdev.clone(), c.client_id.clone())) {
-                    continue;
-                }
                 if let Some(b) = c.vram_bytes {
                     *out.entry(c.pdev.clone()).or_default().vram_used_bytes.get_or_insert(0) += b;
                 }
@@ -145,7 +161,6 @@ impl EngineReader {
                     e.0 += n;
                     e.1 = e.1.max(total); // the GPU clock: the same for every client
                 }
-            }
         }
         let now = Instant::now();
         if let Some((then, prev)) = &self.prev {
@@ -242,27 +257,20 @@ mod tests {
     }
 
     #[test]
-    fn skips_non_drm_fds() {
-        let root = tree("skip");
-        fs::write(root.join("1234/fdinfo/8"), AMD).unwrap();
-        std::os::unix::fs::symlink("/tmp/not-a-gpu", root.join("1234/fd/8")).unwrap();
+    fn known_clients_are_read_without_a_full_scan() {
+        let root = tree("known");
+        fs::write(root.join("1234/fdinfo/9"), AMD).unwrap();
         let mut r = EngineReader::default();
         r.read(&root);
-        assert!(!r.read(&root).contains_key("0000:03:00.0"));
-        let _ = fs::remove_dir_all(&root);
-    }
 
-    #[test]
-    fn counts_dri_links_seen_from_a_private_dev() {
-        let root = tree("dri");
-        // Simulate a sandbox where the link is "/dri/renderD128" instead of "/dev/dri/..."
-        fs::write(root.join("1234/fdinfo/8"), AMD).unwrap();
-        std::os::unix::fs::symlink("/dri/renderD128", root.join("1234/fd/8")).unwrap();
-        let mut r = EngineReader::default();
-        r.read(&root);
+        fs::remove_dir_all(root.join("1234/fdinfo")).unwrap();
+        fs::create_dir_all(root.join("1234/fdinfo")).unwrap();
+        fs::write(root.join("1234/fdinfo/10"), "pos:\t0\nflags:\t02\n").unwrap();
+
         let second = r.read(&root);
-        assert!(second.contains_key("0000:03:00.0"));
-        assert_eq!(second["0000:03:00.0"].vram_used_bytes, Some(1 << 30));
+        assert_eq!(second.keys().count(), 1);
+        assert!(r.known.len() == 1);
+
         let _ = fs::remove_dir_all(&root);
     }
 }

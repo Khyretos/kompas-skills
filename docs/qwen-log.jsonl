@@ -88,3 +88,7 @@
 {"name": "F2 main.ts busy forms and instant tasks", "out": "web/src/main.ts", "mode": "patch", "gpu_seconds": 84.8, "tokens": 2110, "lines": 5, "attempts": 1, "model": "Coder", "at": "2026-10-04T02:27:38"}
 {"name": "H1 fdinfo dri link under PrivateDevices", "out": "machine-stats/src/fdinfo.rs", "mode": "patch", "gpu_seconds": 14.1, "tokens": 732, "lines": 2, "attempts": 1, "model": "qwen3.5:9b-q8_0", "at": "2026-10-04T02:28:49"}
 {"name": "H1 install.sh wait and check", "out": "gpu-helper/install.sh", "gpu_seconds": 34.1, "tokens": 720, "lines": 72, "review": "skipped", "model": "Coder", "at": "2026-10-04T02:29:09"}
+{"name": "P3 install.sh", "out": "server/assets/install.sh", "gpu_seconds": 35.4, "tokens": 897, "lines": 47, "model": "Coder", "at": "2026-10-04T02:37:59"}
+{"name": "P2 pairing.rs", "out": "server/src/pairing.rs", "gpu_seconds": 117.7, "tokens": 6022, "lines": 288, "model": "qwen3.5:9b-q8_0", "at": "2026-10-04T02:39:22"}
+{"name": "P5 runner setup.rs", "out": "runner/src/setup.rs", "gpu_seconds": 131.7, "tokens": 3369, "lines": 187, "model": "Coder", "at": "2026-10-04T02:40:11"}
+{"name": "K1 fdinfo known-client cache", "out": "machine-stats/src/fdinfo.rs", "mode": "patch", "gpu_seconds": 26.2, "tokens": 1400, "lines": 4, "attempts": 1, "model": "qwen3.5:9b-q8_0", "at": "2026-10-04T02:43:30"}
