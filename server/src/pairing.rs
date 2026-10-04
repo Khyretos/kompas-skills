@@ -105,10 +105,12 @@ pub async fn pair(State(s): State<AppState>, Json(b): Json<PairBody>) -> ApiResu
         .await?;
 
     // Determine machine name: web app hostname wins, then code name, then default
-    let name = if !b.hostname.is_empty() {
-        b.hostname.trim().chars().take(60).collect::<String>()
-    } else if !code_name.is_empty() {
+    // The name given in Kompanion wins; else the PC's hostname.
+    let host: String = b.hostname.trim().chars().take(60).collect();
+    let name = if !code_name.is_empty() {
         code_name
+    } else if !host.is_empty() {
+        host
     } else {
         "My computer".to_string()
     };
