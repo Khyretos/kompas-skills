@@ -3,6 +3,7 @@ mod admin;
 mod assets;
 mod api;
 mod auth;
+mod capabilities;
 mod config;
 mod contrast;
 mod error;
@@ -179,6 +180,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/machines/{id}/grants/revoke", post(access::revoke_grant))
         .route("/access", get(access::history))
         .route("/activity", get(activity::list))
+        .route("/capabilities", get(capabilities::list))
+        .route("/capabilities/skill", get(capabilities::skill))
         .route("/machines/{id}/jobs", post(access::create_job).layer(axum::extract::DefaultBodyLimit::max(1200 * 1024)))
         .route("/machines/{id}/jobs/{job}", get(access::get_job))
         .route(

@@ -488,7 +488,7 @@ pub async fn providers(State(s): State<AppState>) -> Json<Vec<Value>> {
 }
 
 /// The user's roles; roles they haven't set yet come from the config file.
-async fn user_roles(s: &AppState, user_id: &str) -> ApiResult<Vec<RoleAssignment>> {
+pub(crate) async fn user_roles(s: &AppState, user_id: &str) -> ApiResult<Vec<RoleAssignment>> {
     let mut rows: Vec<RoleAssignment> =
         sqlx::query_as("SELECT role, provider_id, model_id FROM user_roles WHERE user_id = ?")
             .bind(user_id)

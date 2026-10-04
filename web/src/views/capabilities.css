@@ -1,0 +1,36 @@
+.shell .caps-pane { display: none; background: var(--bg); overflow-y: auto; }
+
+.shell[data-section="capabilities"] .center,
+.shell[data-section="capabilities"] .right,
+.shell[data-section="capabilities"] .resize-handle[data-side="right"],
+.shell[data-section="capabilities"] .collapse-btn[data-side="right"] { display: none; }
+.shell[data-section="capabilities"] .caps-pane { display: block; grid-column: 2 / -1; grid-row: 1; }
+@media (max-width: 760px) { .shell[data-section="capabilities"] .caps-pane { grid-column: 1 / -1; } }
+
+.caps { max-width: 72rem; margin: 0 auto; padding: 0.75rem 1rem 2rem; }
+.caps-head { padding: 0.25rem 0 0.5rem; }
+.caps-title h1 { font-size: 1.25rem; line-height: 1.3; }
+.caps-title p { font-size: 0.85rem; }
+
+.caps-group { margin-top: 1.25rem; }
+.caps-group h2 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.5rem; display: flex; gap: 0.4rem; align-items: baseline; }
+.caps-group h2 .muted { font-weight: 400; font-variant-numeric: tabular-nums; }
+
+.caps-cards { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.6rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr)); }
+
+.cap .task-main { cursor: default; }
+.cap button.task-main { cursor: pointer; }
+.cap .task-step { overflow-wrap: anywhere; }
+.cap code { font-size: 0.85em; }
+.cap-err { color: var(--bad); }
+.caps-loading { padding: 1rem 0; }
+
+.skill-sheet { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: color-mix(in srgb, #000 55%, transparent); padding: 1rem; }
+.skill-sheet .sheet { width: min(48rem, 100%); max-height: min(85vh, 60rem); overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem 1.25rem 1.5rem; position: relative; }
+.skill-sheet .sheet-close { position: absolute; top: 0.5rem; right: 0.5rem; }
+.skill-sheet h2 { font-size: 1.05rem; margin: 0 2rem 0.75rem 0; }
+.skill-body { font-size: 0.9rem; line-height: 1.55; }
+.skill-body ol, .skill-body ul { padding-left: 1.25rem; }
+.skill-body ol { list-style: decimal; }
+.skill-body li { margin-bottom: 0.4rem; }
+.skill-body code { overflow-wrap: anywhere; }

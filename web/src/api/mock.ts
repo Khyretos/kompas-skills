@@ -389,6 +389,38 @@ export class MockApi implements KompanionApi {
     if (i >= 0) chats.splice(i, 1);
   }
 
+  async getCapabilities() {
+    return {
+      models: [
+        { id: "ovms", name: "OVMS on kireserver", local: true, status: "ok" as const, error: null, models: ["Coder", "Whisper"],
+          roles: ["orchestrator: Coder", "reviewer: Coder", "worker: Coder"], lastError: null },
+        { id: "ollama-soucouyant", name: "Ollama on soucouyant", local: true, status: "down" as const, error: "connection refused",
+          models: [], roles: [], lastError: { text: "connection refused", at: ago(42) } },
+      ],
+      // Live from the demo's own machines and grants, so the page follows changes made elsewhere.
+      computers: machines.filter((m) => m.id !== "kireserver").map((m) => ({
+        id: m.id, name: m.name, online: m.online, lastSeen: new Date().toISOString(),
+        grants: (grants[m.id] ?? []).map((g) => ({ target: g.target, rights: [...g.rights], expires: g.expires })),
+      })),
+      tools: [
+        { name: "read_file", description: "Read a text file (up to 256 KiB).", needs: "read on the folder" },
+        { name: "edit_file", description: "Replace one exact piece of a file and show the diff.", needs: "write on the folder" },
+        { name: "shell", description: "Run a command in a folder.", needs: "shell in the folder" },
+        { name: "capabilities", description: "What Kompanion can use right now.", needs: "nothing" },
+      ],
+      mcp: [],
+      indexes: [{ id: "assets", name: "Asset search by meaning", items: 41_230, of: 47_012, failed: 12, model: "Embedder (ovms-cpu)", status: "partly" as const }],
+      skills: [
+        { id: "orchestrator", title: "Orchestrator", lessons: 9, updated: ago(30) },
+        { id: "worker/rust", title: "Worker: Rust", lessons: 37, updated: ago(5) },
+        { id: "worker/web", title: "Worker: web app (vanilla TypeScript)", lessons: 25, updated: ago(90) },
+      ],
+    };
+  }
+  async getSkill(id: string) {
+    return { id, text: `# ${id}\n\nLessons for this role, newest last.\n\n1. (2026-10-04) Plan steps are changes, each with a **done when**.\n2. Never \`test.skip\` inside a test.\n` };
+  }
+
   async listActions(chatId: string) { return structuredClone(actions.filter((a) => (a as PcAction & { chatId?: string }).chatId === chatId)); }
   async listActivity() {
     const now = Date.now();

@@ -35,7 +35,8 @@ export interface AppState {
   taskScope: "project" | "all";
   settingsOpen: boolean;
   pane: "main" | "left" | "right"; // which pane is visible on a phone
-  section: "chat" | "assets"; // what the middle of the screen shows
+  section: "chat" | "assets" | "capabilities"; // what the middle of the screen shows
+  capabilities?: import("./views/capabilities").Capabilities; // loaded when the Capabilities section opens
   expandedProjects: Set<string>; // projects open in the sidebar
   activeProjectId?: string; // project picked in the sidebar (tasks pane, new chats)
   chatMenuId?: string; // chat whose options menu is open

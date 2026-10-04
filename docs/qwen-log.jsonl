@@ -136,3 +136,6 @@
 {"name": "taskrun-drop-look-only-steps", "out": "server/src/taskrun/parse.rs", "mode": "patch", "gpu_seconds": 27.4, "tokens": 616, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-04T14:41:53"}
 {"name": "pcagent-step-limit-helper", "out": "server/src/pcagent/mod.rs", "mode": "patch", "gpu_seconds": 35.5, "tokens": 878, "lines": 2, "attempts": 2, "model": "Coder", "at": "2026-10-04T14:49:27"}
 {"name": "taskrun-task-context-and-step-limit", "out": "server/src/taskrun/mod.rs", "mode": "patch", "gpu_seconds": 66.0, "tokens": 1843, "lines": 4, "attempts": 1, "model": "Coder", "at": "2026-10-04T14:49:58"}
+{"name": "capabilities-server", "out": "server/src/capabilities.rs", "gpu_seconds": 119.2, "tokens": 3663, "lines": 396, "review": "skipped", "model": "Coder", "at": "2026-10-04T15:08:16"}
+{"name": "capabilities-css", "out": "web/src/views/capabilities.css", "gpu_seconds": 31.9, "tokens": 760, "lines": 36, "review": "skipped", "model": "Coder", "at": "2026-10-04T15:10:24"}
+{"name": "capabilities-view", "out": "web/src/views/capabilities.ts", "gpu_seconds": 119.2, "tokens": 4162, "lines": 219, "model": "qwen3.5:9b-q8_0", "at": "2026-10-04T15:11:52"}

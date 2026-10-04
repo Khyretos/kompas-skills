@@ -221,7 +221,14 @@ fn cut(text: &str, max: usize) -> String {
 
 async fn run(s: AppState, r: Run) {
     // 1. Plan.
-    let plan_user = format!("Task: {}\n\n{}\n\nWork in the folder {} on {}.", r.title, r.description, r.folder, r.machine_name);
+    let plan_user = format!(
+        "Task: {}\n\n{}\n\nWork in the folder {} on {}.\n\nWhat Kompanion has (for planning only):\n{}",
+        r.title,
+        r.description,
+        r.folder,
+        r.machine_name,
+        crate::capabilities::summary(&s, &r.user_id).await
+    );
     let plan_text = match ask_model(
         &s,
         &r.orchestrator,

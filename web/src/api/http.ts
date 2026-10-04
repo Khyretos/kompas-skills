@@ -114,6 +114,8 @@ export class HttpApi implements KompanionApi {
     return this.request<void>("POST", `/tasks/${encodeURIComponent(id)}/start`, { machine_id: machineId, folder, check });
   }
   listActivity() { return this.request<import("../views/activity").ActivityItem[]>("GET", "/activity"); }
+  getCapabilities() { return this.request<import("../views/capabilities").Capabilities>("GET", "/capabilities"); }
+  getSkill(id: string) { return this.request<{ id: string; text: string }>("GET", `/capabilities/skill?id=${encodeURIComponent(id)}`); }
   decideAction(id: string, decision: "approve" | "always" | "deny") {
     return this.request<void>("POST", `/actions/${encodeURIComponent(id)}/decide`, { decision });
   }

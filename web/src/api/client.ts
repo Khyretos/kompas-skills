@@ -72,6 +72,10 @@ export interface KompanionApi {
   /** W2: run a task by itself on a computer, in a folder, checked by a command. */
   startTask(id: string, machineId: string, folder: string, check: string): Promise<void>;
   listActivity(): Promise<import("../views/activity").ActivityItem[]>;
+  /** What Kompanion can use right now (W3): models, computers, tools, MCP servers, indexes, skills. */
+  getCapabilities(): Promise<import("../views/capabilities").Capabilities>;
+  /** One skill's SKILL.md, read-only. */
+  getSkill(id: string): Promise<{ id: string; text: string }>;
   decideAction(id: string, decision: "approve" | "always" | "deny"): Promise<void>;
   answer(taskId: string, optionId: string): Promise<void>;
 

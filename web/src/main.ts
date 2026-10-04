@@ -21,6 +21,7 @@ import { AssetsView } from "./views/assets";
 import { HttpAssets } from "./api/assets";
 import { MockAssets } from "./api/assets-mock";
 import { renderActivity } from "./views/activity";
+import { renderCapabilities } from "./views/capabilities";
 
 let settingsModal: Modal | undefined;
 let assetsView: AssetsView | undefined;
@@ -105,6 +106,7 @@ async function start(server: Server): Promise<void> {
         <div class="composer-wrap"><div id="pc-actions"></div><div id="pc-slot"></div>${composer()}</div>
       </main>
       <section class="pane assets-pane" id="assets" aria-label="Assets"></section>
+      <section class="pane caps-pane" id="caps" aria-label="Capabilities"></section>
       <aside class="pane right" id="right" aria-label="Tasks"></aside>
       <div class="scrim" data-action="pane" data-pane="main"></div>
       <div id="settings" hidden></div>
@@ -159,6 +161,8 @@ function render(s: AppState, prev: AppState): void {
   shell.dataset.pane = s.pane;
   shell.dataset.section = s.section;
   if (s.section === "assets" && (s.section !== prev.section || firstRender)) assetsView?.show();
+  if (s.section !== prev.section || firstRender) watchCapabilities(s.section === "capabilities");
+  if (s.section === "capabilities" && changed(s, prev, ["capabilities", "section"])) mount($("#caps"), renderCapabilities(s.capabilities));
 
   if (changed(s, prev, ["chats", "projects", "tasks", "activeChatId", "activeProjectId", "expandedProjects",
     "chatMenuId", "movingChatId", "renamingChatId", "server", "userName", "logoVersion", "section"])) {
@@ -258,6 +262,20 @@ function applyEvent(ev: ServerEvent): void {
   }
 }
 
+// The Capabilities section loads when it opens, then every 30 s (model status) and on
+// changes to computers or grants, until it is left.
+let capsTimer: number | undefined;
+function loadCapabilities(): void {
+  api.getCapabilities().then((capabilities) => store.set({ capabilities }), showError);
+}
+function watchCapabilities(on: boolean): void {
+  window.clearInterval(capsTimer);
+  capsTimer = undefined;
+  if (!on) return;
+  loadCapabilities();
+  capsTimer = window.setInterval(loadCapabilities, 30_000);
+}
+
 let refetchTimers = new Map<string, number>();
 function refetch(what: string): void {
   if (refetchTimers.has(what)) return;
@@ -270,6 +288,7 @@ function refetch(what: string): void {
       else if (what === "chats") store.set({ chats: await api.listChats() });
       else if (what === "machines") store.set({ machines: await api.listMachines() });
       else if (what === "access") await loadAccess();
+      if ((what === "access" || what === "machines") && store.get().section === "capabilities") loadCapabilities();
       if ((what === "access" || what === "actions") && s.rightTab === "activity") store.set({ activity: await api.listActivity() });
       else if (what === "actions" && s.activeChatId) {
         // Only a real change replaces the list: equal data as new objects would
@@ -306,6 +325,35 @@ function wire(shell: HTMLElement): void {
     "code-wrap": (el) => onCodeAction(el),
     "open-chat": (el) => openChat(el.dataset.id),
     assets: () => store.set({ section: "assets", pane: "main", chatMenuId: undefined }),
+    capabilities: () => store.set({ section: "capabilities", pane: "main", chatMenuId: undefined }),
+    // A skill, read-only, in a sheet that closes on an outside click, × or Escape (lesson 15).
+    "open-skill": (el) => api.getSkill(el.dataset.id ?? "").then((skill) => {
+      const box = document.createElement("div");
+      box.className = "skill-sheet";
+      const sheet = document.createElement("div");
+      sheet.className = "sheet";
+      sheet.setAttribute("role", "dialog");
+      sheet.setAttribute("aria-modal", "true");
+      sheet.setAttribute("aria-labelledby", "skill-title");
+      const close = document.createElement("button");
+      close.className = "icon-btn sheet-close";
+      close.setAttribute("aria-label", "Close");
+      close.textContent = "×";
+      const title = document.createElement("h2");
+      title.id = "skill-title";
+      title.textContent = `Skill: ${skill.id}`;
+      const body = document.createElement("div");
+      body.className = "skill-body";
+      body.append(renderMarkdown(skill.text));
+      sheet.append(close, title, body);
+      box.append(sheet);
+      document.body.append(box);
+      const m = modal(box, () => { box.remove(); document.removeEventListener("keydown", esc); });
+      const esc = (ev: KeyboardEvent) => { if (ev.key === "Escape") m.requestClose(); };
+      document.addEventListener("keydown", esc);
+      close.addEventListener("click", () => m.requestClose());
+      m.open(el);
+    }, showError),
     "new-chat": (el) => store.set({
       activeChatId: undefined, messages: [], pane: "main", chatMenuId: undefined, section: "chat",
       activeProjectId: el.dataset.project ?? store.get().activeProjectId,

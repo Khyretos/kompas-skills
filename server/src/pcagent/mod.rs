@@ -137,6 +137,8 @@ impl Agent {
                     .and_then(|a| serde_json::from_str(a).ok())
                     .unwrap_or_else(|| json!({}));
                 let result = match tools::to_job(name, &args) {
+                    // Answered here, not by a computer.
+                    None if name == "capabilities" => crate::capabilities::summary(s, &self.user_id).await,
                     None => "Unknown tool or wrong arguments.".to_string(),
                     // Guardrail: a file found missing earlier in this answer is not created
                     // behind the user's back.

@@ -22,6 +22,8 @@ FROM alpine:3
 RUN apk add --no-cache ca-certificates ffmpeg && adduser -D -H -u 10001 kompanion && mkdir /data && chown kompanion /data
 COPY --from=server /src/server/target/release/kompanion-server /usr/local/bin/kompanion-server
 COPY --from=web /src/web/dist /app/web
+# The role skills, shown read-only on the Capabilities page.
+COPY skills/ /app/skills/
 USER kompanion
 ENV KOMPANION_CONFIG=/config/kompanion.toml
 VOLUME /data

@@ -133,6 +133,18 @@ pub fn schema() -> Value {
                     "required": []
                 }
             }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "capabilities",
+                "description": "What Kompanion can use right now: models and their status, the user's computers with their grants, the tools and the skills. Answered by Kompanion itself, not a computer.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            }
         }
     ])
 }
@@ -256,10 +268,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_schema_has_9_tools() {
+    fn test_schema_has_10_tools() {
         let schema = schema();
         let tools = schema.as_array().unwrap();
-        assert_eq!(tools.len(), 9);
+        assert_eq!(tools.len(), 10);
     }
 
     #[test]
