@@ -293,9 +293,9 @@ fn format_rules(styles: &[&str], categories: &[&str]) -> String {
         "Answer with JSON only, no other text. Fields:\n\
          - \"category\": one of: {}\n\
          - \"style\": up to 2 of: {}\n\
-         - \"mood\": up to 2 of: {}\n\
-         - \"setting\": up to 2 of: {}\n\
-         - \"subject\": 1 to 4 plain words naming what it is\n\
+         - \"mood\": up to 2 of: {} (only for music, ambience, scenes and characters; [] for UI, icons, screenshots and surface maps)\n\
+         - \"setting\": up to 2 of: {} (only when the asset clearly shows or names one, else [])\n\
+         - \"subject\": a string of 1 to 4 plain words naming what it is\n\
          - \"caption\": one short sentence a game developer would search for\n\
          Use only words from these lists; leave a list empty when nothing fits. Never guess a licence or a brand.",
         list(categories),
@@ -392,7 +392,11 @@ pub fn check(v: &Value, styles: &[&str], categories: &[&str]) -> Tagged {
         style: words(&v["style"], styles, 2),
         mood: words(&v["mood"], MOODS, 2),
         setting: words(&v["setting"], SETTINGS, 2),
-        subject: short_text(&v["subject"], 60),
+        // Models often send the subject as a list of words.
+        subject: short_text(&v["subject"], 60).or_else(|| {
+            let words: Vec<&str> = v["subject"].as_array()?.iter().filter_map(Value::as_str).map(str::trim).filter(|w| !w.is_empty()).take(4).collect();
+            short_text(&Value::from(words.join(" ")), 60)
+        }),
         caption: short_text(&v["caption"], 240),
     }
 }
@@ -767,6 +771,9 @@ mod tests {
         let bad = check(&json!({"category": "music", "style": "orchestral"}), STYLES_VISUAL, PICTURE_CATEGORIES);
         assert_eq!(bad.category, None, "a category outside the prompt's list is dropped");
         assert!(bad.style.is_empty());
+        // Qwen3.5-9B on the A770 answers the subject as a list (seen in the first real batch).
+        let listed = check(&json!({"subject": ["key", "keyboard", "icon"]}), STYLES_VISUAL, PICTURE_CATEGORIES);
+        assert_eq!(listed.subject.as_deref(), Some("key keyboard icon"));
     }
 
     #[test]
