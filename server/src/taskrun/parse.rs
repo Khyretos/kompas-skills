@@ -131,23 +131,40 @@ fn plan_item(v: &Value) -> Option<PlanStep> {
     (!what.is_empty()).then_some(PlanStep { what, done_when })
 }
 
-/// Parses a plan from JSON (an array of steps, or {"steps": [...]}) or falls back to list markers.
+/// Returns true if the step only looks at something; the worker does that anyway.
+fn look_only(what: &str) -> bool {
+    let lower = what.to_lowercase();
+    let first_word = lower.split_whitespace().next().unwrap_or("").to_string();
+
+    // Verbs that are purely observational
+    const OBSERVE: &[&str] = &["open", "read", "locate", "find", "look", "view", "inspect", "examine", "review"];
+    if OBSERVE.contains(&first_word.as_str()) {
+        return true;
+    }
+
+    // "run/verify/confirm/check" + "test"/"check"
+    if ["run", "verify", "confirm", "check"].contains(&first_word.as_str())
+        && (lower.contains("test") || lower.contains("check"))
+    {
+        return true;
+    }
+
+    false
+}
+
+/// Parses a plan from JSON (an array of steps, or {"steps": [...]}) or falls back to list
+/// markers. Look-only steps are dropped unless nothing else is left.
 pub fn plan(text: &str) -> Vec<PlanStep> {
-    let items = match json_in(text) {
-        Some(Value::Array(arr)) => arr,
+    let steps: Vec<PlanStep> = match json_in(text) {
+        Some(Value::Array(arr)) => arr.iter().filter_map(plan_item).take(8).collect(),
         Some(Value::Object(obj)) => match obj.get("steps") {
-            Some(Value::Array(arr)) => arr.clone(),
-            _ => return Vec::new(),
+            Some(Value::Array(arr)) => arr.iter().filter_map(plan_item).take(8).collect(),
+            _ => Vec::new(),
         },
-        _ => {
-            return fallback_plan(text)
-                .into_iter()
-                .map(|what| PlanStep { what, done_when: String::new() })
-                .take(8)
-                .collect();
-        }
+        _ => fallback_plan(text).into_iter().map(|what| PlanStep { what, done_when: String::new() }).take(8).collect(),
     };
-    items.iter().filter_map(plan_item).take(8).collect()
+    let real: Vec<PlanStep> = steps.iter().filter(|s| !look_only(&s.what)).cloned().collect();
+    if real.is_empty() { steps } else { real }
 }
 
 fn fallback_plan(text: &str) -> Vec<String> {
@@ -288,6 +305,21 @@ More text."#;
         let text = r#"{"steps":[{"title":"x","doneWhen":"y"}]}"#;
         let plan = plan(text);
         assert_eq!(plan, vec![PlanStep { what: "x".to_string(), done_when: "y".to_string() }]);
+    }
+
+    #[test]
+    fn look_only_steps_are_dropped() {
+        let whats = |t: &str| plan(t).into_iter().map(|s| s.what).collect::<Vec<_>>();
+        // The demo run's planner wrote an "open and locate" step and a "run the tests" step.
+        assert_eq!(
+            whats(r#"["Open names.py and locate full_name", "Add initials() below full_name", "Run python3 -m unittest to check"]"#),
+            ["Add initials() below full_name"]
+        );
+        assert_eq!(whats("1. Find the route\n2. Add the route"), ["Add the route"]);
+        // Nothing else left: keep them.
+        assert_eq!(whats(r#"["Read the config"]"#), ["Read the config"]);
+        // Running something that is not a test is a real step.
+        assert_eq!(whats(r#"["Run npm install", "Add the route"]"#), ["Run npm install", "Add the route"]);
     }
 
     #[test]

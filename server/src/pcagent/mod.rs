@@ -61,6 +61,14 @@ fn changed(s: &AppState, user_id: &str) {
     s.bus.send(user_id, Event::Changed { what: "actions", machine_id: None });
 }
 
+/// The start of the error `Agent::run` returns when it used all its steps.
+const STEP_LIMIT: &str = "I stopped after";
+
+/// Whether an `Agent::run` error only means it ran out of steps (the work may well be done).
+pub fn hit_step_limit(err: &str) -> bool {
+    err.starts_with(STEP_LIMIT)
+}
+
 pub async fn run(s: AppState, user_id: String, chat_id: String, machine_id: String, machine_name: String, role: RoleAssignment) {
     let mut messages = vec![json!({ "role": "system", "content": system_prompt(&machine_name) })];
     let history: Vec<(String, String)> = sqlx::query_as(
@@ -146,7 +154,7 @@ impl Agent {
                 messages.push(json!({ "role": "tool", "tool_call_id": call["id"], "content": result }));
             }
         }
-        Err(format!("I stopped after {} steps. Tell me how to go on.", self.max_steps))
+        Err(format!("{STEP_LIMIT} {} steps. Tell me how to go on.", self.max_steps))
     }
 }
 

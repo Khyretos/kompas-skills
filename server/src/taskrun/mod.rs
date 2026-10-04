@@ -201,12 +201,14 @@ async fn work(s: &AppState, r: &Run, max_steps: usize, instruction: String) -> R
 }
 
 /// The worker's instruction for one step: only that step, stopping once its "done when" holds.
-fn step_instruction(i: usize, n: usize, step: &parse::PlanStep, plan_list: &str) -> String {
+fn step_instruction(task: &str, i: usize, n: usize, step: &parse::PlanStep, plan_list: &str) -> String {
+    let task = cut(task, 3000);
     let done = if step.done_when.is_empty() { String::new() } else { format!("\nDone when: {}", step.done_when) };
     format!(
-        "Step {} of {n}: {}{done}\n\nThe whole plan, for context only:\n{plan_list}\n\nDo only step {}; the other steps are done \
+        "The task, for context:\n{}\n\nStep {} of {n}: {}{done}\n\nThe whole plan, for context only:\n{plan_list}\n\nDo only step {}; the other steps are done \
          separately. Stop as soon as it is done: don't run the tests or re-check it again. If it is already done, say so \
          and change nothing.",
+        task,
         i + 1,
         step.what,
         i + 1
@@ -255,9 +257,13 @@ async fn run(s: AppState, r: Run) {
     let n = steps.len();
     for (i, step) in steps.iter().enumerate() {
         progress(&s, &r, i as f64 / n as f64 * 0.8, &format!("Step {}/{n}: {}", i + 1, step.what)).await;
-        match work(&s, &r, 12, step_instruction(i, n, step, &plan_list)).await {
+        match work(&s, &r, 12, step_instruction(&r.description, i, n, step, &plan_list)).await {
             Ok(line) => note(&s, &r, &format!("Step {}: {line}", i + 1)).await,
             Err(why) => {
+                if pcagent::hit_step_limit(&why) {
+                    note(&s, &r, &format!("Step {} used all its tool calls; the check decides.", i + 1)).await;
+                    continue;
+                }
                 note(&s, &r, &format!("Step {} stopped: {why}", i + 1)).await;
                 return finish(&s, &r, "needs_input", &format!("step {} needs you", i + 1)).await;
             }
@@ -313,9 +319,13 @@ async fn run(s: AppState, r: Run) {
             note(&s, &r, "Still not right after 3 rounds; it needs you.").await;
             return finish(&s, &r, "needs_input", "review failed 3 times").await;
         }
-        match work(&s, &r, 12, format!("Fix these review findings, then answer with one short line:\n{findings}")).await {
+        match work(&s, &r, 12, format!("The task:\n{}\n\nFix these review findings, then answer with one short line:\n{findings}", cut(&r.description, 3000))).await {
             Ok(line) => note(&s, &r, &format!("Fix {round}: {line}")).await,
             Err(why) => {
+                if pcagent::hit_step_limit(&why) {
+                    note(&s, &r, &format!("Fix {round} used all its tool calls; checking again.")).await;
+                    continue;
+                }
                 note(&s, &r, &format!("The fix stopped: {why}")).await;
                 return finish(&s, &r, "needs_input", "fix needs you").await;
             }
@@ -345,10 +355,11 @@ mod tests {
     #[test]
     fn a_step_instruction_names_only_its_step_and_its_done_when() {
         let step = parse::PlanStep { what: "add char_count".into(), done_when: "textutil.py defines char_count".into() };
-        let t = step_instruction(0, 2, &step, "1. add char_count\n2. add a test");
-        assert!(t.starts_with("Step 1 of 2: add char_count\nDone when: textutil.py defines char_count"));
+        let t = step_instruction("T", 0, 2, &step, "1. add char_count\n2. add a test");
+        assert!(t.starts_with("The task, for context:\nT\n\n"));
+        assert!(t.contains("Step 1 of 2: add char_count\nDone when: textutil.py defines char_count"));
         assert!(t.contains("Do only step 1"));
         let bare = parse::PlanStep { what: "x".into(), done_when: String::new() };
-        assert!(!step_instruction(1, 2, &bare, "").contains("Done when"));
+        assert!(!step_instruction("X", 1, 2, &bare, "").contains("Done when"));
     }
 }

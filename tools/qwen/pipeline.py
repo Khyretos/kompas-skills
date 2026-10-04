@@ -55,7 +55,15 @@ def backend():
         return (OLLAMA + "/v1/chat/completions", SOUCOUYANT_MODEL, {"reasoning_effort": "none"}, None)
     env = os.popen("docker inspect ovms --format '{{range .Config.Env}}{{println .}}{{end}}'").read()
     key = next((l[len("API_KEY="):] for l in env.splitlines() if l.startswith("API_KEY=")), "")
-    return (OVMS, OVMS_MODEL, {"chat_template_kwargs": {"enable_thinking": False}}, key)
+    return (ovms_url(), OVMS_MODEL, {"chat_template_kwargs": {"enable_thinking": False}}, key)
+
+def ovms_url():
+    """OVMS_URL, else the container's current address: it changes when kireserver
+    reboots (2026-10-04: .25 became .28 and every OVMS job got a 404)."""
+    if "OVMS_URL" in os.environ:
+        return OVMS
+    ip = os.popen("docker inspect ovms --format '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}'").read().split()
+    return f"http://{ip[0]}:8000/v3/chat/completions" if ip else OVMS
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

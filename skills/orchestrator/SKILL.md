@@ -33,3 +33,10 @@ Lessons for the orchestrator role. Numbered and dated, newest last.
   container's network (`--network container:…`, so `http://127.0.0.1` is allowed) with only a
   test repo mounted, and a project from `kompanion-server import`. Fresh account each run, so
   defaults get tested too.
+- (2026-10-04) Qwen3.5 9B still plans "open X and locate Y" steps when told not to, so the
+  server drops look-only steps (`parse::look_only`: open, read, find, … and "run/verify the
+  tests") unless nothing else is left. The worker gets the task description with every step and
+  every fix: without it, it wrote `initials(first, last)` because it never saw the test it had
+  to pass. A worker that runs out of tool calls is not a failure: the check and review decide
+  (it had made the tests pass, then re-checked until the cap). Demo task, 3 runs in a row: one
+  step, 5 approvals, done in round 1, 36–39 s.

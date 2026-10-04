@@ -84,3 +84,5 @@
 36. The drafting pipeline (`tools/qwen/pipeline.py`) strips code fences from whole-file answers, so
     a file with a ``` inside a string or doc comment comes back cut to a fragment. Use
     `"mode": "patch"` (search/replace blocks) for such files.
+37. (2026-10-04) `tools/qwen/pipeline.py` finds OVMS by the container's current address; a fixed IP
+    broke after a reboot (every OVMS job got a 404). Never hard-code a container IP.

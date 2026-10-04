@@ -129,3 +129,8 @@ Details: ~/Docker/docs/ai-capability/assets-previews-2026-10.md.
 - Put `start your answer with END-OF-PROMPT-SEEN` as the prompt's last line: it proves the
   whole prompt arrived. One 13 KB prompt reported exactly 4,096 prompt tokens; keep prompts
   under ~3,800 tokens and send only the code the change needs.
+- (2026-10-04, W2 tasks) As planner it adds "open/locate" and "run the tests" steps even when the
+  prompt forbids them, and as worker it keeps re-checking finished work until the tool-call cap.
+  Guard in code, not only in the prompt: filter the plan, and let the check decide after a cap.
+  In patch mode (search/replace) it is reliable for small, exactly specified changes; asked for
+  "a function plus tests" it skipped the tests and dropped one input shape (array of objects).
