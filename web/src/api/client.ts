@@ -86,5 +86,5 @@ export type ServerEvent =
   | { type: "task"; task: Task }
   | { type: "machines"; machines: MachineStats[] }
   | { type: "changed"; what: "tasks" | "projects" | "chats" | "machines" | "access" | "settings" | "actions"; machineId?: string }
-  | { type: "assets"; scan: unknown } // asset library scan progress (api/assets.ts)
+  | { type: "assets"; scan?: unknown; previews?: unknown } // Assets section news (api/assets.ts)
   | { type: "resync" };

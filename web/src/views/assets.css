@@ -110,3 +110,146 @@
   .asset-chips { padding: 0 0.75rem 0.5rem; }
   .asset-detail { width: 100%; }
 }
+
+/* Previews (milestone 2) */
+
+.asset-cell { position: relative; }
+
+.asset-thumb.is-image {
+  background: conic-gradient(var(--surface-2) 25%, var(--surface) 0 50%, var(--surface-2) 0 75%, var(--surface) 0);
+  background-size: 16px 16px;
+}
+
+/* Absolute, so a big picture can't stretch the grid cell past the thumbnail's height. */
+.asset-thumb.is-image { overflow: hidden; }
+.asset-thumb.is-image img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+.asset-thumb.is-image .asset-ext { z-index: 1; }
+
+.wave {
+  width: 100%;
+  height: 100%;
+  padding: 0.75rem 0.75rem 1.5rem;
+}
+
+.wave path {
+  stroke: var(--link);
+  stroke-width: 0.7;
+  fill: none;
+}
+
+.asset-cell.playing .asset-thumb {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.asset-cell.playing .asset-thumb::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: var(--accent);
+  width: calc(var(--played, 0) * 100%);
+}
+
+.asset-dur {
+  position: absolute;
+  left: 0.4rem;
+  bottom: 0.4rem;
+  padding: 0 0.4rem;
+  border-radius: 4px;
+  font: 600 0.7rem/1.5 var(--mono);
+  background: var(--bg);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.asset-play {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  background: var(--brand);
+  border: none;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.35);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.asset-play svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  fill: var(--on-brand);
+}
+
+.asset-play .i-pause { display: none; }
+
+.asset-play[aria-pressed="true"] .i-play { display: none; }
+.asset-play[aria-pressed="true"] .i-pause { display: block; }
+
+.asset-play:hover,
+.asset-play:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.asset-preview.is-image {
+  height: auto;
+  max-height: 22rem;
+  padding: 0;
+  overflow: hidden;
+  background: conic-gradient(var(--surface-2) 25%, var(--surface) 0 50%, var(--surface-2) 0 75%, var(--surface) 0);
+  background-size: 16px 16px;
+}
+
+.asset-preview.is-image img {
+  display: block;
+  width: 100%;
+  max-height: 22rem;
+  object-fit: contain;
+}
+
+.asset-preview.is-audio {
+  height: auto;
+  padding: 0.75rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.asset-preview.is-audio .wave {
+  height: 5rem;
+  padding: 0;
+}
+
+.asset-preview.is-audio audio {
+  width: 100%;
+}
+
+.asset-previews-left {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 0.1rem;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .asset-cell.playing .asset-thumb {
+    transition: box-shadow 0.2s ease;
+  }
+  
+  .asset-play {
+    transition: transform 0.1s ease;
+  }
+  
+  .asset-play:active {
+    transform: scale(0.95);
+  }
+}
