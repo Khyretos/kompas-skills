@@ -603,3 +603,6 @@ button[aria-busy="true"]::after {
 .shell[data-right-collapsed="true"] .resize-handle[data-side="right"] { display: none; }
 @media (max-width: 1100px) { .resize-handle[data-side="right"], .collapse-btn[data-side="right"] { display: none; } }
 @media (max-width: 760px) { .resize-handle, .collapse-btn { display: none; } }
+
+/* GPU numbers that are last-known values (a reading was missed): dim, never removed. */
+.gpu.stale .gpu-bar { opacity: 0.55; }

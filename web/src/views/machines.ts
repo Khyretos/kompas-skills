@@ -168,7 +168,7 @@ function gpuPanel(m: MachineStats, g: GpuStats, open: boolean, pins: string[]): 
   }
 
   return html`
-    <div class="gpu">
+    <div class="gpu ${g.stale ? "stale" : ""}" title="${g.stale ? "Last known values, waiting for a fresh reading" : ""}">
       <button class="gpu-head" data-action="gpu-toggle" data-gpu="${key}" aria-expanded="${open}">
         ${icon(open ? "chevron-down" : "chevron-right")}<strong>${g.name}</strong>
         <span class="gpu-summary muted small">${summary}</span>

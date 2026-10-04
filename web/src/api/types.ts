@@ -143,6 +143,8 @@ export interface GpuStats {
   coreMaxMhz?: number | null;
   powerCapW?: number | null;
   engines?: { name: string; busy: number }[];
+  /** The engine and VRAM numbers are last-known values, a few seconds old. */
+  stale?: boolean;
   use: string; // what it is used for, e.g. "AI: OVMS (Qwen)"
 }
 
