@@ -23,6 +23,9 @@ pub struct Config {
     /// `gpu_labels = { "0000:10:00.0" = "AI (OVMS)" }`.
     #[serde(default)]
     pub gpu_labels: std::collections::HashMap<String, String>,
+    /// GPUs for the M6 ledger and scheduler (`[[gpu]]`), with what may live on each.
+    #[serde(default, rename = "gpu")]
+    pub gpus: Vec<GpuConfig>,
     #[serde(default, rename = "provider")]
     pub providers: Vec<ProviderConfig>,
     #[serde(default)]
@@ -109,6 +112,56 @@ impl ProviderConfig {
             .and_then(|v| std::env::var(v).ok())
             .filter(|k| !k.is_empty())
     }
+}
+
+/// One GPU: `[[gpu]] id = "a770", machine = "kireserver", pci = "0000:10:00.0", vram_gb = 16`.
+#[derive(Debug, Clone, Deserialize)]
+pub struct GpuConfig {
+    pub id: String,
+    /// This server's machine_name, or a paired computer's name.
+    pub machine: String,
+    pub pci: String,
+    pub vram_gb: f64,
+    /// false: never scheduled (the A580: desktop and Jellyfin).
+    #[serde(default = "yes")]
+    pub schedulable: bool,
+    #[serde(default, rename = "holder")]
+    pub holders: Vec<HolderConfig>,
+}
+
+/// Something that can hold VRAM on a GPU and how to see it:
+/// probe "ovms:<url>" (model = OVMS name), "ollama:<url>" (model = name, or "*" for any),
+/// "comfyui:<url>", or "studio:<url>" (an app with GET /health {loaded, busy}).
+/// Its reserved peak is weights_mb + kv_mb_per_seq x max_seqs: an LLM's KV cache grows with
+/// every parallel sequence (2026-10-04: Coder with 8 sequences outgrew the A770).
+#[derive(Debug, Clone, Deserialize)]
+pub struct HolderConfig {
+    pub name: String,
+    #[serde(default = "model_kind")]
+    pub kind: String,
+    pub probe: String,
+    #[serde(default)]
+    pub model: Option<String>,
+    #[serde(default)]
+    pub weights_mb: u64,
+    #[serde(default)]
+    pub kv_mb_per_seq: u64,
+    #[serde(default = "one")]
+    pub max_seqs: u64,
+}
+
+impl HolderConfig {
+    pub fn peak_mb(&self) -> u64 {
+        self.weights_mb + self.kv_mb_per_seq * self.max_seqs
+    }
+}
+
+fn model_kind() -> String {
+    "model".into()
+}
+
+fn one() -> u64 {
+    1
 }
 
 #[derive(Debug, Clone, Deserialize)]

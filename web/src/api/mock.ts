@@ -419,6 +419,12 @@ export class MockApi implements KompanionApi {
 
   async getCapabilities() {
     return {
+      gpus: [
+        { id: "a770", machine: "kireserver", totalMib: 16384, usedMib: 13210, reservedMib: 15400, otherMib: 0, freeMib: 984, schedulable: true,
+          holdings: [{ name: "Coder", kind: "model", nowMib: 11700, peakMib: 11700, busy: false },
+            { name: "Whisper", kind: "model", nowMib: 1700, peakMib: 1700, busy: false }] },
+        { id: "a580", machine: "kireserver", totalMib: 8192, usedMib: 900, reservedMib: 0, otherMib: 900, freeMib: 7292, schedulable: false, holdings: [] },
+      ],
       models: [
         { id: "ovms", name: "OVMS on kireserver", local: true, status: "ok" as const, error: null, models: ["Coder", "Whisper"],
           roles: ["orchestrator: Coder", "reviewer: Coder", "worker: Coder"], lastError: null },

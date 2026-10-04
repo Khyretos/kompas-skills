@@ -408,7 +408,7 @@ function refetch(what: string): void {
       else if (what === "chats") store.set({ chats: await api.listChats() });
       else if (what === "machines") store.set({ machines: await api.listMachines() });
       else if (what === "access") await loadAccess();
-      if ((what === "access" || what === "machines") && store.get().section === "capabilities") loadCapabilities();
+      if ((what === "access" || what === "machines" || what === "gpus") && store.get().section === "capabilities") loadCapabilities();
       if (what === "project-assets") for (const id of Object.keys(store.get().projectAssets)) void loadProjectAssets(id);
       if ((what === "access" || what === "actions") && s.rightTab === "activity") store.set({ activity: await api.listActivity() });
       else if (what === "actions" && s.activeChatId) {

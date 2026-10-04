@@ -47,3 +47,61 @@ api_key_env = "ANTHROPIC_API_KEY"
 orchestrator = { provider = "deepseek", model = "deepseek-chat" }
 worker = { provider = "ovms", model = "qwen3.5-9b" }
 reviewer = { provider = "deepseek", model = "deepseek-chat" }
+
+# M6 GPU ledger (GET /api/gpus). Sizes in MB; the model numbers are estimates until the
+# scheduler (M6-02) measures them. A model's peak = weights + KV cache per sequence x sequences.
+[[gpu]]
+id = "a770"
+machine = "kireserver"
+pci = "0000:10:00.0"
+vram_gb = 16
+[[gpu.holder]]
+name = "Coder"
+probe = "ovms:http://ovms:8000"
+weights_mb = 9300
+kv_mb_per_seq = 1200
+max_seqs = 2
+[[gpu.holder]]
+name = "Autocomplete"
+probe = "ovms:http://ovms:8000"
+weights_mb = 2000
+[[gpu.holder]]
+name = "Whisper"
+probe = "ovms:http://ovms:8000"
+weights_mb = 1700
+[[gpu.holder]]
+name = "ComfyUI"
+kind = "app"
+probe = "comfyui:http://comfyui:8188"
+[[gpu.holder]]
+name = "HeartMuLa"
+kind = "app"
+probe = "studio:http://heartmula:8190"
+weights_mb = 10000
+[[gpu.holder]]
+name = "MOSS sound effects"
+kind = "app"
+probe = "studio:http://moss-sfx:8191"
+weights_mb = 11500
+
+# Desktop and Jellyfin: shown, never scheduled.
+[[gpu]]
+id = "a580"
+machine = "kireserver"
+pci = "0000:0c:00.0"
+vram_gb = 8
+schedulable = false
+
+[[gpu]]
+id = "rx9070"
+machine = "soucouyant"
+pci = "*"
+vram_gb = 16
+[[gpu.holder]]
+name = "Ollama"
+probe = "ollama:http://192.168.178.80:11434"
+model = "*"
+[[gpu.holder]]
+name = "ComfyUI (soucouyant)"
+kind = "app"
+probe = "comfyui:http://192.168.178.80:8188"

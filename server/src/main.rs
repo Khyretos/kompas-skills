@@ -8,6 +8,7 @@ mod config;
 mod contrast;
 mod error;
 mod events;
+mod gpus;
 mod live;
 mod pairing;
 mod pcagent;
@@ -131,6 +132,7 @@ async fn main() -> anyhow::Result<()> {
     notify::spawn_daily(state.db.clone());
     assets::spawn(state.clone());
     import::watch(state.clone());
+    gpus::spawn(state.clone());
     if let Some(ws) = windshift {
         tracing::info!("Windshift sync on");
         windshift::spawn(state.db.clone(), ws);
@@ -186,6 +188,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/machines/{id}/grants/revoke", post(access::revoke_grant))
         .route("/access", get(access::history))
         .route("/activity", get(activity::list))
+        .route("/gpus", get(gpus::list))
         .route("/capabilities", get(capabilities::list))
         .route("/capabilities/skill", get(capabilities::skill))
         .route("/voice", get(voice::info))

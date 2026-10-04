@@ -20,7 +20,9 @@ test.describe("Capabilities", () => {
     let loads = 0;
     page.on("load", () => { loads++; });
     await openCapabilities(page);
-    for (const id of ["caps-models", "caps-computers", "caps-tools", "caps-mcp", "caps-indexes", "caps-skills"]) {
+    await expect(page.locator("#caps li.cap", { hasText: "a580" }).locator(".chip.state")).toHaveText("protected");
+    await expect(page.locator("#caps li.cap", { hasText: "a770" }).locator(".task-step")).toContainText("Coder 11.4 GB");
+    for (const id of ["caps-gpus", "caps-models", "caps-computers", "caps-tools", "caps-mcp", "caps-indexes", "caps-skills"]) {
       await expect(page.locator(`#${id}`)).toBeVisible();
     }
     const down = page.locator("#caps li.cap", { hasText: "Ollama on soucouyant" });

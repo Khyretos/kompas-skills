@@ -51,7 +51,11 @@ export interface CapSkill {
   updated: string;
 }
 
+export interface CapHolding { name: string; kind: string; nowMib: number; peakMib: number; busy: boolean }
+export interface CapGpu { id: string; machine: string; totalMib: number; usedMib: number | null; reservedMib: number; otherMib: number; freeMib: number; schedulable: boolean; holdings: CapHolding[] }
+
 export interface Capabilities {
+  gpus?: CapGpu[];
   models: CapModel[];
   computers: CapComputer[];
   tools: CapTool[];
@@ -167,6 +171,29 @@ function skillCard(s: CapSkill): SafeHtml {
   `;
 }
 
+const gb = (mib: number) => `${(mib / 1024).toFixed(1)} GB`;
+
+/** M6-01: what each GPU holds (at its peak: weights plus KV cache), what else uses it, what is free. */
+function gpuCard(g: CapGpu): SafeHtml {
+  const state = !g.schedulable ? "queued" : g.freeMib < 1024 ? "needs_input" : "done";
+  const label = !g.schedulable ? "protected" : `${gb(g.freeMib)} free`;
+  const pct = (mib: number) => `${Math.min(100, Math.round((mib / Math.max(1, g.totalMib)) * 100))}%`;
+  return html`
+    <li class="task cap s-${state}">
+      <div class="task-main">
+        <span class="task-top"><span class="chip state">${label}</span><span class="muted small">${g.machine}</span></span>
+        <span class="task-title">${g.id} · ${gb(g.totalMib)}</span>
+        <span class="vram-bar" role="img" aria-label="${`${gb(g.reservedMib)} reserved, ${gb(g.otherMib)} other, ${gb(g.freeMib)} free`}">
+          <span class="vb-res" style="width:${pct(g.reservedMib)}"></span><span class="vb-other" style="width:${pct(g.otherMib)}"></span>
+        </span>
+        <span class="task-step">${g.holdings.length
+          ? g.holdings.map((h) => `${h.name} ${gb(Math.max(h.nowMib, h.peakMib))}${h.busy ? " (busy)" : ""}`).join(" · ")
+          : "Nothing loaded"}</span>
+        <span class="task-meta">${icon("spark")} reserved ${gb(g.reservedMib)} · other ${gb(g.otherMib)}${g.usedMib === null ? "" : ` · measured ${gb(g.usedMib)}`}</span>
+      </div>
+    </li>`;
+}
+
 function group(key: string, title: string, items: SafeHtml[], empty: string): SafeHtml {
   return html`
     <section class="caps-group" aria-labelledby="caps-${key}">
@@ -206,6 +233,7 @@ export function renderCapabilities(c: Capabilities | undefined): SafeHtml {
           <p class="muted">What Kompanion can use right now. Updates live.</p>
         </div>
       </header>
+      ${group("gpus", "GPUs", (c.gpus ?? []).map((g) => gpuCard(g)), "No GPUs configured (kompanion.toml [[gpu]]).")}
       ${group("models", "Models", models, "No model providers are configured.")}
       ${group("computers", "Computers", computers, "No computer is paired yet.")}
       ${group("tools", "Tools", tools, "No tools found.")}
