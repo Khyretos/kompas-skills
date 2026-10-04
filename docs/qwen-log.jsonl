@@ -142,3 +142,4 @@
 {"name": "voice-server", "out": "server/src/voice.rs", "gpu_seconds": 105.3, "tokens": 4601, "lines": 400, "review": "skipped", "model": "qwen3.5:9b-q8_0", "at": "2026-10-04T15:24:13"}
 {"name": "project-panel-view", "out": "web/src/views/projectpanel.ts", "gpu_seconds": 65.4, "tokens": 2916, "lines": 104, "model": "qwen3.5:9b-q8_0", "at": "2026-10-04T15:32:51"}
 {"name": "gpu-ledger-pure", "out": "server/src/gpus/ledger.rs", "gpu_seconds": 157.6, "tokens": 4653, "lines": 244, "model": "qwen3.5:9b-q8_0", "at": "2026-10-04T20:42:32"}
+{"name": "gpu-sched-core", "out": "server/src/gpus/sched.rs", "gpu_seconds": 230.6, "tokens": 5867, "lines": 511, "review": "skipped", "model": "Coder", "at": "2026-10-04T20:59:15"}

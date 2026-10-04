@@ -2,7 +2,9 @@
 //! what else uses VRAM, and what is free. Every later scheduling decision reads this.
 //! Probes run every 10 s; a change is sent live ("gpus"), samples are kept 24 h for the
 //! trace timeline (M6-04).
+pub mod jobs;
 pub mod ledger;
+pub mod sched;
 
 use std::{collections::HashMap, sync::Mutex, time::Duration};
 
@@ -162,7 +164,8 @@ async fn store(s: &AppState, ledgers: &[GpuLedger]) {
     let _ = sqlx::query("DELETE FROM gpu_sample WHERE at < ?").bind(util::minutes_ago(24 * 60)).execute(&s.db).await;
 }
 
-/// Every 10 s: probe, keep a sample, and tell open apps when something changed.
+/// Every 10 s (and at once when a GPU job is queued or ends): probe, keep a sample, run a
+/// scheduling round, and tell open apps when something changed.
 pub fn spawn(s: AppState) {
     if s.config.gpus.is_empty() {
         return;
@@ -170,9 +173,15 @@ pub fn spawn(s: AppState) {
     tokio::spawn(async move {
         let mut tick = tokio::time::interval(SAMPLE_EVERY);
         loop {
-            tick.tick().await;
+            let sampled = tokio::select! {
+                _ = tick.tick() => true,
+                _ = jobs::KICK.notified() => false,
+            };
             let now = build(&s).await;
-            store(&s, &now).await;
+            if sampled {
+                store(&s, &now).await;
+            }
+            jobs::round(&s, &now).await;
             let changed = {
                 let mut last = LAST.lock().unwrap();
                 // Small VRAM wobbles (under 64 MiB) are not news.

@@ -221,6 +221,17 @@ impl HostStats {
         out
     }
 
+    /// Free host RAM in GB per machine for the M6 scheduler: (None for this server or the
+    /// remote machine id, free GB).
+    pub fn ram_free(&self, state: &AppState) -> Vec<(Option<String>, f64)> {
+        let _ = self.local_view(state);
+        let mut out: Vec<_> = self.local.lock().unwrap().snap.iter().map(|s| (None, s.ram_total_gb - s.ram_used_gb)).collect();
+        for (id, r) in self.remote.lock().unwrap().iter() {
+            out.push((Some(id.clone()), r.snap.ram_total_gb - r.snap.ram_used_gb));
+        }
+        out
+    }
+
     /// Everything `user_id` may see: this server plus their own paired PCs.
     async fn views(&self, state: &AppState, user_id: &str) -> ApiResult<Vec<Value>> {
         let mut out = vec![self.local_view(state)];

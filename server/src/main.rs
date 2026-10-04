@@ -189,6 +189,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/access", get(access::history))
         .route("/activity", get(activity::list))
         .route("/gpus", get(gpus::list))
+        .route("/gpus/jobs", get(gpus::jobs::list))
         .route("/capabilities", get(capabilities::list))
         .route("/capabilities/skill", get(capabilities::skill))
         .route("/voice", get(voice::info))
