@@ -33,16 +33,6 @@ fn snapshot(reader: &mut EngineReader) -> String {
     serde_json::Value::Array(list).to_string()
 }
 
-    // `kompanion-gpu-helper --probe [socket]`: ask a running helper and print how many
-    // GPUs report VRAM; exit 0 when at least one does (install.sh's self-test).
-    let args: Vec<String> = std::env::args().collect();
-    if args.get(1).map(String::as_str) == Some("--probe") {
-        let sock = args.get(2).cloned().unwrap_or_else(|| "/run/kompanion-gpu/stats.sock".into());
-        let n = probe(&sock);
-        println!("{n} GPU(s) with VRAM");
-        std::process::exit(if n > 0 { 0 } else { 1 });
-    }
-
 fn probe(sock: &str) -> usize {
     use std::io::Read;
     let Ok(mut s) = std::os::unix::net::UnixStream::connect(sock) else { return 0 };
@@ -57,6 +47,15 @@ fn probe(sock: &str) -> usize {
 }
 
 fn main() {
+    // `kompanion-gpu-helper --probe [socket]`: ask a running helper and print how many
+    // GPUs report VRAM; exit 0 when at least one does (install.sh's self-test).
+    let args: Vec<String> = std::env::args().collect();
+    if args.get(1).map(String::as_str) == Some("--probe") {
+        let sock = args.get(2).cloned().unwrap_or_else(|| "/run/kompanion-gpu/stats.sock".into());
+        let n = probe(&sock);
+        println!("{n} GPU(s) with VRAM");
+        std::process::exit(if n > 0 { 0 } else { 1 });
+    }
     let path = std::env::args().nth(1).unwrap_or_else(|| "/run/kompanion-gpu/stats.sock".into());
     let _ = std::fs::remove_file(&path);
     let listener = match UnixListener::bind(&path) {
