@@ -63,4 +63,16 @@ test.describe("PC Agent approval cards", () => {
     
     await expect(card.locator(".chip")).toContainText("declined");
   });
+
+  test("a finished step shows its output as a terminal block with the exit code", async ({ page }) => {
+    await openDemo(page);
+    await ask(page);
+    const card = page.locator(".pc-action").last();
+    await card.locator('[data-decision="approve"]').click();
+    const out = card.locator("figure.output.terminal");
+    await expect(out).toBeVisible();
+    await expect(out.locator(".output-title")).toContainText("paru install htop");
+    await expect(out.locator(".chip.exit.ok")).toContainText("exit 0");
+    await page.screenshot({ path: "test-results/output-terminal.png" });
+  });
 });

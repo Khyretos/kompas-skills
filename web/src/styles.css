@@ -622,3 +622,33 @@ button[aria-busy="true"]::after {
 .pc-action.failed, .pc-action.refused, .pc-action.denied { border-left-color: var(--danger, #c0392b); }
 .pc-action .actions { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .pc-action pre { max-height: 14rem; overflow: auto; font-size: 0.8rem; white-space: pre-wrap; }
+
+/* Output blocks (core/output.ts): each kind has its own header so it's clear what it is. */
+.output { margin: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface-2); }
+.output-head {
+  position: sticky; top: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem;
+  padding: 0.3rem 0.5rem; font-size: 0.78rem; background: var(--surface); border-bottom: 1px solid var(--line);
+}
+.output-kind { font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.output-title { font-size: 0.78rem; overflow-wrap: anywhere; }
+.output-copy { margin-left: auto; }
+.output-body { margin: 0; padding: 0.6rem 0.75rem; max-height: 22rem; overflow: auto; font-size: 0.8rem; line-height: 1.45; white-space: pre-wrap; }
+/* Terminal: always a near-black panel with light text, in light and dark mode. */
+.output.terminal { background: #0c0917; border-color: #2c1f3f; }
+.output.terminal .output-head { background: #1c1329; border-color: #2c1f3f; color: #f4eefc; }
+.output.terminal .output-kind { color: #cca9ff; }
+.output-body.term { color: #f4eefc; font-family: ui-monospace, "JetBrains Mono", monospace; }
+.chip.exit.ok { background: #d9f2e3; color: #14532d; }
+.chip.exit.bad { background: #fde2e1; color: #8b1a14; }
+/* Diffs */
+.output-body.diff .line { display: block; }
+.output-body.diff .add { background: rgb(46 158 91 / 0.18); }
+.output-body.diff .del { background: rgb(192 57 43 / 0.18); }
+.output-body.diff .hunk { color: var(--muted); }
+.output-body.json summary { cursor: pointer; color: var(--muted); }
+.output-text { margin: 0; }
+.output-image { padding: 0; border: 0; background: none; cursor: zoom-in; }
+.output-image img { display: block; max-width: 16rem; max-height: 12rem; border-radius: 6px; border: 1px solid var(--line); }
+.lightbox { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: var(--scrim); padding: 1rem; }
+.lightbox img { max-width: 92vw; max-height: 88vh; border-radius: 8px; }
+.lightbox .icon-btn { position: absolute; top: 1rem; right: 1rem; }

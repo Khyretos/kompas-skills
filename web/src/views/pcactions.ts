@@ -1,5 +1,6 @@
 import { html, type SafeHtml } from "../core/html";
 import type { PcAction } from "../api/client";
+import { fromTool, renderOutput } from "../core/output";
 
 export function renderPcPicker(
   machines: { id: string; name: string; online?: boolean }[],
@@ -63,12 +64,7 @@ export function renderPcActions(actions: PcAction[], machineNames: Record<string
             <span class="muted small">on ${machineNames[a.machineId] ?? "a computer"}</span>
             ${a.needs && a.state === "pending" ? html`<span class="small">Needs: ${a.needs}</span>` : ""}
             <span class="chip ${a.state}">${label}</span>
-            ${hasResult ? html`
-              <details>
-                <summary>Result</summary>
-                <pre>${a.result}</pre>
-              </details>
-            ` : null}
+            ${hasResult ? renderOutput(fromTool(a.tool, a.result, machineNames[a.machineId])) : null}
             ${a.state === "pending" ? buttons : null}
           </article>
         `;

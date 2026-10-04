@@ -117,3 +117,5 @@
 {"name": "fix server/src/cli.rs", "out": "server/src/cli.rs", "gpu_seconds": 71.7, "tokens": 1405, "lines": 139, "review": "skipped", "model": "Coder", "at": "2026-10-04T04:40:56"}
 {"name": "T3 mock pc actions", "out": "web/src/api/mock.ts", "mode": "patch", "gpu_seconds": 43.2, "tokens": 870, "lines": 4, "attempts": 1, "model": "Coder", "at": "2026-10-04T04:54:04"}
 {"name": "T3 approval card tests", "out": "web/tests/pcagent.spec.ts", "gpu_seconds": 62.1, "tokens": 1340, "lines": 66, "model": "Coder", "at": "2026-10-04T04:54:23"}
+{"name": "O1 pcactions uses output", "out": "web/src/views/pcactions.ts", "mode": "patch", "gpu_seconds": 9.8, "tokens": 150, "lines": 2, "attempts": 1, "model": "Coder", "at": "2026-10-04T05:13:39"}
+{"name": "O1 output.ts", "out": "web/src/core/output.ts", "gpu_seconds": 246.5, "tokens": 4755, "lines": 288, "model": "Coder", "at": "2026-10-04T05:17:36"}

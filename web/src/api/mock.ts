@@ -403,11 +403,11 @@ export class MockApi implements KompanionApi {
       this.emit({ type: "changed", what: "access", machineId: a.machineId });
     }
     step("running", null, 300);
-    step("done", "htop 3.3.0 installed", 600);
+    step("done", "resolving dependencies...\ninstalling htop...\nexit: 0", 600);
   }
   async send(chatId: string, text: string, machineId?: string) {
     if (machineId) {
-      const a = { id: id("a"), chatId, machineId, summary: "install htop with paru", needs: "packages + root (asks for the password on the PC)",
+      const a = { id: id("a"), chatId, machineId, summary: "install htop with paru", tool: { tool: "package", manager: "paru", action: "install", names: ["htop"] }, needs: "packages + root (asks for the password on the PC)",
         state: "pending", result: null, createdAt: new Date().toISOString() } as PcAction & { chatId: string };
       actions.push(a);
       setTimeout(() => this.emit({ type: "changed", what: "actions" }), 100);

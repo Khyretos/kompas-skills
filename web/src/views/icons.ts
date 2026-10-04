@@ -24,6 +24,11 @@ const paths: Record<string, string> = {
   trash: "M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6",
   "chevron-right": "M9 6l6 6-6 6",
   "chevron-down": "M6 9l6 6 6-6",
+  terminal: "M4 5h16v14H4zM7 9l3 3-3 3M12 15h5",
+  code: "M9 7l-5 5 5 5M15 7l5 5-5 5",
+  diff: "M6 4v16M18 4v16M3 8h6M15 16h6M18 13v6",
+  braces: "M9 4c-2 0-3 1-3 3v2c0 1.5-1 3-2.5 3C5 12 6 13.5 6 15v2c0 2 1 3 3 3M15 4c2 0 3 1 3 3v2c0 1.5 1 3 2.5 3-1.5 0-2.5 1.5-2.5 3v2c0 2-1 3-3 3",
+  copy: "M9 9h11v11H9zM5 15H4V4h11v1",
   spark: "M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6",
 };
 

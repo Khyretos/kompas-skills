@@ -347,7 +347,7 @@ pub async fn list(
             .map(|(id, machine_id, summary, state, result, created_at, tool)| {
                 let job: Value = serde_json::from_str(&tool).unwrap_or(Value::Null);
                 json!({ "id": id, "machineId": machine_id, "summary": summary, "state": state, "result": result,
-                        "createdAt": created_at, "needs": needs_text(&job) })
+                        "createdAt": created_at, "needs": needs_text(&job), "tool": job })
             })
             .collect(),
     ))

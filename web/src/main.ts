@@ -305,6 +305,27 @@ function wire(shell: HTMLElement): void {
       api.setGpuPins(gpuPins).catch(showError);
     },
     "pair-done": () => store.set({ pairing: undefined }),
+    // Image output: a lightbox that closes on an outside click, × or Escape (lesson 15).
+    lightbox: (el) => {
+      const box = document.createElement("div");
+      box.className = "lightbox";
+      box.setAttribute("role", "dialog");
+      box.setAttribute("aria-modal", "true");
+      const img = document.createElement("img");
+      img.src = el.dataset.src ?? "";
+      img.alt = "";
+      const close = document.createElement("button");
+      close.className = "icon-btn";
+      close.setAttribute("aria-label", "Close");
+      close.textContent = "×";
+      box.append(img, close);
+      document.body.append(box);
+      const m = modal(box, () => { box.remove(); document.removeEventListener("keydown", esc); });
+      const esc = (ev: KeyboardEvent) => { if (ev.key === "Escape") m.requestClose(); };
+      document.addEventListener("keydown", esc);
+      close.addEventListener("click", () => m.requestClose());
+      m.open(el);
+    },
     "pc-decide": (el) => {
       const id = el.dataset.id ?? "";
       const decision = el.dataset.decision as "approve" | "always" | "deny";

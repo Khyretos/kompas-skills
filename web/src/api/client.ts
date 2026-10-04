@@ -11,6 +11,8 @@ export interface PcAction {
   state: "pending" | "approved" | "always" | "granting" | "running" | "denied" | "done" | "failed" | "refused";
   /** The grant the step needs, e.g. "packages + root (asks for the password on the PC)". */
   needs?: string | null;
+  /** The runner tool call: `{ "tool": "shell", "cwd": .., "command": .. }` and so on. */
+  tool?: Record<string, unknown>;
   result: string | null;
   createdAt: string;
 }
