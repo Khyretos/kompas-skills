@@ -1,4 +1,3 @@
-server/src/pcagent/mod.rs
 //! The PC agent (F6): with a computer picked in the chat, the orchestrator model
 //! gets the runner's tools. Every tool call waits for the user's decision in an
 //! approval card (Approve, Always allow for 24 h, Deny); approved calls run as

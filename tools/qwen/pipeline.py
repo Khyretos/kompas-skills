@@ -207,6 +207,11 @@ def run_job(job, log):
     except RuntimeError as e:
       print(json.dumps({"name": job["name"], "error": str(e)}), flush=True)
 
+def drop_path_line(code, path):
+    """The model sometimes puts the file's path on the first line; drop it."""
+    first, _, rest = code.partition("\n")
+    return rest if first.strip().strip("`/# ") in (path, path.split("/")[-1]) else code
+
 def main():
     """Two lanes: soucouyant drafts while OVMS takes other files. Jobs for the
     same file stay in order on one lane (later edits build on earlier ones)."""
