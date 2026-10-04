@@ -439,6 +439,10 @@ function wire(shell: HTMLElement): void {
 
   shell.addEventListener("change", async (ev) => {
     const fid = (ev.target as HTMLElement).id;
+    if (fid === "activity-failed") {
+      store.set({ activityFilter: { ...store.get().activityFilter, failedOnly: (ev.target as HTMLInputElement).checked } });
+      return;
+    }
     if (fid === "activity-machine" || fid === "activity-chat") {
       const v = (ev.target as HTMLSelectElement).value || undefined;
       store.set({ activityFilter: { ...store.get().activityFilter, [fid === "activity-machine" ? "machine" : "chat"]: v } });

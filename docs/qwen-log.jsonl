@@ -128,3 +128,6 @@
 {"name": "W2a taskrun plan and review parsing", "out": "server/src/taskrun/parse.rs", "gpu_seconds": 78.8, "tokens": 2307, "lines": 293, "review": "skipped", "model": "Coder", "at": "2026-10-04T06:14:59"}
 {"name": "W2c taskrun loop fixes", "out": "server/src/taskrun/mod.rs", "gpu_seconds": 222.0, "tokens": 3993, "lines": 390, "review": "skipped", "model": "Coder", "at": "2026-10-04T06:19:15"}
 {"name": "W2d parse fixes", "out": "server/src/taskrun/parse.rs", "gpu_seconds": 82.2, "tokens": 2419, "lines": 294, "review": "skipped", "model": "Coder", "at": "2026-10-04T06:25:00"}
+{"name": "AC1 server activity steps with grants", "out": "server/src/activity.rs", "gpu_seconds": 96.7, "tokens": 1152, "lines": 135, "review": "skipped", "model": "Coder", "at": "2026-10-04T06:51:48"}
+{"name": "AC2 web activity redesign", "out": "web/src/views/activity.ts", "gpu_seconds": 164.1, "tokens": 1838, "lines": 181, "review": "skipped", "model": "Coder", "at": "2026-10-04T06:52:56"}
+{"name": "AC3 activity tests", "out": "web/tests/activity.spec.ts", "gpu_seconds": 95.4, "tokens": 1123, "lines": 81, "review": "skipped", "model": "Coder", "at": "2026-10-04T06:54:58"}

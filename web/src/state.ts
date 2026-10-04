@@ -30,7 +30,7 @@ export interface AppState {
   today?: DaySummary;
   rightTab: "tasks" | "machines" | "access" | "activity";
   activity: import("./views/activity").ActivityItem[];
-  activityFilter: { machine?: string; chat?: string };
+  activityFilter: import("./views/activity").ActivityFilter;
   openTaskId?: string; // task shown in detail
   taskScope: "project" | "all";
   settingsOpen: boolean;

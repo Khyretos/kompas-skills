@@ -390,7 +390,17 @@ export class MockApi implements KompanionApi {
   }
 
   async listActions(chatId: string) { return structuredClone(actions.filter((a) => (a as PcAction & { chatId?: string }).chatId === chatId)); }
-  async listActivity() { return []; }
+  async listActivity() {
+    const now = Date.now();
+    return [
+      { at: new Date(now - 120_000).toISOString(), kind: "step", state: "done", text: "Edit hyprland.lua", machineId: "soucouyant", machine: "soucouyant",
+        chatId: "c1", chat: "Hyprland gaps", id: "a1", tool: { tool: "edit_file", path: "/home/kees/.config/hypr/hyprland.lua" },
+        result: "@@ line 12 @@\n-gaps_out = 8\n+gaps_out = 12\n", grant: "allowed once · 10 min · removed after" },
+      { at: new Date(now - 300_000).toISOString(), kind: "step", state: "refused", text: "Read /etc/shadow", machineId: "soucouyant", machine: "soucouyant",
+        chatId: "c1", chat: "Hyprland gaps", id: "a2", tool: { tool: "read_file", path: "/etc/shadow" }, result: "not granted: read on /etc/shadow", grant: null },
+      { at: new Date(now - 600_000).toISOString(), kind: "grant", text: "system", target: "system", detail: "always allow, 24 h", machineId: "soucouyant", machine: "soucouyant" },
+    ];
+  }
   async startTask() {}
   async decideAction(id: string, decision: "approve" | "always" | "deny") {
     const a = actions.find((x) => x.id === id);
