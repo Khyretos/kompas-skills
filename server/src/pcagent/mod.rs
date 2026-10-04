@@ -1,3 +1,4 @@
+server/src/pcagent/mod.rs
 //! The PC agent (F6): with a computer picked in the chat, the orchestrator model
 //! gets the runner's tools. Every tool call waits for the user's decision in an
 //! approval card (Approve, Always allow for 24 h, Deny); approved calls run as
@@ -30,7 +31,7 @@ async fn say(s: &AppState, user_id: &str, chat_id: &str, text: &str) {
         .bind(&util::now())
         .execute(&s.db)
         .await;
-    if let Err(e) = s.bus.send(user_id, Event::Message { message: text.to_string() }).await {
+    if let Err(e) = s.bus.send(user_id, Event::Message { message: text.to_string() }) {
         tracing::warn!("Failed to send event: {}", e);
     }
 }
@@ -70,7 +71,7 @@ pub async fn run(
     let client = &s.http;
     
     for _ in 0..MAX_STEPS {
-        match llm::chat_with_tools(client, p, &role.model, &messages, &tools::schema()).await {
+        match llm::chat_with_tools(client, p, &role.role, &messages, &tools::schema()).await {
             Ok(msg) => {
                 messages.push(msg.clone());
                 
@@ -196,7 +197,7 @@ pub async fn decide(
     Path(id): Path<String>,
     Json(b): Json<Decision>
 ) -> ApiResult<StatusCode> {
-    let row = sqlx::query_as::<_, (String, Value, String)>(
+    let row = sqlx::query_as::<_, (String, String, String)>(
         "SELECT machine_id, tool, state FROM pc_actions WHERE id = ? AND user_id = ?"
     )
     .bind(&id)
@@ -205,7 +206,7 @@ pub async fn decide(
     .await.ok().flatten();
 
     let Some((machine_id, job, state)) = row else {
-        return Err(ApiError::NotFound("Action not found".to_string()));
+        return Err(ApiError::NotFound("Action not found"));
     };
 
     if state != "pending" {

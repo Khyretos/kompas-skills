@@ -228,8 +228,8 @@ pub fn summary(job: &Value) -> String {
         "service" => {
             let action = args.get("action").and_then(|v| v.as_str()).unwrap_or("");
             let unit = args.get("unit").and_then(|v| v.as_str()).unwrap_or("");
-            if let Some(u) = unit {
-                format!("{} the user service {}", action, u)
+            if unit != "" {
+                format!("{} the user service {}", action, unit)
             } else {
                 format!("{}", action)
             }
