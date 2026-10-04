@@ -89,6 +89,8 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let config = config::Config::load()?;
+    // sqlite-vec (asset "similar" search) for every connection the pool opens.
+    assets::register_sqlite_extensions();
     let db = SqlitePoolOptions::new()
         .max_connections(8)
         .connect_with(

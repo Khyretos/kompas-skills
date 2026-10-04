@@ -2,6 +2,7 @@
 //! (`ASSET_LIBRARY`, e.g. /library). Every signed-in user can browse it; only an
 //! admin can start a scan. Pack files are listed from their index, never unpacked.
 
+pub mod ai;
 mod classify;
 mod preview;
 mod scan;
@@ -45,7 +46,18 @@ pub fn routes() -> Router<AppState> {
         .route("/assets/facets", get(facets))
         .route("/assets/scan", post(start_scan))
         .route("/assets/previews/want", post(want_previews))
+        .route("/assets/ai", get(ai_status).put(set_ai))
         .route("/assets/{id}", get(detail))
+        .route("/assets/{id}/describe", post(describe))
+        .route("/assets/{id}/category", post(set_category))
+        .route("/assets/{id}/category/keep", post(keep_category))
+        .route("/assets/{id}/tags", post(add_tag))
+        .route("/assets/{id}/tags/{tag}", axum::routing::delete(remove_tag))
+}
+
+/// sqlite-vec for every SQLite connection opened from now on (call before the pool).
+pub fn register_sqlite_extensions() {
+    ai::register_sqlite_vec();
 }
 
 /// Scans a minute after start, then every hour. Unchanged pack files are skipped,
@@ -56,6 +68,8 @@ pub fn spawn(state: AppState) {
         return;
     };
     preview::spawn(state.db.clone(), state.bus.clone(), root.clone(), preview::dir(&state.config.database));
+    // Off until an admin turns it on in the Assets header.
+    ai::spawn(state.db.clone(), state.bus.clone(), ai::Ai::from_env(crate::llm::http_client()), preview::dir(&state.config.database));
     tokio::spawn(async move {
         tokio::time::sleep(Duration::from_secs(60)).await;
         loop {
@@ -126,6 +140,7 @@ async fn status(State(s): State<AppState>) -> ApiResult<Json<Value>> {
         "assets": assets, "bytes": bytes, "packs": packs,
         "scan": progress,
         "previews": previews,
+        "ai": ai::PROGRESS.lock().unwrap().clone(),
         "lastScan": last.map(|(started, finished, files, entries, unity, read, errors, ms)| json!({
             "startedAt": started, "finishedAt": finished, "files": files, "entries": entries, "unity": unity,
             "packsRead": read, "errors": serde_json::from_str::<Value>(&errors).unwrap_or(json!([])), "tookMs": ms,
@@ -143,6 +158,16 @@ pub struct Filter {
     /// Also show copies (same size and name as another asset).
     #[serde(default)]
     dups: bool,
+    /// Only assets whose category the AI disagrees with.
+    #[serde(default)]
+    review: bool,
+    /// "kind:name", e.g. "mood:calm".
+    tag: Option<String>,
+    /// Assets most like this one (needs AI vectors).
+    similar: Option<i64>,
+    /// Search `q` by meaning (vectors) instead of by words.
+    #[serde(default)]
+    meaning: bool,
     offset: Option<i64>,
     limit: Option<i64>,
 }
@@ -159,8 +184,32 @@ fn fts_query(q: &str) -> Option<String> {
     (!words.is_empty()).then(|| words.join(" "))
 }
 
+/// For "similar" and "by meaning": the nearest assets as ",id,id,...," (closest first).
+async fn near(s: &AppState, f: &Filter) -> ApiResult<Option<String>> {
+    let v = if let Some(id) = f.similar {
+        ai::vector_of(&s.db, id).await?
+    } else if f.meaning && let Some(q) = f.q.as_deref().filter(|q| !q.trim().is_empty()) {
+        if ai::mode(&s.db).await == ai::Mode::Off {
+            return Err(ApiError::BadRequest("Search by meaning needs AI tagging turned on.".into()));
+        }
+        ai::embed_query(&ai::Ai::from_env(s.http.clone()), q).await
+    } else {
+        return Ok(None);
+    };
+    let Some(v) = v else {
+        // No vector yet (not described by the AI): nothing is "near".
+        return Ok(Some(",".into()));
+    };
+    let ids = ai::nearest(&s.db, &v, 500).await?;
+    let mut out = String::from(",");
+    for (id, _) in ids.into_iter().filter(|(id, _)| Some(*id) != f.similar) {
+        out.push_str(&format!("{id},"));
+    }
+    Ok(Some(out))
+}
+
 /// WHERE clause and its binds. `skip` leaves one filter out (for its own facet counts).
-fn where_clause(f: &Filter, skip: &str) -> (String, Vec<String>) {
+fn where_clause(f: &Filter, skip: &str, near: Option<&str>) -> (String, Vec<String>) {
     let mut sql = vec!["a.missing_since IS NULL".to_string()];
     let mut binds = vec![];
     let cats: Vec<&str> =
@@ -180,9 +229,21 @@ fn where_clause(f: &Filter, skip: &str) -> (String, Vec<String>) {
         sql.push("a.pack_id = ?".into());
         binds.push(p.to_string());
     }
-    if let Some(q) = f.q.as_deref().and_then(fts_query) {
+    if let Some(q) = f.q.as_deref().and_then(fts_query).filter(|_| !f.meaning) {
         sql.push("a.id IN (SELECT rowid FROM asset_fts WHERE asset_fts MATCH ?)".into());
         binds.push(q);
+    }
+    if skip != "review" && f.review {
+        sql.push("a.ai_category IS NOT NULL".into());
+    }
+    if let Some((kind, name)) = f.tag.as_deref().and_then(|t| t.split_once(':')) {
+        sql.push("a.id IN (SELECT x.asset_id FROM asset_tag x JOIN asset_tagname t ON t.id = x.tag_id WHERE t.kind = ? AND t.name = ?)".into());
+        binds.push(kind.to_string());
+        binds.push(name.to_string());
+    }
+    if let Some(n) = near {
+        sql.push("instr(?, ',' || a.id || ',') > 0".into());
+        binds.push(n.to_string());
     }
     (sql.join(" AND "), binds)
 }
@@ -217,6 +278,7 @@ struct Item {
     peaks: Option<String>,
     width: Option<i64>,
     height: Option<i64>,
+    ai_category: Option<String>,
 }
 
 fn item_json(i: Item) -> Value {
@@ -227,23 +289,34 @@ fn item_json(i: Item) -> Value {
         // Only finished previews; `pv` is part of the preview URL (a new preview, a new URL).
         "preview": if i.preview_state.as_deref() == Some("ok") { i.preview_kind } else { None },
         "pv": i.preview_v, "duration": i.duration_s, "peaks": i.peaks, "width": i.width, "height": i.height,
+        "aiCategory": i.ai_category,
     })
 }
 
 const ITEM_COLUMNS: &str = "a.id, a.pack_id, p.name AS pack, a.container, a.path, a.name, a.ext, a.size, a.category, \
-     a.is_meta, a.dup_of, a.preview_state, a.preview_kind, a.preview_v, a.duration_s, a.peaks, a.width, a.height";
+     a.is_meta, a.dup_of, a.preview_state, a.preview_kind, a.preview_v, a.duration_s, a.peaks, a.width, a.height, \
+     a.ai_category";
 
 async fn list(State(s): State<AppState>, Query(f): Query<Filter>) -> ApiResult<Json<Value>> {
-    let (wh, binds) = where_clause(&f, "");
+    let near = near(&s, &f).await?;
+    let (wh, mut binds) = where_clause(&f, "", near.as_deref());
     let limit = f.limit.unwrap_or(200).clamp(1, 500);
     let offset = f.offset.unwrap_or(0).max(0);
     let total: (i64,) = bind_all(sqlx::query_as(&format!("SELECT COUNT(*) FROM asset a WHERE {wh}")), &binds)
         .fetch_one(&s.db)
         .await?;
+    // Nearest first when searching by vectors, else in pack and path order.
+    let order = match &near {
+        Some(n) => {
+            binds.push(n.clone());
+            "instr(?, ',' || a.id || ',')"
+        }
+        None => "p.name COLLATE NOCASE, a.pack_id, a.path COLLATE NOCASE",
+    };
     let rows: Vec<Item> = bind_all(
         sqlx::query_as(&format!(
             "SELECT {ITEM_COLUMNS} FROM asset a JOIN asset_pack p ON p.id = a.pack_id WHERE {wh}
-             ORDER BY p.name COLLATE NOCASE, a.pack_id, a.path COLLATE NOCASE LIMIT {limit} OFFSET {offset}"
+             ORDER BY {order} LIMIT {limit} OFFSET {offset}"
         )),
         &binds,
     )
@@ -254,7 +327,12 @@ async fn list(State(s): State<AppState>, Query(f): Query<Filter>) -> ApiResult<J
 
 /// Counts per category and per pack for the current filters (each facet ignores its own).
 async fn facets(State(s): State<AppState>, Query(f): Query<Filter>) -> ApiResult<Json<Value>> {
-    let (wh, binds) = where_clause(&f, "category");
+    let near = near(&s, &f).await?;
+    let (wh, binds) = where_clause(&f, "review", near.as_deref());
+    let review: (i64,) = bind_all(sqlx::query_as(&format!("SELECT COUNT(*) FROM asset a WHERE {wh} AND a.ai_category IS NOT NULL")), &binds)
+        .fetch_one(&s.db)
+        .await?;
+    let (wh, binds) = where_clause(&f, "category", near.as_deref());
     let cats: Vec<(String, i64, i64)> = bind_all(
         sqlx::query_as(&format!(
             "SELECT a.category, COUNT(*), COALESCE(SUM(a.size), 0) FROM asset a WHERE {wh} GROUP BY a.category"
@@ -263,7 +341,7 @@ async fn facets(State(s): State<AppState>, Query(f): Query<Filter>) -> ApiResult
     )
     .fetch_all(&s.db)
     .await?;
-    let (wh, binds) = where_clause(&f, "pack");
+    let (wh, binds) = where_clause(&f, "pack", near.as_deref());
     let packs: Vec<(i64, String, String, i64, Option<i64>, Option<String>, i64, i64)> = bind_all(
         sqlx::query_as(&format!(
             "SELECT p.id, p.name, p.kind, p.size, p.duplicate_of, p.error, COUNT(a.id), COALESCE(SUM(a.size), 0)
@@ -275,6 +353,7 @@ async fn facets(State(s): State<AppState>, Query(f): Query<Filter>) -> ApiResult
     .fetch_all(&s.db)
     .await?;
     Ok(Json(json!({
+        "review": review.0,
         "categories": cats.into_iter().map(|(name, files, bytes)| json!({ "name": name, "files": files, "bytes": bytes })).collect::<Vec<_>>(),
         "packs": packs.into_iter().map(|(id, name, kind, size, dup, error, files, bytes)| json!({
             "id": id, "name": name, "kind": kind, "size": size, "duplicateOf": dup, "error": error,
@@ -302,6 +381,22 @@ async fn detail(State(s): State<AppState>, Path(id): Path<i64>) -> ApiResult<Jso
     .fetch_one(&s.db)
     .await?;
     let (pack_id, dup_of) = (item.pack_id, item.dup_of);
+    let (ai_state, ai_error, caption, subject, transcript, ai_model, category_by): (
+        Option<String>, Option<String>, Option<String>, Option<String>, Option<String>, Option<String>, String,
+    ) = sqlx::query_as(
+        "SELECT ai_state, ai_error, ai_caption, ai_subject, ai_transcript, ai_model, category_by FROM asset WHERE id = ?",
+    )
+    .bind(id)
+    .fetch_one(&s.db)
+    .await?;
+    let tags: Vec<(i64, String, String, String)> = sqlx::query_as(
+        "SELECT t.id, t.kind, t.name, x.by FROM asset_tag x JOIN asset_tagname t ON t.id = x.tag_id WHERE x.asset_id = ?
+         ORDER BY t.kind, t.name",
+    )
+    .bind(id)
+    .fetch_all(&s.db)
+    .await?;
+    let has_vector = ai::vector_of(&s.db, id).await.ok().flatten().is_some();
     // Its copies (or the original and its other copies).
     let keep = dup_of.unwrap_or(id);
     let copies: Vec<(i64, String, String)> = sqlx::query_as(
@@ -322,6 +417,9 @@ async fn detail(State(s): State<AppState>, Path(id): Path<i64>) -> ApiResult<Jso
     let extra = json!({
         "packKind": pack_kind, "mtime": mtime, "rule": rule, "missingSince": missing, "sampleRate": rate,
         "channels": channels, "hasAlpha": alpha, "previewState": state, "previewError": error,
+        "aiState": ai_state, "aiError": ai_error, "aiCaption": caption, "aiSubject": subject, "transcript": transcript,
+        "aiModel": ai_model, "categoryBy": category_by, "similar": has_vector,
+        "tags": tags.into_iter().map(|(id, kind, name, by)| json!({ "id": id, "kind": kind, "name": name, "by": by })).collect::<Vec<_>>(),
         "copies": copies.into_iter().map(|(id, c, p)| json!({ "id": id, "container": c, "path": p })).collect::<Vec<_>>(),
         "packDocs": docs.into_iter().map(|(id, p)| json!({ "id": id, "path": p })).collect::<Vec<_>>(),
     });
@@ -329,6 +427,128 @@ async fn detail(State(s): State<AppState>, Path(id): Path<i64>) -> ApiResult<Jso
         o.extend(e);
     }
     Ok(Json(out))
+}
+
+async fn require_admin(s: &AppState, u: &User) -> ApiResult<()> {
+    if crate::admin::is_admin(&s.db, &u.id).await? {
+        Ok(())
+    } else {
+        Err(ApiError::Forbidden("Only an admin can change this.".into()))
+    }
+}
+
+/// Tell every signed-in user that this asset changed (their grid and details update).
+fn changed(s: &AppState, id: i64) {
+    let p = ai::PROGRESS.lock().unwrap().clone();
+    s.bus.send_all(crate::events::Event::Assets { scan: None, previews: None, ai: Some(json!({ "ids": [id], "progress": p })) });
+}
+
+async fn ai_status(State(s): State<AppState>) -> ApiResult<Json<Value>> {
+    let mut p = ai::PROGRESS.lock().unwrap().clone();
+    p.mode = ai::mode(&s.db).await;
+    let (tagged, review): (i64, i64) = sqlx::query_as(
+        "SELECT COUNT(*) FILTER (WHERE ai_state = 'ok'), COUNT(*) FILTER (WHERE ai_category IS NOT NULL) FROM asset WHERE missing_since IS NULL",
+    )
+    .fetch_one(&s.db)
+    .await?;
+    Ok(Json(json!({ "progress": p, "tagged": tagged, "review": review })))
+}
+
+#[derive(Deserialize)]
+pub struct SetAi {
+    mode: ai::Mode,
+}
+
+/// Off / Nightly / Always. Admin only; "off" stops after the request in flight.
+async fn set_ai(State(s): State<AppState>, Extension(u): Extension<User>, Json(b): Json<SetAi>) -> ApiResult<StatusCode> {
+    require_admin(&s, &u).await?;
+    ai::set_mode(&s.db, b.mode).await?;
+    tracing::info!(mode = ?b.mode, by = %u.name, "asset AI tagging");
+    changed(&s, 0);
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// "Describe now": this asset goes first, while tagging is on.
+async fn describe(State(s): State<AppState>, Path(id): Path<i64>) -> ApiResult<StatusCode> {
+    if ai::mode(&s.db).await == ai::Mode::Off {
+        return Err(ApiError::BadRequest("AI tagging is off. An admin can turn it on in the Assets header.".into()));
+    }
+    sqlx::query("UPDATE asset SET ai_state = NULL WHERE id = ?").bind(id).execute(&s.db).await?;
+    ai::prioritise(id);
+    Ok(StatusCode::ACCEPTED)
+}
+
+#[derive(Deserialize)]
+pub struct SetCategory {
+    category: String,
+}
+
+/// A person's category: kept by every later scan and AI run.
+async fn set_category(
+    State(s): State<AppState>,
+    Extension(u): Extension<User>,
+    Path(id): Path<i64>,
+    Json(b): Json<SetCategory>,
+) -> ApiResult<StatusCode> {
+    if !ai::is_category(&b.category) {
+        return Err(ApiError::BadRequest("Unknown category.".into()));
+    }
+    let n = sqlx::query(
+        "UPDATE asset SET category = ?, category_by = 'kees', rule = ?, ai_category = NULL WHERE id = ?",
+    )
+    .bind(&b.category)
+    .bind(format!("set by {}", u.name))
+    .bind(id)
+    .execute(&s.db)
+    .await?
+    .rows_affected();
+    if n == 0 {
+        return Err(ApiError::NotFound);
+    }
+    ai::refresh_search(&s.db, id).await?;
+    changed(&s, id);
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// The rule's category stays; the AI's other opinion is dismissed.
+async fn keep_category(State(s): State<AppState>, Path(id): Path<i64>) -> ApiResult<StatusCode> {
+    sqlx::query("UPDATE asset SET ai_category = NULL WHERE id = ?").bind(id).execute(&s.db).await?;
+    changed(&s, id);
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Deserialize)]
+pub struct NewTag {
+    #[serde(default)]
+    kind: Option<String>,
+    name: String,
+}
+
+/// A tag set by a person ("custom", or one of the AI's kinds).
+async fn add_tag(State(s): State<AppState>, Path(id): Path<i64>, Json(b): Json<NewTag>) -> ApiResult<Json<Value>> {
+    let name = b.name.trim().to_lowercase();
+    let kind = b.kind.as_deref().unwrap_or("custom");
+    if name.is_empty() || name.chars().count() > 40 || !["custom", "style", "mood", "setting"].contains(&kind) {
+        return Err(ApiError::BadRequest("A tag is 1 to 40 characters.".into()));
+    }
+    sqlx::query("INSERT INTO asset_tagname (kind, name) VALUES (?, ?) ON CONFLICT DO NOTHING").bind(kind).bind(&name).execute(&s.db).await?;
+    let tag: (i64,) = sqlx::query_as("SELECT id FROM asset_tagname WHERE kind = ? AND name = ?").bind(kind).bind(&name).fetch_one(&s.db).await?;
+    sqlx::query("INSERT INTO asset_tag (asset_id, tag_id, by) VALUES (?, ?, 'kees') ON CONFLICT(asset_id, tag_id) DO UPDATE SET by = 'kees'")
+        .bind(id)
+        .bind(tag.0)
+        .execute(&s.db)
+        .await
+        .map_err(|_| ApiError::NotFound)?;
+    ai::refresh_search(&s.db, id).await?;
+    changed(&s, id);
+    Ok(Json(json!({ "id": tag.0, "kind": kind, "name": name, "by": "kees" })))
+}
+
+async fn remove_tag(State(s): State<AppState>, Path((id, tag)): Path<(i64, i64)>) -> ApiResult<StatusCode> {
+    sqlx::query("DELETE FROM asset_tag WHERE asset_id = ? AND tag_id = ?").bind(id).bind(tag).execute(&s.db).await?;
+    ai::refresh_search(&s.db, id).await?;
+    changed(&s, id);
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[cfg(test)]
@@ -362,7 +582,7 @@ mod tests {
         assert!(scan::run(&db, &bus, &dir).await.unwrap());
 
         let f = |q: &str| Filter { q: Some(q.into()), ..Default::default() };
-        let (wh, binds) = where_clause(&f("track"), "");
+        let (wh, binds) = where_clause(&f("track"), "", None);
         let n: (i64,) = bind_all(sqlx::query_as(&format!("SELECT COUNT(*) FROM asset a WHERE {wh}")), &binds)
             .fetch_one(&db)
             .await

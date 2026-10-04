@@ -104,4 +104,61 @@ test.describe("Assets", () => {
     await expect(panel.locator(".asset-preview.is-image img")).toBeVisible();
     await expect(panel).toContainText("1024 × 1024 px");
   });
+
+  test("the AI's other category is listed and accepting it updates the card live", async ({ page }) => {
+    const chip = page.locator('[data-action="asset-review"]');
+    await expect(chip).toBeVisible();
+    const before = Number((await chip.locator("span").textContent())?.replace(/,/g, ""));
+    expect(before).toBeGreaterThan(0);
+    await chip.click();
+    await expect(chip).toHaveAttribute("aria-pressed", "true");
+    const first = page.locator("li.asset-cell").first();
+    await expect(first.locator(".asset-flag")).toContainText("Music");
+    const id = await first.getAttribute("data-id");
+    await first.locator("button.asset-card").click();
+    await page.locator('#asset-detail [data-action="asset-cat-accept"]').click();
+    await expect(page.locator(`li.asset-cell[data-id="${id}"] .asset-flag`)).toHaveCount(0);
+    await expect(chip.locator("span")).toHaveText(String(before - 1), { timeout: 5000 });
+  });
+
+  test("tags are added and removed in the details without a reload", async ({ page }) => {
+    await page.click('[data-action="asset-cat"][data-cat="music"]');
+    await page.locator("li.asset-cell button.asset-card").first().click();
+    const tags = page.locator("#asset-tags");
+    await expect(tags).toContainText("epic");
+    await page.fill('#asset-tag-form input', "Boss Fight");
+    await page.press('#asset-tag-form input', "Enter");
+    await expect(tags.locator(".asset-tag", { hasText: "boss fight" })).toBeVisible({ timeout: 300 });
+    await expect(tags.locator(".asset-tag.kees", { hasText: "boss fight" })).toBeVisible();
+    await tags.locator('.asset-tag', { hasText: "epic" }).locator(".tag-x").click();
+    await expect(tags.locator(".asset-tag", { hasText: "epic" })).toBeHidden();
+  });
+
+  test("a tag and Find similar filter the grid, each with a chip to undo it", async ({ page }) => {
+    await page.click('[data-action="asset-cat"][data-cat="music"]');
+    await page.locator("li.asset-cell button.asset-card").first().click();
+    await page.locator('#asset-detail [data-action="asset-tag-filter"]', { hasText: "epic" }).click();
+    const active = page.locator("#asset-active");
+    await expect(active).toContainText("mood: epic");
+    await expect(page.locator("li.asset-cell").first()).toBeVisible();
+    await active.locator("button").click();
+    await expect(active).toBeHidden();
+    await page.locator("li.asset-cell button.asset-card").first().click();
+    await page.locator('#asset-detail [data-action="asset-similar"]').click();
+    await expect(active).toContainText("Like");
+    await expect(page.locator("li.asset-cell .asset-card.cat-music").first()).toBeVisible();
+  });
+
+  test("an admin turns AI tagging on and Describe now tags the asset live", async ({ page }) => {
+    await expect(page.locator("#asset-ai")).toContainText("off");
+    await expect(page.locator("#asset-meaning")).toBeDisabled();
+    await page.selectOption("#asset-ai-mode", "always");
+    await expect(page.locator("#asset-ai")).toContainText("is on");
+    await expect(page.locator("#asset-meaning")).toBeEnabled();
+    await page.click('[data-action="asset-cat"][data-cat="texture"]');
+    await page.locator("li.asset-cell button.asset-card").first().click();
+    await expect(page.locator("#asset-tags .asset-tag")).toHaveCount(0);
+    await page.locator('#asset-detail [data-action="asset-describe"]').click();
+    await expect(page.locator("#asset-tags .asset-tag", { hasText: "epic" })).toBeVisible({ timeout: 5000 });
+  });
 });

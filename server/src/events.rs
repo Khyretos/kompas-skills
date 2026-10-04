@@ -27,6 +27,8 @@ pub enum Event {
         scan: Option<serde_json::Value>,
         #[serde(skip_serializing_if = "Option::is_none")]
         previews: Option<serde_json::Value>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        ai: Option<serde_json::Value>,
     },
     /// Something the user can see changed (by another tab, a runner or the server):
     /// the web app reloads that list. `what` is one of tasks, projects, chats,
