@@ -9,6 +9,9 @@ const single = process.argv.includes("--single");
 const options = {
   entryPoints: ["src/main.ts", "src/styles.css"],
   bundle: true,
+  // Viewers (three.js and friends) load only when one opens: separate chunks.
+  splitting: !single,
+  chunkNames: "chunks/[name]-[hash]",
   outdir: "dist",
   format: "esm",
   target: "es2022",

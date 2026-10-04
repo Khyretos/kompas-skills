@@ -729,3 +729,267 @@ p.small {
 .game-missing { flex-basis: 100%; font-size: 0.85rem; }
 .game-missing summary { cursor: pointer; color: var(--attn); }
 .game-missing ul { margin: 0.4rem 0 0; padding-left: 1.2rem; }
+
+/* In-app viewers (milestone 6). Drafted by the local Coder; Claude removed its own colour
+   tokens, scoped the backdrop and kept closed dialogs hidden. */
+.asset-viewer {
+  width: min(1200px, 96vw);
+  height: min(860px, 92vh);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--fg);
+  max-width: none;
+  max-height: none;
+}
+
+.asset-viewer[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.asset-viewer::backdrop {
+  background: rgba(12, 9, 23, 0.72);
+}
+
+.viewer-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.viewer-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.viewer-head small.muted {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+
+.viewer-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  overflow: auto;
+}
+
+.kind-model .viewer-body,
+.kind-image .viewer-body,
+.kind-preview-image .viewer-body {
+  overflow: hidden;
+}
+
+.model-tools,
+.img-tools,
+.font-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.model-tools select,
+.model-tools input[type=range],
+.img-tools select,
+.img-tools input[type=number],
+.font-tools select,
+.font-tools input[type=range],
+.font-tools input[type=text] {
+  background: var(--surface-2);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.2rem 0.4rem;
+  font: inherit;
+}
+
+.img-tools .img-frames input[type=number] {
+  width: 3.5rem;
+}
+
+.model-scrub {
+  flex: 1;
+  min-width: 8rem;
+  accent-color: var(--accent);
+}
+
+.font-sample {
+  flex: 1;
+  min-width: 12rem;
+}
+
+.model-stage,
+.img-stage {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+}
+
+.model-stage {
+  background: radial-gradient(circle at 50% 40%, var(--surface-2), var(--bg));
+}
+
+.model-stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.model-stage:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.img-stage {
+  cursor: grab;
+  touch-action: none;
+  background-image: 
+    linear-gradient(45deg, var(--surface-2) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--surface-2) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--surface-2) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--surface-2) 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+}
+
+.img-stage:active {
+  cursor: grabbing;
+}
+
+.img-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  line-height: 0;
+}
+
+.img-layer img {
+  display: block;
+  max-width: none;
+}
+
+.img-grid {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.viewer-video {
+  width: 100%;
+  max-height: 100%;
+  flex: 1;
+  min-height: 0;
+  background: black;
+  border-radius: var(--radius);
+}
+
+.viewer-audio {
+  width: 100%;
+}
+
+.font-samples {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.font-line {
+  margin: 0;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.font-label {
+  margin: 0.75rem 0 0.25rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.font-glyphs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(3rem, 1fr));
+  gap: 0.25rem;
+}
+
+.font-glyph {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.text-view {
+  margin: 0;
+  flex: 1;
+  overflow: auto;
+  padding: 0.75rem;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  tab-size: 4;
+}
+
+.viewer-none {
+  margin: auto;
+  max-width: 34rem;
+  text-align: center;
+  padding: 2rem;
+}
+
+.viewer-none-title {
+  font-size: 1.05rem;
+  color: var(--fg);
+}
+
+.img-error,
+.model-status {
+  margin: 0;
+}
+
+.img-error {
+  padding: 2rem;
+  text-align: center;
+}
+
+.viewer-open {
+  margin-top: 0.25rem;
+}
+
+@media (max-width: 760px) {
+  .asset-viewer {
+    width: 100vw;
+    height: 100dvh;
+    max-width: none;
+    max-height: none;
+    border-radius: 0;
+    border: none;
+  }
+}
+.model-tools select, .img-tools select { width: auto; max-width: 22rem; }

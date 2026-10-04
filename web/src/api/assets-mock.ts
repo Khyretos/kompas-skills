@@ -278,6 +278,11 @@ export class MockAssets implements AssetsApi {
     this.listeners.forEach((l) => l({ previews: { ids: [...changed], progress } }));
   }
 
+  /** Demo mode has no files: pictures show their made-up preview, the rest an error card. */
+  fileUrl(a: { id: number; name: string }): string {
+    return /\.(png|jpe?g)$/i.test(a.name) ? this.previewUrl({ id: a.id, pv: 1 }, "l") : `/asset-file/${a.id}/demo`;
+  }
+  nearUrl(id: number, name: string): string { return `/asset-file/${id}/near?name=${encodeURIComponent(name)}`; }
   previewUrl(a: { id: number; pv: number }, kind: "t" | "l" | "a"): string {
     if (kind === "a") return "";
     

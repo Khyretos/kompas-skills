@@ -75,7 +75,7 @@ test.describe("Assets", () => {
 
   test("sound cards show a waveform, their length and a play button", async ({ page }) => {
     await page.click('[data-action="asset-cat"][data-cat="music"]');
-    const firstCard = page.locator("li.asset-cell").first();
+    const firstCard = page.locator("li.asset-cell:has(.asset-card.cat-music)").first();
     await expect(firstCard.locator("svg.wave")).toBeVisible();
     const durationText = await firstCard.locator(".asset-dur").textContent();
     expect(durationText).toMatch(/^(\d+:\d\d|\d+\.\d s)$/);
@@ -91,7 +91,7 @@ test.describe("Assets", () => {
 
   test("a sound's details show a player and its length", async ({ page }) => {
     await page.click('[data-action="asset-cat"][data-cat="music"]');
-    await page.locator("li.asset-cell").first().locator("button.asset-card").click();
+    await page.locator("li.asset-cell button.asset-card.cat-music").first().click();
     const panel = page.locator("#asset-detail");
     await expect(panel.locator("audio")).toBeAttached();
     await expect(panel).toContainText("Length");
@@ -123,7 +123,8 @@ test.describe("Assets", () => {
 
   test("tags are added and removed in the details without a reload", async ({ page }) => {
     await page.click('[data-action="asset-cat"][data-cat="music"]');
-    await page.locator("li.asset-cell button.asset-card").first().click();
+    // The filtered grid arrives a moment later: click a card of that category, not the old first one.
+    await page.locator("li.asset-cell button.asset-card.cat-music").first().click();
     const tags = page.locator("#asset-tags");
     await expect(tags).toContainText("epic");
     await page.fill('#asset-tag-form input', "Boss Fight");
@@ -136,14 +137,15 @@ test.describe("Assets", () => {
 
   test("a tag and Find similar filter the grid, each with a chip to undo it", async ({ page }) => {
     await page.click('[data-action="asset-cat"][data-cat="music"]');
-    await page.locator("li.asset-cell button.asset-card").first().click();
+    // The filtered grid arrives a moment later: click a card of that category, not the old first one.
+    await page.locator("li.asset-cell button.asset-card.cat-music").first().click();
     await page.locator('#asset-detail [data-action="asset-tag-filter"]', { hasText: "epic" }).click();
     const active = page.locator("#asset-active");
     await expect(active).toContainText("mood: epic");
     await expect(page.locator("li.asset-cell").first()).toBeVisible();
     await active.locator("button").click();
     await expect(active).toBeHidden();
-    await page.locator("li.asset-cell button.asset-card").first().click();
+    await page.locator("li.asset-cell button.asset-card.cat-music").first().click();
     await page.locator('#asset-detail [data-action="asset-similar"]').click();
     await expect(active).toContainText("Like");
     await expect(page.locator("li.asset-cell .asset-card.cat-music").first()).toBeVisible();
@@ -156,7 +158,8 @@ test.describe("Assets", () => {
     await expect(page.locator("#asset-ai")).toContainText("is on");
     await expect(page.locator("#asset-meaning")).toBeEnabled();
     await page.click('[data-action="asset-cat"][data-cat="texture"]');
-    await page.locator("li.asset-cell button.asset-card").first().click();
+    // The filtered grid arrives a moment later: click a card of that category, not the old first one.
+    await page.locator("li.asset-cell button.asset-card.cat-texture").first().click();
     await expect(page.locator("#asset-tags .asset-tag")).toHaveCount(0);
     await page.locator('#asset-detail [data-action="asset-describe"]').click();
     await expect(page.locator("#asset-tags .asset-tag", { hasText: "epic" })).toBeVisible({ timeout: 5000 });

@@ -197,6 +197,10 @@ export interface AssetsApi {
   linkLicence(pack: number, licence: number | null): Promise<void>;
   /** Asks for these previews first (the cards on screen). */
   wantPreviews(ids: number[]): Promise<void>;
+  /** The original file, for the in-app viewers (signed in only). */
+  fileUrl(a: { id: number; name: string }): string;
+  /** A file the model `id` names (texture, .mtl, .bin), found in the same pack. */
+  nearUrl(id: number, name: string): string;
   /** URL of a preview: t = 256 px image, l = 1024 px image, a = audio clip. */
   previewUrl(a: { id: number; pv: number }, kind: "t" | "l" | "a"): string;
   /** Scan progress and finished previews, live. */
@@ -272,6 +276,8 @@ export class HttpAssets implements AssetsApi {
       headers: { "X-Kompanion": "1", "Content-Type": "application/json" }, body: JSON.stringify({ ids }),
     });
   }
+  fileUrl(a: { id: number; name: string }) { return `/asset-file/${a.id}/${encodeURIComponent(a.name)}`; }
+  nearUrl(id: number, name: string) { return `/asset-file/${id}/near?name=${encodeURIComponent(name)}`; }
   previewUrl(a: { id: number; pv: number }, kind: "t" | "l" | "a") {
     return `/asset-preview/${a.id}-${kind}.${kind === "a" ? "webm" : "webp"}?v=${a.pv}`;
   }

@@ -3,6 +3,7 @@
 // detail panel. Scan progress and its results arrive live; nothing needs a reload.
 import { html, mount, onAction, type SafeHtml } from "../core/html";
 import { GamesView } from "./games";
+import { openViewer, viewerKind, viewerLabel } from "../viewers";
 import type { AiMode, AssetDetail, Licence, AssetFacets, AssetFilter, AssetItem, AssetsApi, AssetsLive, AssetStatus, PreviewProgress, ScanProgress } from "../api/assets";
 import { icon } from "./icons";
 import { relTime } from "../core/time";
@@ -120,6 +121,7 @@ export class AssetsView {
 
   private tab: "library" | "games" = "library";
   private shownAiMode?: AiMode;
+  private shown?: AssetDetail; // the asset in the details panel (for its viewer)
   private gamesView?: GamesView;
   private licences?: Licence[]; // for the admin's licence picker, loaded on first need
 
@@ -209,6 +211,7 @@ export class AssetsView {
       "asset-cat": (b) => this.setFilter({ category: b.dataset.cat || undefined }),
       "asset-open": (b) => this.open(Number(b.dataset.id)),
       "asset-close": () => this.closeDetail(),
+      "asset-view": () => { if (this.shown) openViewer(this.shown, this.api, () => this.el.querySelector<HTMLElement>('[data-action="asset-view"]')?.focus()); },
       "asset-tab": (b) => this.setTab(b.dataset.tab === "games" ? "games" : "library"),
       "asset-used-game": (b) => { this.closeDetail(); this.setTab("games", Number(b.dataset.game)); },
       "asset-pack": (b) => {
@@ -743,6 +746,7 @@ export class AssetsView {
       if (this.selected !== id) return;
       if (!d.preview && d.previewState === null && PREVIEWABLE.has(d.ext)) void this.api.wantPreviews([id]).catch(() => undefined);
 
+      this.shown = d;
       mount(panel, this.renderDetail(d));
       if (focus && opening) panel.querySelector<HTMLElement>("h2")?.focus();
     } catch (e) {
@@ -851,6 +855,7 @@ export class AssetsView {
         <button class="icon-btn" data-action="asset-close" aria-label="Close details">${icon("close")}</button>
       </div>
       ${this.detailPreview(d)}
+      <div class="row viewer-open"><button class="btn primary" data-action="asset-view" data-id="${d.id}">${viewerLabel(viewerKind(d), d.category)}</button></div>
       ${d.missingSince ? html`<p class="warn">Gone from the library since ${relTime(d.missingSince)}.</p>` : ""}
       <dl class="asset-facts">
         <dt>Where</dt><dd><code>${where}</code></dd>

@@ -218,6 +218,9 @@ async fn main() -> anyhow::Result<()> {
         .route("/download/{file}", get(pairing::download))
         // Asset previews: signed-in only, outside /api so the browser may cache them.
         .route("/asset-preview/{file}", get(assets::preview_file))
+        // The original files for the in-app viewers (signed in only, Range, private cache).
+        .route("/asset-file/{id}/near", get(assets::file_near))
+        .route("/asset-file/{id}/{name}", get(assets::file))
         .fallback_service(web)
         // A route may set a stricter policy of its own (the uploaded logo).
         .layer(SetResponseHeaderLayer::if_not_present(
