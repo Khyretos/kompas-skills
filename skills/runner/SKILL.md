@@ -12,3 +12,11 @@ Lessons for the runner role. Numbered and dated, newest last.
    running there, or a step in the last 2 minutes, for the model's thinking time between steps)
    and the normal interval otherwise. Measured in a W2 run: median 0.11 s, max 0.84 s per tool
    call (it was up to 60 s). No runner change was needed.
+5. (2026-10-05) Paths differ per computer. kireserver's ~/Docker is NFS-mounted on soucouyant at
+   /home/khyretos/Server-Docker, not ~/Docker: the W2 demo there is
+   /home/khyretos/Server-Docker/Personal-projects/kompanion-w2-demo. Never give a path for another
+   computer from this server's view; check it on that computer (runner list_dir) first.
+6. (2026-10-05) kireserver has its own runner (systemd user service, linger on, grants.json empty
+   = deny-all), paired with `docker exec kreative-kompanion kompanion-server pair-code khyretos
+   kireserver` and `kompanion-runner pair http://127.0.0.1:8095 <code>`. The Machines entry "server"
+   is only the server's own stats and can't run steps.
