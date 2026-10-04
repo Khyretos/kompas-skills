@@ -185,7 +185,7 @@ pub fn skills() -> Vec<Value> {
             }
             let content = std::fs::read_to_string(&path).ok()?;
             let title = content.lines().find_map(|l| l.strip_prefix("# ")).map(str::trim).unwrap_or(&id).to_string();
-            let lessons = content.lines().filter(|l| is_lesson(l.trim_start())).count();
+            let lessons = lessons(&content);
             let updated = std::fs::metadata(&path)
                 .and_then(|m| m.modified())
                 .ok()
@@ -198,10 +198,16 @@ pub fn skills() -> Vec<Value> {
     output
 }
 
-/// "12. ..." or "- (2026-10-04) ...".
-fn is_lesson(line: &str) -> bool {
+/// The skill files use three styles: "12. ...", "## 1. Title" and plain "- " bullets.
+/// Numbered lessons count when there are any, else the top-level bullets.
+fn lessons(content: &str) -> usize {
+    let numbered = content.lines().filter(|l| is_numbered(l.trim_start_matches('#').trim_start())).count();
+    if numbered > 0 { numbered } else { content.lines().filter(|l| l.starts_with("- ")).count() }
+}
+
+fn is_numbered(line: &str) -> bool {
     let digits = line.chars().take_while(char::is_ascii_digit).count();
-    (digits > 0 && line[digits..].starts_with('.')) || line.starts_with("- (")
+    digits > 0 && line[digits..].starts_with(". ")
 }
 
 #[derive(Deserialize)]
@@ -315,10 +321,12 @@ mod tests {
             env::set_var("KOMPANION_SKILLS", &temp_dir);
         }
 
-        assert!(is_lesson("12. x") && is_lesson("- (2026) y") && !is_lesson("2026 was") && !is_lesson("- plain"));
+        assert_eq!(lessons("# T\n1. a\n2. b\n- detail\n"), 2);
+        assert_eq!(lessons("# T\n## 1. a (2026)\n- detail\n## 2. b\n"), 2);
+        assert_eq!(lessons("# T\n- a\n  - nested\n- b\n2026 was\n"), 2);
         let skill_path = temp_dir.join("worker/rust/SKILL.md");
         std::fs::create_dir_all(skill_path.parent().unwrap()).unwrap();
-        std::fs::write(&skill_path, "# Worker: Rust\n\n1. one\n2. two\n- (2026) three\n").unwrap();
+        std::fs::write(&skill_path, "# Worker: Rust\n\n1. one\n2. two\n- detail\n3. three\n").unwrap();
 
         let skills = skills();
         assert_eq!(skills.len(), 1);
