@@ -9,6 +9,7 @@ mod events;
 mod live;
 mod pairing;
 mod pcagent;
+mod cli;
 mod hoststats;
 mod import;
 mod llm;
@@ -161,6 +162,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/machines/live", post(hoststats::live))
         .route("/machines/pair-code", post(pairing::create_code))
         .route("/pair", post(pairing::pair))
+        .route("/machines/{id}/ask", post(cli::ask))
+        .route("/machines/{id}/ask/{chat}", get(cli::poll))
         .route("/chats/{id}/actions", get(pcagent::list))
         .route("/actions/{id}/decide", post(pcagent::decide))
         .route("/machines/{id}", axum::routing::delete(hoststats::delete))

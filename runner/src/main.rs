@@ -18,6 +18,7 @@ mod edit;
 mod systools;
 mod sysinfo;
 mod setup;
+mod ask;
 
 use machine_stats::Sampler;
 use serde::Deserialize;
@@ -94,6 +95,16 @@ fn main() {
         Some("pair") if args.len() == 4 => done(setup::pair(&args[2], &args[3])),
         Some("pair") => done(Err("usage: kompanion-runner pair <server> <code>".into())),
         Some("install-service") => done(setup::install_service()),
+        Some("ask") if args.len() > 2 => {
+            let cfg_path = expand("~/.config/kompanion-runner/config.toml");
+            let cfg: Config = match fs::read_to_string(&cfg_path).map_err(|e| e.to_string()).and_then(|t| toml::from_str(&t).map_err(|e| e.to_string())) {
+                Ok(c) => c,
+                Err(e) => done(Err(format!("can't read {}: {e} (pair this computer first)", cfg_path.display()))),
+            };
+            let token = fs::read_to_string(expand(&cfg.token_file)).map(|t| t.trim().to_string()).map_err(|e| format!("can't read the token: {e}"));
+            done(token.and_then(|t| ask::ask(&cfg.server, &cfg.machine_id, &t, &args[2..].join(" "))))
+        }
+        Some("ask") => done(Err("usage: kompanion-runner ask <question>".into())),
         Some("--version") => {
             println!("kompanion-runner {}", env!("CARGO_PKG_VERSION"));
             return;

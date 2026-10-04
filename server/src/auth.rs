@@ -317,7 +317,9 @@ pub async fn guard(State(state): State<AppState>, mut req: Request, next: Next) 
     let path = req.uri().path();
     let path = path.strip_prefix("/api").unwrap_or(path).to_string();
     // Runner reports carry their own bearer token and no cookie.
-    if req.method() == Method::POST && path.starts_with("/machines/") && (path.ends_with("/stats") || path.ends_with("/results")) {
+    // `kompanion-runner ask` uses the runner token too (POST to ask, GET to poll).
+    let runner_ask = path.starts_with("/machines/") && path.split('/').nth(3) == Some("ask");
+    if runner_ask || (req.method() == Method::POST && path.starts_with("/machines/") && (path.ends_with("/stats") || path.ends_with("/results"))) {
         return next.run(req).await;
     }
     let open = matches!(
