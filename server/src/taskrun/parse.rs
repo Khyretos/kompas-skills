@@ -166,6 +166,8 @@ fn fallback_plan(text: &str) -> Vec<String> {
         }
 
         if !stripped.is_empty() {
+            // Trim again to remove any trailing spaces left after stripping the marker
+            stripped = stripped.trim().to_string();
             result.push(stripped);
             if result.len() >= 8 {
                 break;
@@ -187,16 +189,22 @@ pub fn review(text: &str) -> Review {
     let val = json_in(text);
 
     if let Some(Value::Object(obj)) = val {
-        if let (Some(ok_val), Some(findings_val)) = (obj.get("ok"), obj.get("findings")) {
+        if let Some(ok_val) = obj.get("ok") {
             let ok = ok_val.as_bool().unwrap_or(false);
-            let findings: Vec<String> = findings_val
-                .as_array()
-                .map(|arr| {
-                    arr.iter()
-                        .filter_map(|v| v.as_str().map(String::from))
-                        .collect()
-                })
-                .unwrap_or_default();
+            
+            // Handle findings: if missing, treat as empty list
+            let findings_val = obj.get("findings");
+            let findings: Vec<String> = match findings_val {
+                Some(v) => v
+                    .as_array()
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|item| item.as_str().map(String::from))
+                            .collect()
+                    })
+                    .unwrap_or_default(),
+                None => Vec::new(),
+            };
             
             return Review { ok, findings };
         }
@@ -205,13 +213,6 @@ pub fn review(text: &str) -> Review {
     // Fallback: check for "LGTM" or "looks good"
     let lower_text = text.to_lowercase();
     let has_good = lower_text.contains("lgtm") || lower_text.contains("looks good");
-    
-    // ok is true only if text contains good phrase AND no findings (empty text implies no findings)
-    // Since we are in fallback, we treat empty findings as implicit if not specified in JSON.
-    // The rule says: "ok is true only when the text contains ... and no findings".
-    // In fallback context, we assume no explicit findings unless we parsed them.
-    // However, the prompt implies if we fall back, we check the text content.
-    // Let's interpret "no findings" strictly: if we didn't parse findings, they are none.
     
     if has_good {
         return Review { ok: true, findings: Vec::new() };

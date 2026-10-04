@@ -501,6 +501,22 @@ function wire(shell: HTMLElement): void {
       void busyWhile(pairForm, api.pairCode(name).then((r) => store.set({ pairing: { ...r, name } }), showError));
       return;
     }
+    const runForm = (ev.target as HTMLElement).closest("form.task-run") as HTMLFormElement | null;
+    if (runForm) {
+      ev.preventDefault();
+      const f = new FormData(runForm);
+      const id = runForm.dataset.id ?? "";
+      const t = store.get().tasks.find((x) => x.id === id);
+      void busyWhile(runForm, api.startTask(id, String(f.get("machine") ?? ""), String(f.get("folder") ?? "").trim(), String(f.get("check") ?? "").trim())
+        .then(async () => {
+          // Open the task's own chat, where the plan, the steps and the review show.
+          const chats = await api.listChats();
+          store.set({ chats, tasks: store.get().tasks.map((x) => (x.id === id ? { ...x, state: "running" as const } : x)) });
+          const chat = chats.find((c) => c.title === `Task: ${t?.title ?? ""}`);
+          if (chat) await openChat(chat.id);
+        }, showError));
+      return;
+    }
     const taskForm = (ev.target as HTMLElement).closest("#task-editor") as HTMLFormElement | null;
     if (taskForm) { ev.preventDefault(); void busyWhile(taskForm, submitTask(taskForm)); return; }
     const nf = (ev.target as HTMLElement).closest("#notify-form") as HTMLFormElement | null;

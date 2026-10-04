@@ -127,3 +127,4 @@
 {"name": "W2b taskrun loop", "out": "server/src/taskrun/mod.rs", "gpu_seconds": 156.5, "tokens": 3980, "lines": 395, "review": "skipped", "model": "Coder", "at": "2026-10-04T06:13:34"}
 {"name": "W2a taskrun plan and review parsing", "out": "server/src/taskrun/parse.rs", "gpu_seconds": 78.8, "tokens": 2307, "lines": 293, "review": "skipped", "model": "Coder", "at": "2026-10-04T06:14:59"}
 {"name": "W2c taskrun loop fixes", "out": "server/src/taskrun/mod.rs", "gpu_seconds": 222.0, "tokens": 3993, "lines": 390, "review": "skipped", "model": "Coder", "at": "2026-10-04T06:19:15"}
+{"name": "W2d parse fixes", "out": "server/src/taskrun/parse.rs", "gpu_seconds": 82.2, "tokens": 2419, "lines": 294, "review": "skipped", "model": "Coder", "at": "2026-10-04T06:25:00"}
