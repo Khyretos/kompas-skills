@@ -108,3 +108,19 @@ Full write-up: kreative-kompas-vscode-theme `docs/ai-capability/vscode-theme-dra
   parameter, and kept a misplaced line after being told to move it. For process and
   pipe plumbing, give it the exact code skeleton in the prompt, or write that part yourself.
 - (2026-10-04, qwen3.5:9b-q8_0) Theme rewritten from a working example theme (Trilium, Catppuccin structure) plus a full variable-to-value list: 263 lines, one wrong value (kept the example's variable on one rule instead of the given one). Rebuilding on top of the owner's old CSS (Owncast) kept the layout intact but dropped "doubled :root:root". Giving it a known-good example file beats describing the app.
+
+## Qwen3.5-9B "Coder" (OVMS on kireserver's A770), Assets previews 2026-10-04
+
+Three drafts for milestone 2 (demo mock 230 lines, preview CSS 120 lines, 4 Playwright tests).
+Details: ~/Docker/docs/ai-capability/assets-previews-2026-10.md.
+- Good: Playwright tests from a precise list of facts and selectors (no fixes needed); CSS from a
+  numbered rule list; keeping existing code when told "extend, don't rewrite".
+- Weak: object identity. Told twice not to mutate items in place (and why), it still did; the
+  second round also dropped a requirement it had met in the first. Do such fixes yourself after
+  one failed round, and say "replace the object; show the `.map(...)` line" in the prompt.
+- Types a union field as `string` in helper return types; ask for `Pick<Type, "a" | "b">`.
+- CSS slips that look fine in review: a conic-gradient checkerboard without hard stops (a blur),
+  `inset 0 0 0 0` box-shadows (invisible), an icon button without `fill` (black icon on violet).
+- Put `start your answer with END-OF-PROMPT-SEEN` as the prompt's last line: it proves the
+  whole prompt arrived. One 13 KB prompt reported exactly 4,096 prompt tokens; keep prompts
+  under ~3,800 tokens and send only the code the change needs.
