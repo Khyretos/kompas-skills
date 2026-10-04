@@ -52,3 +52,9 @@
     Timestamps compared as strings must use one format (RFC 3339 UTC with time of day).
     Test date code with known real dates (`civil(20_729) == (2026, 10, 3)`). A clock bug
     once made every expiring grant look expired.
+25. `.bind(x)` takes ownership. When the value is used again later (in the JSON answer, or a
+    second query), bind a reference: `.bind(&id)`, `.bind(&u.id)`.
+26. File names with version dots (`kompanion-runner-0.3.1-x86_64-linux-musl`): never use
+    `with_extension`, which cuts at the last dot. Build the name: `dir.join(format!("{name}.sha256"))`.
+27. axum responses: `([(header::CONTENT_TYPE, "text/plain")], body).into_response()`, where body is a
+    `String` or `Vec<u8>`. `(StatusCode::NOT_FOUND, "Not found").into_response()` for errors.

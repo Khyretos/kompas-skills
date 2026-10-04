@@ -95,3 +95,8 @@
 {"name": "P6 pairing.rs fixes", "out": "server/src/pairing.rs", "gpu_seconds": 51.4, "tokens": 2505, "lines": 247, "review": "skipped", "model": "qwen3.5:9b-q8_0", "at": "2026-10-04T02:52:38"}
 {"name": "I1 helper --probe", "out": "gpu-helper/src/main.rs", "mode": "patch", "gpu_seconds": 14.7, "tokens": 751, "lines": 1, "attempts": 2, "model": "qwen3.5:9b-q8_0", "at": "2026-10-04T02:55:51"}
 {"name": "I1 install.sh self-test and rollback", "out": "gpu-helper/install.sh", "gpu_seconds": 47.6, "tokens": 1170, "lines": 119, "review": "skipped", "model": "Coder", "at": "2026-10-04T02:56:24"}
+{"name": "P7 setup.rs fixes", "out": "runner/src/setup.rs", "gpu_seconds": 67.3, "tokens": 1723, "lines": 186, "review": "skipped", "model": "Coder", "at": "2026-10-04T03:01:31"}
+{"name": "W1 main.ts pair code and copy", "out": "web/src/main.ts", "mode": "patch", "gpu_seconds": 10.8, "tokens": 209, "lines": 2, "attempts": 1, "model": "Coder", "at": "2026-10-04T03:02:12"}
+{"name": "W1 runner subcommands", "out": "runner/src/main.rs", "mode": "patch", "gpu_seconds": 19.3, "tokens": 438, "lines": 2, "attempts": 1, "model": "Coder", "at": "2026-10-04T03:02:32"}
+{"name": "W1 pairing.rs live machines event", "out": "server/src/pairing.rs", "mode": "patch", "gpu_seconds": 10.3, "tokens": 190, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-04T03:02:42"}
+{"name": "W1 machines.ts install command", "out": "web/src/views/machines.ts", "mode": "patch", "gpu_seconds": 41.4, "tokens": 871, "lines": 3, "attempts": 1, "model": "Coder", "at": "2026-10-04T03:02:43"}

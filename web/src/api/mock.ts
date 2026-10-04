@@ -304,6 +304,7 @@ export class MockApi implements KompanionApi {
   async setNotifications() {}
   async watchMachines() {}
   async pairMachine(name: string) { return { id: "demo", name, token: "demo-token" }; }
+  async pairCode() { return { code: "DEMO-C0DE", expiresAt: new Date(Date.now() + 900_000).toISOString() }; }
   async unpairMachine() {}
   async listGrants(machineId: string) { return structuredClone(grants[machineId] ?? []); }
   async addGrant(machineId: string, target: string, rights: string[], expiresHours?: number) {

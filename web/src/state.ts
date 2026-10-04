@@ -15,7 +15,7 @@ export interface AppState {
   machinesRefresh: number; // seconds between Machines updates; 1 = live
   gpuOpen: Set<string>; // GPU panels expanded (this session)
   gpuPins: string[]; // pinned GPU bars, saved per user
-  pairing?: { id: string; name: string; token: string }; // shown once after pairing a PC
+  pairing?: { code: string; expiresAt: string; name: string }; // the one-line install command, until done
   admin?: { settings: AdminSettings; smtpPasswordSet: boolean }; // loaded when an admin opens settings
   projects: Project[];
   chats: Chat[];

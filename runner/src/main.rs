@@ -17,6 +17,7 @@ mod proc;
 mod edit;
 mod systools;
 mod sysinfo;
+mod setup;
 
 use machine_stats::Sampler;
 use serde::Deserialize;
@@ -77,6 +78,29 @@ fn post_result(
 }
 
 fn main() {
+    // `kompanion-runner pair <server> <code>` and `kompanion-runner install-service`
+    // (used by the one-line installer), `--version`.
+    let args: Vec<String> = std::env::args().collect();
+    let done = |r: Result<(), String>| -> ! {
+        match r {
+            Ok(()) => std::process::exit(0),
+            Err(e) => {
+                eprintln!("kompanion-runner: {e}");
+                std::process::exit(1);
+            }
+        }
+    };
+    match args.get(1).map(String::as_str) {
+        Some("pair") if args.len() == 4 => done(setup::pair(&args[2], &args[3])),
+        Some("pair") => done(Err("usage: kompanion-runner pair <server> <code>".into())),
+        Some("install-service") => done(setup::install_service()),
+        Some("--version") => {
+            println!("kompanion-runner {}", env!("CARGO_PKG_VERSION"));
+            return;
+        }
+        _ => {}
+    }
+
     let path = std::env::args()
         .nth(1)
         .map(PathBuf::from)

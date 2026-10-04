@@ -67,17 +67,17 @@ const stepLabel = (s: number) => (s === 1 ? "Live" : s < 60 ? `every ${s} s` : `
 const clock = (iso?: string) =>
   iso ? new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "not yet";
 
-function pairResult(p: { id: string; name: string; token: string }, server: string): SafeHtml {
-  const config = `server = "${server}"\nmachine_id = "${p.id}"\ntoken_file = "~/.config/kompanion-runner/token"`;
+function pairResult(p: { code: string; expiresAt: string; name: string }, server: string): SafeHtml {
+  const command = `curl -fsSL ${server}/install.sh | sh -s -- ${p.code}`;
+  const until = new Date(p.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   return html`
     <div class="pair-result" role="status">
-      <p><strong>${p.name} is paired.</strong> Copy the token now: it is shown only once.</p>
-      <label class="label" for="pair-token">Token</label>
-      <input id="pair-token" readonly value="${p.token}">
-      <p class="small">On ${p.name}, save the token in <code>~/.config/kompanion-runner/token</code> (mode 600) and this as
-        <code>~/.config/kompanion-runner/config.toml</code>:</p>
-      <pre>${config}</pre>
-      <p class="small">Then start <code>kompanion-runner</code> (see docs/runner-install.md). The computer shows up here within a minute.</p>
+      <p><strong>Run this on ${p.name || "the computer"}</strong> in a terminal, as your normal user (Linux x86_64; Arch, CachyOS, Ubuntu and other systemd distros):</p>
+      <div class="row">
+        <input id="pair-command" readonly value="${command}" aria-label="Install command">
+        <button class="btn small" type="button" data-action="copy-text" data-text="${command}">Copy</button>
+      </div>
+      <p class="small muted">The code works once, until ${until}. The computer shows up here by itself, and Kompanion can do nothing on it until you grant access in the Access tab.</p>
       <button class="btn small" data-action="pair-done">Done</button>
     </div>`;
 }
@@ -191,7 +191,7 @@ function gpuPanel(m: MachineStats, g: GpuStats, open: boolean, pins: string[]): 
 }
 
 export function renderMachines(machines: MachineStats[], day: DaySummary | undefined, refresh: number,
-  pairing?: { id: string; name: string; token: string }): SafeHtml {
+  pairing?: { code: string; expiresAt: string; name: string }): SafeHtml {
   const step = Math.max(0, REFRESH_STEPS.indexOf(refresh));
   const newest = machines.map((m) => m.sampledAt).filter(Boolean).sort().pop();
   return html`
@@ -219,8 +219,8 @@ export function renderMachines(machines: MachineStats[], day: DaySummary | undef
           <form class="pair" id="pair-form">
             <label class="label" for="pair-name">Pair a computer</label>
             <div class="row">
-              <input id="pair-name" name="name" placeholder="Computer name, e.g. soucouyant" maxlength="60" required>
-              <button class="btn" type="submit">Pair</button>
+              <input id="pair-name" name="name" placeholder="Name (optional), e.g. soucouyant" maxlength="60">
+              <button class="btn" type="submit">Get install command</button>
             </div>
           </form>`}
       </section>

@@ -29,6 +29,10 @@ pub struct Config {
     pub roles: HashMap<String, RoleDefault>,
     /// Single sign-on with an OpenID Connect provider such as Keycloak.
     pub oidc: Option<OidcConfig>,
+    /// Folder with the runner binaries the one-line installer downloads
+    /// (`kompanion-runner-<version>-x86_64-linux-musl` plus `.sha256`).
+    #[serde(default = "default_runner_dir")]
+    pub runner_dir: PathBuf,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -118,6 +122,9 @@ fn default_bind() -> String {
 }
 fn default_db() -> PathBuf {
     "kompanion.db".into()
+}
+fn default_runner_dir() -> PathBuf {
+    "/dist".into()
 }
 fn default_web() -> PathBuf {
     "../web/dist".into()

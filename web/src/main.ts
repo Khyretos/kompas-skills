@@ -296,6 +296,8 @@ function wire(shell: HTMLElement): void {
       api.setGpuPins(gpuPins).catch(showError);
     },
     "pair-done": () => store.set({ pairing: undefined }),
+    "copy-text": (el) => navigator.clipboard.writeText(el.dataset.text ?? "").then(
+      () => { el.textContent = "Copied"; setTimeout(() => { el.textContent = "Copy"; }, 1500); }, showError),
     unpair: (el) => {
       const m = store.get().machines.find((x) => x.id === el.dataset.id);
       if (!m || !confirm(`Unpair ${m.name}? Its runner stops being accepted.`)) return;
@@ -433,7 +435,7 @@ function wire(shell: HTMLElement): void {
     if (pairForm) {
       ev.preventDefault();
       const name = String(new FormData(pairForm).get("name") ?? "").trim();
-      void busyWhile(pairForm, api.pairMachine(name).then(async (pairing) => store.set({ pairing, machines: await api.listMachines() }), showError));
+      void busyWhile(pairForm, api.pairCode(name).then((r) => store.set({ pairing: { ...r, name } }), showError));
       return;
     }
     const taskForm = (ev.target as HTMLElement).closest("#task-editor") as HTMLFormElement | null;

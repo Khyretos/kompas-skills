@@ -20,6 +20,8 @@ export interface KompanionApi {
   watchMachines(): Promise<void>;
   /** Pairs a PC; the token is returned only this once. */
   pairMachine(name: string): Promise<{ id: string; name: string; token: string }>;
+  /** A one-time code for the one-line runner install (15 minutes). */
+  pairCode(name: string): Promise<{ code: string; expiresAt: string }>;
   unpairMachine(id: string): Promise<void>;
   listGrants(machineId: string): Promise<import("../views/access").GrantView[]>;
   addGrant(machineId: string, target: string, rights: string[], expiresHours?: number): Promise<void>;

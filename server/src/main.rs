@@ -7,6 +7,7 @@ mod contrast;
 mod error;
 mod events;
 mod live;
+mod pairing;
 mod hoststats;
 mod import;
 mod llm;
@@ -157,6 +158,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/projects/{id}", patch(tasks::set_project_kind))
         .route("/machines", get(hoststats::list).post(hoststats::create))
         .route("/machines/live", post(hoststats::live))
+        .route("/machines/pair-code", post(pairing::create_code))
+        .route("/pair", post(pairing::pair))
         .route("/machines/{id}", axum::routing::delete(hoststats::delete))
         .route("/machines/{id}/results", post(access::results).layer(axum::extract::DefaultBodyLimit::max(128 * 1024)))
         .route("/machines/{id}/grants", get(access::list_grants).post(access::add_grant))
@@ -184,6 +187,9 @@ async fn main() -> anyhow::Result<()> {
 
     let app = Router::new()
         .nest("/api", api)
+        // One-line runner install (F6): public, the pairing code is the proof.
+        .route("/install.sh", get(pairing::install_script))
+        .route("/download/{file}", get(pairing::download))
         .fallback_service(web)
         // A route may set a stricter policy of its own (the uploaded logo).
         .layer(SetResponseHeaderLayer::if_not_present(
