@@ -21,6 +21,7 @@ mod mail;
 mod notify;
 mod oidc;
 mod project_ctx;
+mod projects;
 mod tasks;
 mod util;
 mod voice;
@@ -167,6 +168,9 @@ async fn main() -> anyhow::Result<()> {
         .route("/tasks/{id}/events", get(tasks::events))
         .route("/tasks/{id}/start", post(taskrun::start))
         .route("/projects/{id}", patch(tasks::set_project_kind))
+        .route("/projects/{id}/settings", patch(projects::settings))
+        .route("/projects/{id}/assets", get(projects::assets).post(projects::attach))
+        .route("/projects/{id}/assets/{asset}", axum::routing::delete(projects::detach))
         .route("/machines", get(hoststats::list).post(hoststats::create))
         .route("/machines/live", post(hoststats::live))
         .route("/machines/pair-code", post(pairing::create_code))

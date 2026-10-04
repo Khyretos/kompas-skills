@@ -36,6 +36,15 @@ pub struct Project {
     /// "internal" or "windshift" (synced with a Windshift workspace).
     #[sqlx(default)]
     pub kind: String,
+    /// chat | game | programming (set by hand; see projects.rs).
+    #[sqlx(default)]
+    #[serde(rename = "type")]
+    pub ptype: String,
+    /// Programming projects: the repo folder and the computer it is on.
+    #[sqlx(default)]
+    pub repo_folder: Option<String>,
+    #[sqlx(default)]
+    pub repo_machine_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, sqlx::FromRow)]
@@ -83,7 +92,8 @@ pub async fn projects(
     Extension(u): Extension<User>,
 ) -> ApiResult<Json<Vec<Project>>> {
     let rows = sqlx::query_as(
-        "SELECT id, name, description, updated_at, kind FROM projects WHERE user_id = ? ORDER BY updated_at DESC",
+        "SELECT id, name, description, updated_at, kind, ptype, repo_folder, repo_machine_id FROM projects
+         WHERE user_id = ? ORDER BY updated_at DESC",
     )
     .bind(&u.id)
     .fetch_all(&s.db)
