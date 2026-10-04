@@ -667,3 +667,11 @@ button[aria-busy="true"]::after {
 .step > .output { margin: 0 0.5rem 0.5rem; }
 .step.failed, .step.refused, .step.denied { border-color: var(--danger, #c0392b); }
 @media (prefers-reduced-motion: no-preference) { .step { transition: border-color 0.2s; } }
+
+/* Activity tab: one history across chats and computers. */
+.activity-filters { display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 0.6rem 0.75rem; }
+.activity-filters select { font-size: 0.85rem; padding: 0.2rem 0.4rem; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--fg); }
+.activity { list-style: none; margin: 0; padding: 0 0.75rem 0.75rem; display: grid; gap: 0.4rem; }
+.activity-item { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; font-size: 0.85rem; padding: 0.35rem 0; border-bottom: 1px solid var(--line); }
+.activity-item time { color: var(--muted); font-size: 0.78rem; }
+.linklike { background: none; border: 0; padding: 0; color: var(--link); text-decoration: underline; cursor: pointer; font: inherit; }

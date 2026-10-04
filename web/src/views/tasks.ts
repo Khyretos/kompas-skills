@@ -184,6 +184,7 @@ export function paneTabs(s: AppState): SafeHtml {
         ${attention ? html`<span class="badge attn">${attention}</span>` : ""}</button>
       <button role="tab" data-action="tab" data-tab="machines" aria-selected="${s.rightTab === "machines"}">Machines</button>
       <button role="tab" data-action="tab" data-tab="access" aria-selected="${s.rightTab === "access"}">Access</button>
+      <button role="tab" data-action="tab" data-tab="activity" aria-selected="${s.rightTab === "activity"}">Activity</button>
     </div>`;
 }
 

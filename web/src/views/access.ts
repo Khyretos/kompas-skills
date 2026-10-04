@@ -76,15 +76,6 @@ export function renderAccess(machines: { id: string; name: string }[], grants: R
             </form>
           </section>`;
       })}
-      <section class="group">
-        <h3 class="label">History</h3>
-        ${history.length ? html`<ul class="access-history">${history.slice(0, 50).map((e) => html`
-          <li>
-            <span class="muted small">${new Date(e.at).toLocaleString()} · ${e.machine}</span>
-            <span class="chip ${e.kind}">${e.kind}</span>
-            ${e.target ? html`<code>${e.target}</code>` : ""} ${e.detail ?? ""}
-          </li>`)}
-        </ul>` : html`<p class="muted small">Nothing yet.</p>`}
-      </section>
+      <p class="muted small pad">The history of grants and steps is in the Activity tab.</p>
     </div>`;
 }

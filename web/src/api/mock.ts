@@ -390,6 +390,7 @@ export class MockApi implements KompanionApi {
   }
 
   async listActions(chatId: string) { return structuredClone(actions.filter((a) => (a as PcAction & { chatId?: string }).chatId === chatId)); }
+  async listActivity() { return []; }
   async decideAction(id: string, decision: "approve" | "always" | "deny") {
     const a = actions.find((x) => x.id === id);
     if (!a || a.state !== "pending") throw new Error("This step was already decided.");

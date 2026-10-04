@@ -28,7 +28,9 @@ export interface AppState {
   roles: RoleAssignment[];
   machines: MachineStats[];
   today?: DaySummary;
-  rightTab: "tasks" | "machines" | "access";
+  rightTab: "tasks" | "machines" | "access" | "activity";
+  activity: import("./views/activity").ActivityItem[];
+  activityFilter: { machine?: string; chat?: string };
   openTaskId?: string; // task shown in detail
   taskScope: "project" | "all";
   settingsOpen: boolean;
@@ -59,6 +61,8 @@ export const store = new Store<AppState>({
   machinesRefresh: 5,
   grants: {},
   pcActions: [],
+  activity: [],
+  activityFilter: {},
   accessHistory: [],
   gpuOpen: new Set(),
   gpuPins: [],
