@@ -37,3 +37,12 @@
 16. `null` is not `undefined`. A field typed `string | null` needs a truthiness check (`!!a.result`)
     or `?? ""`, never `!== undefined`; otherwise a string function gets `null` and the whole
     render throws, so nothing shows.
+17. `html``…`` drops `false`: `aria-pressed="${x === y}"` renders `aria-pressed=""` when false.
+    Write `aria-pressed="${String(x === y)}"` for every true/false attribute (Assets chips, 2026-10-04).
+18. A CSS file pulled in with `@import` comes before every rule of the file that imports it. With
+    equal specificity the later `.pane { display: flex }` beat `.assets-pane { display: none }`, so
+    the hidden section showed. Raise the selector (`.shell .assets-pane`) instead of `!important`.
+19. Long lists (thousands of rows) are virtualised: a spacer with the full height, and only the
+    visible rows plus two above and below in the DOM, positioned with `transform`; fetch pages of
+    200 by offset and drop answers from an older filter (a generation counter). See
+    `src/views/assets.ts` (47,000 assets, 20 cards in the DOM).
