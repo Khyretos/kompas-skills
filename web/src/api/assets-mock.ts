@@ -1,5 +1,5 @@
 // Example data for demo mode and the browser tests (drafted by the local Coder model, reviewed).
-import type { AssetItem, AssetDetail, AssetStatus, AssetFilter, PackFacet, AssetFacets, AssetsApi, ScanProgress, PreviewProgress, AssetsLive } from "./assets";
+import type { AiMode, AiProgress, AssetItem, AssetDetail, AssetStatus, AssetFilter, AssetTag, PackFacet, AssetFacets, AssetsApi, ScanProgress, PreviewProgress, AssetsLive } from "./assets";
 
 // ---- Demo data: names only, made up in the style of the real library ----
 
@@ -15,7 +15,12 @@ const PACKS = [
   ["fonts", "font", ["Fonts/Display"], "ttf"],
 ] as const;
 
-function previewFields(id: number, category: string): Pick<AssetItem, "preview" | "pv" | "duration" | "peaks" | "width" | "height"> {
+function previewFields(id: number, category: string): Pick<AssetItem, "preview" | "pv" | "duration" | "peaks" | "width" | "height" | "aiCategory"> {
+  // Every tenth sound effect is music to the AI: the "Check categories" list.
+  return { ...pictureOrSound(id, category), aiCategory: category === "sound-effect" && id % 10 === 0 ? "music" : null };
+}
+
+function pictureOrSound(id: number, category: string): Pick<AssetItem, "preview" | "pv" | "duration" | "peaks" | "width" | "height"> {
   if (category === "texture" || category === "sprite") {
     // Every third picture gets its preview later (wantPreviews), so tests can watch one arrive.
     const later = id % 3 === 0;
@@ -27,6 +32,8 @@ function previewFields(id: number, category: string): Pick<AssetItem, "preview" 
   }
   return { preview: null, pv: 0, duration: null, peaks: null, width: null, height: null };
 }
+
+const MUSIC_TAGS: AssetTag[] = [{ id: 1, kind: "mood", name: "epic", by: "ai" }, { id: 2, kind: "style", name: "orchestral", by: "ai" }];
 
 function demoItems(): AssetItem[] {
   const items: AssetItem[] = [];
@@ -100,6 +107,42 @@ function generatePeaks(id: number): string {
 export class MockAssets implements AssetsApi {
   private items = demoItems();
   private listeners = new Set<(ev: AssetsLive) => void>();
+  private aiMode: AiMode = "off";
+  private nextTag = 100;
+  private tags = new Map<number, AssetTag[]>(
+    this.items.filter((a) => a.category === "music").map((a) => [a.id, MUSIC_TAGS]),
+  );
+
+  private aiProgress(): AiProgress {
+    return { mode: this.aiMode, running: false, waiting: false, todo: 0, done: 0, failed: 0, lastError: null };
+  }
+
+  /** Waits a moment like a server, changes one item, and tells the page. */
+  private async aiChange(id: number, change?: (a: AssetItem) => AssetItem): Promise<void> {
+    await new Promise((r) => setTimeout(r, 100));
+    if (change) this.items = this.items.map((a) => (a.id === id ? change(a) : a));
+    const ev: AssetsLive = { ai: { ids: id ? [id] : [], progress: this.aiProgress() } };
+    this.listeners.forEach((l) => l(ev));
+  }
+
+  async setAiMode(mode: AiMode) { this.aiMode = mode; await this.aiChange(0); }
+  async describe(id: number) {
+    if (this.aiMode === "off") throw new Error("AI tagging is off.");
+    this.tags.set(id, MUSIC_TAGS);
+    await this.aiChange(id);
+  }
+  async setCategory(id: number, category: string) { await this.aiChange(id, (a) => ({ ...a, category, aiCategory: null })); }
+  async keepCategory(id: number) { await this.aiChange(id, (a) => ({ ...a, aiCategory: null })); }
+  async addTag(id: number, name: string): Promise<AssetTag> {
+    const tag: AssetTag = { id: this.nextTag++, kind: "custom", name: name.trim().toLowerCase(), by: "kees" };
+    this.tags.set(id, [...(this.tags.get(id) ?? []), tag]);
+    await this.aiChange(id);
+    return tag;
+  }
+  async removeTag(id: number, tagId: number) {
+    this.tags.set(id, (this.tags.get(id) ?? []).filter((t) => t.id !== tagId));
+    await this.aiChange(id);
+  }
   private progress: ScanProgress = { running: false, phase: "done", done: 0, total: 0, current: "", error: null };
   private finishedAt = new Date(Date.now() - 3_600_000).toISOString();
 
@@ -111,6 +154,9 @@ export class MockAssets implements AssetsApi {
       (cats.includes("junk") || a.category !== "junk") &&
       (f.dups || a.dupOf === null) &&
       (skip === "pack" || f.pack === undefined || a.packId === f.pack) &&
+      (skip === "review" || !f.review || a.aiCategory !== null) &&
+      (!f.tag || (this.tags.get(a.id) ?? []).some((t) => `${t.kind}:${t.name}` === f.tag)) &&
+      (f.similar === undefined || (a.id !== f.similar && a.category === this.items.find((x) => x.id === f.similar)?.category)) &&
       words.every((w) => `${a.name} ${a.container}/${a.path} ${a.pack} ${a.category}`.toLowerCase().split(/[^\p{L}\p{N}]+/u).some((t) => t.startsWith(w))));
   }
 
@@ -120,6 +166,7 @@ export class MockAssets implements AssetsApi {
       configured: true, mounted: true, assets: this.items.length, bytes: this.items.reduce((n, a) => n + a.size, 0),
       packs: new Set(this.items.map((a) => a.packId)).size, scan: { ...this.progress },
       previews: { running: false, todo, made: 0, failed: 0 },
+      ai: this.aiProgress(),
       lastScan: { startedAt: this.finishedAt, finishedAt: this.finishedAt, files: 12, entries: this.items.length, unity: 0, packsRead: 8, errors: [], tookMs: 2100 },
       categories: ["sound-effect", "music", "ambience", "voice", "3d-model", "animation", "texture", "material", "sprite", "vfx", "image", "shader", "font", "video", "print-model", "engine-file", "archive", "doc", "other", "junk"],
     };
@@ -143,6 +190,7 @@ export class MockAssets implements AssetsApi {
       packs.set(a.packId, { ...p, files: p.files + 1, bytes: p.bytes + a.size });
     }
     return {
+      review: this.filtered(f, "review").filter((a) => a.aiCategory !== null).length,
       categories: [...cats].map(([name, c]) => ({ name, ...c })),
       packs: [...packs.values()].sort((a, b) => a.name.localeCompare(b.name)),
     };
@@ -153,6 +201,7 @@ export class MockAssets implements AssetsApi {
     if (!a) throw new Error("Not found.");
     const docs = this.items.filter((x) => x.packId === a.packId && x.meta).map((x) => ({ id: x.id, path: x.path }));
     
+    const tags = this.tags.get(a.id) ?? [];
     const isAudio = a.preview === "audio";
     const isSprite = a.category === "sprite";
     
@@ -167,6 +216,15 @@ export class MockAssets implements AssetsApi {
       hasAlpha: isSprite ? true : null,
       previewState: a.preview !== null ? "ok" : null,
       previewError: null,
+      aiState: tags.length ? "ok" : null,
+      aiError: null,
+      aiCaption: tags.length ? `Demo caption for ${a.name}` : null,
+      aiSubject: null,
+      transcript: null,
+      aiModel: tags.length ? "Demo" : null,
+      categoryBy: "rule",
+      similar: tags.length > 0,
+      tags,
       copies: [], 
       packDocs: docs 
     };

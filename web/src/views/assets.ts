@@ -2,7 +2,7 @@
 // visible rows are in the DOM), with search, category chips, a pack filter and a
 // detail panel. Scan progress and its results arrive live; nothing needs a reload.
 import { html, mount, onAction, type SafeHtml } from "../core/html";
-import type { AssetDetail, AssetFacets, AssetFilter, AssetItem, AssetsApi, AssetsLive, AssetStatus, PreviewProgress, ScanProgress } from "../api/assets";
+import type { AiMode, AssetDetail, AssetFacets, AssetFilter, AssetItem, AssetsApi, AssetsLive, AssetStatus, PreviewProgress, ScanProgress } from "../api/assets";
 import { icon } from "./icons";
 import { relTime } from "../core/time";
 
@@ -69,6 +69,16 @@ export function clockTime(seconds: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
+/** "01:00-08:00" for the 23:00-06:00 UTC night window, in this browser's time zone. */
+export function nightWindow(): string {
+  const at = (h: number) => {
+    const d = new Date();
+    d.setUTCHours(h, 0, 0, 0);
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
+  return `${at(23)}–${at(6)}`;
+}
+
 const num = new Intl.NumberFormat("en");
 export function bytes(n: number): string {
   const units = ["B", "KB", "MB", "GB", "TB"];
@@ -120,15 +130,19 @@ export class AssetsView {
           <h1>Assets</h1>
           <p class="muted" id="asset-summary" aria-live="polite"></p>
           <p class="asset-previews-left" id="asset-previews" hidden></p>
+          <p class="asset-ai-line" id="asset-ai" aria-live="polite"></p>
         </div>
         <div class="asset-scan" id="asset-scan"></div>
       </header>
       <div class="assets-filters">
         <input type="search" id="asset-q" placeholder="Search names, paths and packs" aria-label="Search assets" autocomplete="off">
+        <label class="asset-check" title="Find assets that mean the same, not only the same words (needs AI tagging)">
+          <input type="checkbox" id="asset-meaning"> By meaning</label>
         <select id="asset-pack" aria-label="Pack"><option value="">All packs</option></select>
         <label class="asset-check"><input type="checkbox" id="asset-dups"> Show copies</label>
       </div>
       <div class="asset-chips" id="asset-chips" role="group" aria-label="Category"></div>
+      <div class="asset-active" id="asset-active" hidden></div>
       <div class="assets-body">
         <div class="asset-scroll" id="asset-scroll" tabindex="-1">
           <div class="asset-space" id="asset-space"><ul class="asset-rows" id="asset-rows" aria-label="Assets"></ul></div>
@@ -148,6 +162,23 @@ export class AssetsView {
     });
     this.el.querySelector<HTMLInputElement>("#asset-dups")!.addEventListener("change", (ev) => {
       this.setFilter({ dups: (ev.target as HTMLInputElement).checked });
+    });
+    this.el.querySelector<HTMLInputElement>("#asset-meaning")!.addEventListener("change", (ev) => {
+      this.setFilter({ meaning: (ev.target as HTMLInputElement).checked });
+    });
+    // Changes inside the header and the details panel (AI switch, category picker).
+    this.el.addEventListener("change", (ev) => {
+      const t = ev.target as HTMLSelectElement;
+      if (t.id === "asset-ai-mode") void this.setAiMode(t.value as AiMode);
+      else if (t.id === "asset-cat-select" && this.selected !== undefined && t.value) void this.setCategory(this.selected, t.value);
+    });
+    this.el.addEventListener("submit", (ev) => {
+      const form = ev.target as HTMLFormElement;
+      if (form.id !== "asset-tag-form") return;
+      ev.preventDefault();
+      const input = form.querySelector<HTMLInputElement>("input")!;
+      const name = input.value.trim();
+      if (name && this.selected !== undefined) { input.value = ""; void this.addTag(this.selected, name); }
     });
     const scroll = this.scroller();
     scroll.addEventListener("scroll", () => this.schedule(), { passive: true });
@@ -175,6 +206,19 @@ export class AssetsView {
       },
       "asset-scan": () => this.scan(),
       "asset-play": (b) => this.play(Number(b.dataset.id)),
+      "asset-review": () => this.setFilter({ review: !this.filter.review }),
+      "asset-similar": (b) => {
+        const id = Number(b.dataset.id);
+        this.closeDetail();
+        this.setFilter({ similar: id, similarName: b.dataset.name, q: undefined, meaning: false });
+        this.el.querySelector<HTMLInputElement>("#asset-q")!.value = "";
+      },
+      "asset-tag-filter": (b) => { this.closeDetail(); this.setFilter({ tag: b.dataset.tag }); },
+      "asset-unfilter": (b) => this.setFilter(b.dataset.what === "similar" ? { similar: undefined, similarName: undefined } : { tag: undefined }),
+      "asset-tag-remove": (b) => this.removeTag(Number(b.dataset.asset), Number(b.dataset.tag)),
+      "asset-cat-accept": (b) => this.setCategory(Number(b.dataset.id), b.dataset.cat ?? ""),
+      "asset-cat-keep": (b) => this.keepCategory(Number(b.dataset.id)),
+      "asset-describe": (b) => this.describe(Number(b.dataset.id)),
     });
     this.audio.preload = "none";
     this.audio.addEventListener("timeupdate", () => this.showPlayback());
@@ -216,6 +260,7 @@ export class AssetsView {
       this.total = first.total;
       this.renderHead();
       this.renderPreviewProgress();
+      this.renderAi();
       this.renderFilters();
       this.renderGrid(true);
       if (this.selected !== undefined) void this.open(this.selected, false);
@@ -290,6 +335,134 @@ export class AssetsView {
     if (ev === null) { void this.refresh(false); return; } // missed events: reload
     if (ev.scan) this.onProgress(ev.scan);
     if (ev.previews) this.onPreviews(ev.previews.ids, ev.previews.progress);
+    if (ev.ai) {
+      if (this.status) this.status = { ...this.status, ai: ev.ai.progress };
+      this.renderAi();
+      // Same as previews: reload the pages that hold these assets, and an open detail.
+      this.onPreviews(ev.ai.ids, this.status?.previews ?? { running: false, todo: 0, made: 0, failed: 0 });
+      if (ev.ai.ids.length) this.refreshFacets();
+    }
+  }
+
+  private facetsTimer = 0;
+  /** Counts (review chip) after AI changes, at most every 2 s. */
+  private refreshFacets(): void {
+    if (this.facetsTimer) return;
+    this.facetsTimer = window.setTimeout(async () => {
+      this.facetsTimer = 0;
+      const gen = this.gen;
+      try {
+        const facets = await this.api.facets(this.filter);
+        if (gen === this.gen) { this.facets = facets; this.renderFilters(); }
+      } catch { /* the next event tries again */ }
+    }, 2000);
+  }
+
+  private renderAi(): void {
+    const box = this.el.querySelector<HTMLElement>("#asset-ai");
+    const p = this.status?.ai;
+    if (!box || !p) return;
+    const state = p.mode === "off" ? "AI tagging is off"
+      : p.waiting ? `AI tagging waits for the night (${nightWindow()})`
+      : p.running ? `Describing assets · ${num.format(p.todo)} left`
+      : p.todo ? "AI tagging is on" : "AI tagging is on · everything is described";
+    const select = this.isAdmin() ? html`<label class="asset-ai-mode">AI tagging
+      <select id="asset-ai-mode" aria-label="AI tagging">
+        <option value="off" ${p.mode === "off" ? "selected" : ""}>Off</option>
+        <option value="night" ${p.mode === "night" ? "selected" : ""}>At night (${nightWindow()})</option>
+        <option value="always" ${p.mode === "always" ? "selected" : ""}>Always</option>
+      </select></label>` : "";
+    const err = p.lastError && p.mode !== "off" ? html`<span class="chip warn-chip" title="${p.lastError}">last error</span>` : "";
+    mount(box, html`<span>${state}</span>${err}${select}`);
+    const meaning = this.el.querySelector<HTMLInputElement>("#asset-meaning");
+    if (meaning) meaning.disabled = p.mode === "off";
+  }
+
+  private async setAiMode(mode: AiMode): Promise<void> {
+    const before = this.status?.ai;
+    if (this.status && before) { this.status = { ...this.status, ai: { ...before, mode } }; this.renderAi(); }
+    try {
+      await this.api.setAiMode(mode);
+    } catch (e) {
+      if (this.status && before) { this.status = { ...this.status, ai: before }; this.renderAi(); }
+      toast(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  /** Changes one asset in the loaded pages at once (optimistic), returning the old one. */
+  private patchItem(id: number, change: Partial<AssetItem>): AssetItem | undefined {
+    for (const [page, items] of this.pages) {
+      const i = items.findIndex((a) => a.id === id);
+      if (i < 0) continue;
+      const before = items[i];
+      this.pages.set(page, items.map((a, k) => (k === i ? { ...a, ...change } : a)));
+      this.renderGrid(true);
+      return before;
+    }
+    return undefined;
+  }
+
+  private async setCategory(id: number, category: string): Promise<void> {
+    const before = this.patchItem(id, { category, aiCategory: null });
+    try {
+      await this.api.setCategory(id, category);
+      if (this.selected === id) void this.open(id, false);
+    } catch (e) {
+      if (before) this.patchItem(id, before);
+      toast(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  private async keepCategory(id: number): Promise<void> {
+    const before = this.patchItem(id, { aiCategory: null });
+    this.hideReview();
+    try {
+      await this.api.keepCategory(id);
+    } catch (e) {
+      if (before) this.patchItem(id, before);
+      if (this.selected === id) void this.open(id, false);
+      toast(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  private hideReview(): void {
+    this.el.querySelector(".asset-review-box")?.remove();
+  }
+
+  private async addTag(id: number, name: string): Promise<void> {
+    const list = this.el.querySelector<HTMLElement>("#asset-tags");
+    const temp = document.createElement("li");
+    temp.className = "asset-tag pending";
+    temp.textContent = name.toLowerCase();
+    list?.append(temp);
+    try {
+      await this.api.addTag(id, name);
+      if (this.selected === id) void this.open(id, false);
+    } catch (e) {
+      temp.remove();
+      toast(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  private async removeTag(id: number, tagId: number): Promise<void> {
+    const chip = this.el.querySelector<HTMLElement>(`.asset-tag[data-tag="${tagId}"]`);
+    if (chip) chip.hidden = true;
+    try {
+      await this.api.removeTag(id, tagId);
+    } catch (e) {
+      if (chip) chip.hidden = false;
+      toast(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  private async describe(id: number): Promise<void> {
+    try {
+      await this.api.describe(id);
+      const box = this.el.querySelector<HTMLElement>(".asset-ai-box .hint");
+      if (box) box.textContent = "Queued: the AI describes this one next.";
+    } catch (e) {
+      toast(e instanceof Error ? e.message : String(e));
+    }
   }
 
   /** Previews arrived: reload only the loaded pages that hold them, then redraw. */
@@ -353,6 +526,27 @@ export class AssetsView {
       <button class="chip-btn" data-action="asset-cat" data-cat="" aria-pressed="${String(!this.filter.category)}">All <span>${num.format(all)}</span></button>
       ${cats.map((c) => html`<button class="chip-btn cat-${c}" data-action="asset-cat" data-cat="${c}" aria-pressed="${String(this.filter.category === c)}">
         ${LABEL[c] ?? c} <span>${num.format(counts.get(c) ?? 0)}</span></button>`)}`);
+    const review = f.review ?? 0;
+    if (review || this.filter.review) {
+      const chip = document.createElement("button");
+      chip.className = "chip-btn review-chip";
+      chip.dataset.action = "asset-review";
+      chip.setAttribute("aria-pressed", String(!!this.filter.review));
+      chip.title = "Assets the AI files under another category";
+      chip.textContent = "Check categories ";
+      const n = document.createElement("span");
+      n.textContent = num.format(review);
+      chip.append(n);
+      this.el.querySelector("#asset-chips")!.prepend(chip);
+    }
+    const active = this.el.querySelector<HTMLElement>("#asset-active")!;
+    const parts: ReturnType<typeof html>[] = [];
+    if (this.filter.similar !== undefined) parts.push(html`<button class="chip-btn" data-action="asset-unfilter" data-what="similar"
+      aria-label="Stop showing assets like ${this.filter.similarName ?? "this one"}">Like ${this.filter.similarName ?? `#${this.filter.similar}`} ×</button>`);
+    if (this.filter.tag) parts.push(html`<button class="chip-btn" data-action="asset-unfilter" data-what="tag"
+      aria-label="Stop filtering by ${this.filter.tag}">${this.filter.tag.replace(":", ": ")} ×</button>`);
+    active.hidden = parts.length === 0;
+    mount(active, html`${parts}`);
     const select = this.el.querySelector<HTMLSelectElement>("#asset-pack")!;
     const current = this.filter.pack;
     mount(select, html`<option value="">All packs (${num.format(f.packs.length)})</option>
@@ -377,7 +571,8 @@ export class AssetsView {
     const empty = this.el.querySelector<HTMLElement>("#asset-empty")!;
     empty.hidden = this.total > 0 || !this.status;
     if (!empty.hidden) {
-      const filtered = this.filter.q || this.filter.category || this.filter.pack !== undefined;
+      const filtered = this.filter.q || this.filter.category || this.filter.pack !== undefined || this.filter.review
+        || this.filter.tag || this.filter.similar !== undefined;
       mount(empty, filtered
         ? html`<p>Nothing matches these filters.</p><button class="btn" data-action="asset-clear">Clear filters</button>`
         : html`<p>The index is empty.${this.isAdmin() ? " Start a scan to fill it." : ""}</p>`);
@@ -475,6 +670,7 @@ export class AssetsView {
     return html`<li class="asset-cell ${audio ? "has-audio" : ""}" data-id="${a.id}"><button class="asset-card cat-${a.category}" data-action="asset-open" data-id="${a.id}"
         aria-pressed="${String(this.selected === a.id)}" title="${where}">
       <span class="asset-thumb ${a.preview ? `is-${a.preview}` : ""}">${thumb}<span class="asset-ext">${a.ext}</span>
+        ${a.aiCategory ? html`<span class="asset-flag" title="The AI files this as ${label1(a.aiCategory)}">AI: ${label1(a.aiCategory)}?</span>` : ""}
         ${a.duration ? html`<span class="asset-dur">${clockTime(a.duration)}</span>` : ""}</span>
       <span class="asset-text">
         <span class="asset-name">${a.name}</span>
@@ -528,6 +724,28 @@ export class AssetsView {
     return html`<div class="asset-preview cat-${d.category}">${glyph(d.category)}<span class="hint">${why}</span></div>`;
   }
 
+  private aiBox(d: AssetDetail): SafeHtml {
+    const mode = this.status?.ai?.mode ?? "off";
+    const tags = d.tags.map((t) => html`<li class="asset-tag ${t.by}" data-tag="${t.id}">
+      <button class="link" data-action="asset-tag-filter" data-tag="${t.kind}:${t.name}" title="Show all assets tagged ${t.name}">${t.kind === "custom" ? "" : `${t.kind}: `}${t.name}</button>
+      ${t.by === "ai" ? html`<small aria-label="set by the AI">AI</small>` : ""}
+      <button class="tag-x" data-action="asset-tag-remove" data-asset="${d.id}" data-tag="${t.id}" aria-label="Remove tag ${t.name}">×</button></li>`);
+    const about = d.aiCaption
+      ? html`<p class="asset-caption">${d.aiCaption}</p>${d.transcript ? html`<p class="hint">Says: “${d.transcript}”</p>` : ""}`
+      : html`<p class="hint">${d.aiState === "error" ? `The AI couldn't describe this: ${d.aiError ?? ""}`
+        : mode === "off" ? "Not described yet. AI tagging is off." : "Not described yet."}</p>`;
+    return html`<section class="asset-ai-box" aria-label="Description and tags">
+      <h3 class="label">Description and tags</h3>
+      ${about}
+      <ul class="asset-tags" id="asset-tags">${tags}</ul>
+      <form id="asset-tag-form" class="asset-tag-form"><input name="tag" maxlength="40" placeholder="Add a tag" aria-label="Add a tag" autocomplete="off">
+        <button class="btn" type="submit">Add</button></form>
+      <div class="row">
+        ${d.similar ? html`<button class="btn" data-action="asset-similar" data-id="${d.id}" data-name="${d.name}">Find similar</button>` : ""}
+        ${mode !== "off" ? html`<button class="btn" data-action="asset-describe" data-id="${d.id}">${d.aiCaption ? "Describe again" : "Describe now"}</button>` : ""}
+      </div></section>`;
+  }
+
   private renderDetail(d: AssetDetail): SafeHtml {
     const where = d.container ? `${d.container} › ${d.path}` : d.path;
     return html`
@@ -542,13 +760,22 @@ export class AssetsView {
         <dt>Pack</dt><dd><button class="link" data-action="asset-pack" data-pack="${d.packId}">${d.pack}</button></dd>
         <dt>Licence</dt><dd><span class="chip ship-no">Not cleared to ship</span>
           <small class="muted">No licence linked to this pack yet.</small></dd>
-        <dt>Category</dt><dd>${label1(d.category)} <small class="muted">(${d.rule})</small></dd>
+        <dt>Category</dt><dd>${label1(d.category)} <small class="muted">(${d.rule})</small>
+          <select id="asset-cat-select" class="asset-cat-select" aria-label="Change the category">
+            <option value="">Change…</option>
+            ${(this.status?.categories ?? []).filter((c) => c !== "junk" && c !== d.category).map((c) => html`<option value="${c}">${label1(c)}</option>`)}
+          </select></dd>
         <dt>Size</dt><dd>${bytes(d.size)} <small class="muted">.${d.ext}${d.width && d.height
           ? ` · ${d.width} × ${d.height} px${d.hasAlpha ? ", transparent" : ""}` : ""}</small></dd>
         ${d.duration ? html`<dt>Length</dt><dd>${clockTime(d.duration)} <small class="muted">${[
           d.sampleRate ? `${(d.sampleRate / 1000).toFixed(1)} kHz` : "", d.channels === 1 ? "mono" : d.channels === 2 ? "stereo" : d.channels ? `${d.channels} channels` : "",
         ].filter(Boolean).join(" · ")}${d.duration > 30 ? " · the preview plays the first 30 s" : ""}</small></dd>` : ""}
       </dl>
+      ${d.aiCategory ? html`<div class="asset-review-box" role="group" aria-label="Category check">
+        <p>The AI files this as <strong>${label1(d.aiCategory)}</strong>, the rules as <strong>${label1(d.category)}</strong>.</p>
+        <div class="row"><button class="btn primary" data-action="asset-cat-accept" data-id="${d.id}" data-cat="${d.aiCategory}">Use ${label1(d.aiCategory)}</button>
+          <button class="btn" data-action="asset-cat-keep" data-id="${d.id}">Keep ${label1(d.category)}</button></div></div>` : ""}
+      ${this.aiBox(d)}
       ${d.packDocs.length ? html`
         <h3 class="label">Licence and readme files in this pack</h3>
         <ul class="asset-docs">${d.packDocs.map((x) => html`<li><button class="link" data-action="asset-open" data-id="${x.id}">${x.path}</button></li>`)}</ul>` : ""}
