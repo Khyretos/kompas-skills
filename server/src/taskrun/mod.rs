@@ -38,11 +38,7 @@ struct Run {
 }
 
 async fn role(s: &AppState, user_id: &str, name: &str) -> ApiResult<Option<RoleAssignment>> {
-    Ok(sqlx::query_as::<_, RoleAssignment>("SELECT role, provider_id, model_id FROM user_roles WHERE user_id = ? AND role = ?")
-        .bind(user_id)
-        .bind(name)
-        .fetch_optional(&s.db)
-        .await?)
+    api::user_role(s, user_id, name).await
 }
 
 /// Starts a task on a computer, in a folder.
@@ -204,6 +200,19 @@ async fn work(s: &AppState, r: &Run, max_steps: usize, instruction: String) -> R
         .await
 }
 
+/// The worker's instruction for one step: only that step, stopping once its "done when" holds.
+fn step_instruction(i: usize, n: usize, step: &parse::PlanStep, plan_list: &str) -> String {
+    let done = if step.done_when.is_empty() { String::new() } else { format!("\nDone when: {}", step.done_when) };
+    format!(
+        "Step {} of {n}: {}{done}\n\nThe whole plan, for context only:\n{plan_list}\n\nDo only step {}; the other steps are done \
+         separately. Stop as soon as it is done: don't run the tests or re-check it again. If it is already done, say so \
+         and change nothing.",
+        i + 1,
+        step.what,
+        i + 1
+    )
+}
+
 fn cut(text: &str, max: usize) -> String {
     text.chars().take(max).collect()
 }
@@ -214,7 +223,11 @@ async fn run(s: AppState, r: Run) {
     let plan_text = match ask_model(
         &s,
         &r.orchestrator,
-        "You plan coding and admin tasks on the user's computer. Answer only with a JSON array of 3 to 8 short, concrete steps.",
+        "You plan coding and admin tasks on the user's computer. Answer only with a JSON array of 1 to 6 steps, each \
+         {\"step\": \"...\", \"done_when\": \"...\"}. A step is one change the user would notice (\"add char_count \
+         to textutil.py\"), never only opening, reading or finding something, and never running the tests or the \
+         check: that runs by itself afterwards. done_when is one fact the worker can see, such as \"textutil.py \
+         defines char_count\". A small task is one or two steps.",
         &plan_user,
     )
     .await
@@ -230,14 +243,19 @@ async fn run(s: AppState, r: Run) {
         note(&s, &r, "I couldn't make a plan; the task description may need more detail.").await;
         return finish(&s, &r, "needs_input", "no plan").await;
     }
-    let plan_list = steps.iter().enumerate().map(|(i, x)| format!("{}. {x}", i + 1)).collect::<Vec<_>>().join("\n");
+    let plan_list = steps
+        .iter()
+        .enumerate()
+        .map(|(i, x)| if x.done_when.is_empty() { format!("{}. {}", i + 1, x.what) } else { format!("{}. {} (done when: {})", i + 1, x.what, x.done_when) })
+        .collect::<Vec<_>>()
+        .join("\n");
     note(&s, &r, &format!("Plan:\n{plan_list}")).await;
 
     // 2. The steps.
     let n = steps.len();
     for (i, step) in steps.iter().enumerate() {
-        progress(&s, &r, i as f64 / n as f64 * 0.8, &format!("Step {}/{n}: {step}", i + 1)).await;
-        match work(&s, &r, 12, format!("Step {} of {n}: {step}\n\nThe whole plan:\n{plan_list}", i + 1)).await {
+        progress(&s, &r, i as f64 / n as f64 * 0.8, &format!("Step {}/{n}: {}", i + 1, step.what)).await;
+        match work(&s, &r, 12, step_instruction(i, n, step, &plan_list)).await {
             Ok(line) => note(&s, &r, &format!("Step {}: {line}", i + 1)).await,
             Err(why) => {
                 note(&s, &r, &format!("Step {} stopped: {why}", i + 1)).await;
@@ -322,5 +340,15 @@ mod tests {
         };
         let p = worker_prompt(&r);
         assert!(p.contains("/home/k/app") && p.contains("soucouyant"));
+    }
+
+    #[test]
+    fn a_step_instruction_names_only_its_step_and_its_done_when() {
+        let step = parse::PlanStep { what: "add char_count".into(), done_when: "textutil.py defines char_count".into() };
+        let t = step_instruction(0, 2, &step, "1. add char_count\n2. add a test");
+        assert!(t.starts_with("Step 1 of 2: add char_count\nDone when: textutil.py defines char_count"));
+        assert!(t.contains("Do only step 1"));
+        let bare = parse::PlanStep { what: "x".into(), done_when: String::new() };
+        assert!(!step_instruction(1, 2, &bare, "").contains("Done when"));
     }
 }

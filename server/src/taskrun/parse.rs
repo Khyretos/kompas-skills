@@ -1,5 +1,11 @@
 use serde_json::Value;
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct PlanStep {
+    pub what: String,
+    pub done_when: String,
+}
+
 /// Extracts the first JSON value from text.
 /// 1. Try parsing the whole trimmed text.
 /// 2. If that fails, look for a ```json or ``` fence and parse its content.
@@ -113,33 +119,35 @@ fn extract_raw_substring(text: &str) -> Option<Value> {
     None
 }
 
-/// Parses a plan from JSON or falls back to list markers.
-pub fn plan(text: &str) -> Vec<String> {
-    let val = json_in(text);
-    
-    if let Some(Value::Array(arr)) = val {
-        arr.into_iter()
-            .filter_map(|v| v.as_str().map(String::from))
-            .take(8)
-            .collect()
-    } else if let Some(Value::Object(obj)) = val {
-        if let Some(steps_val) = obj.get("steps").and_then(|v| v.as_array()) {
-            steps_val
-                .iter()
-                .filter_map(|step| {
-                    step.as_object().and_then(|obj| {
-                        obj.get("step").or_else(|| obj.get("title")).and_then(|v| v.as_str()).map(String::from)
-                    })
-                })
+/// One plan item: a string, or an object with "step"/"title" and an optional
+/// "done_when"/"doneWhen"/"done". None when the step text is empty.
+fn plan_item(v: &Value) -> Option<PlanStep> {
+    let field = |keys: &[&str]| keys.iter().find_map(|k| v.get(*k).and_then(Value::as_str)).unwrap_or("").trim().to_string();
+    let (what, done_when) = match v {
+        Value::String(s) => (s.trim().to_string(), String::new()),
+        Value::Object(_) => (field(&["step", "title"]), field(&["done_when", "doneWhen", "done"])),
+        _ => return None,
+    };
+    (!what.is_empty()).then_some(PlanStep { what, done_when })
+}
+
+/// Parses a plan from JSON (an array of steps, or {"steps": [...]}) or falls back to list markers.
+pub fn plan(text: &str) -> Vec<PlanStep> {
+    let items = match json_in(text) {
+        Some(Value::Array(arr)) => arr,
+        Some(Value::Object(obj)) => match obj.get("steps") {
+            Some(Value::Array(arr)) => arr.clone(),
+            _ => return Vec::new(),
+        },
+        _ => {
+            return fallback_plan(text)
+                .into_iter()
+                .map(|what| PlanStep { what, done_when: String::new() })
                 .take(8)
-                .collect()
-        } else {
-            Vec::new()
+                .collect();
         }
-    } else {
-        // Fallback to text lines starting with - , * , N. or N)
-        fallback_plan(text)
-    }
+    };
+    items.iter().filter_map(plan_item).take(8).collect()
 }
 
 fn fallback_plan(text: &str) -> Vec<String> {
@@ -251,21 +259,42 @@ More text."#;
     fn test_plan_array() {
         let text = r#"["a", "b"]"#;
         let plan = plan(text);
-        assert_eq!(plan, vec!["a", "b"]);
+        assert_eq!(plan, vec![PlanStep { what: "a".to_string(), done_when: String::new() }, PlanStep { what: "b".to_string(), done_when: String::new() }]);
     }
 
     #[test]
     fn test_plan_object_steps() {
         let text = r#"{"steps":[{"step":"x"},{"step":"y"}]}"#;
         let plan = plan(text);
-        assert_eq!(plan, vec!["x", "y"]);
+        assert_eq!(plan, vec![PlanStep { what: "x".to_string(), done_when: String::new() }, PlanStep { what: "y".to_string(), done_when: String::new() }]);
     }
 
     #[test]
     fn test_plan_numbered_list() {
         let text = "1. one\n2. two\n3. three";
         let plan = plan(text);
-        assert_eq!(plan, vec!["one", "two", "three"]);
+        assert_eq!(plan, vec![PlanStep { what: "one".to_string(), done_when: String::new() }, PlanStep { what: "two".to_string(), done_when: String::new() }, PlanStep { what: "three".to_string(), done_when: String::new() }]);
+    }
+
+    #[test]
+    fn test_plan_with_done_when() {
+        let text = r#"[{"step":"add char_count","done_when":"char_count(\"a b\") == 2"}]"#;
+        let plan = plan(text);
+        assert_eq!(plan, vec![PlanStep { what: "add char_count".to_string(), done_when: "char_count(\"a b\") == 2".to_string() }]);
+    }
+
+    #[test]
+    fn test_plan_alternate_done_when_keys() {
+        let text = r#"{"steps":[{"title":"x","doneWhen":"y"}]}"#;
+        let plan = plan(text);
+        assert_eq!(plan, vec![PlanStep { what: "x".to_string(), done_when: "y".to_string() }]);
+    }
+
+    #[test]
+    fn test_plan_skip_empty_steps() {
+        let text = r#"["a", {"step":"  "}, "b"]"#;
+        let plan = plan(text);
+        assert_eq!(plan, vec![PlanStep { what: "a".to_string(), done_when: String::new() }, PlanStep { what: "b".to_string(), done_when: String::new() }]);
     }
 
     #[test]
