@@ -201,7 +201,10 @@ pub fn to_job(name: &str, args: &Value) -> Option<Value> {
 /// Generate a short, readable summary line for a job.
 pub fn summary(job: &Value) -> String {
     let tool = job.get("tool").and_then(|v| v.as_str()).unwrap_or("");
-    let args = job.get("args").and_then(|v| v.as_object()).unwrap_or(&serde_json::Map::new());
+    
+    // Fix E0716: bind the args object to extend its lifetime
+    let args_obj = job.get("args").and_then(|v| v.as_object()).unwrap_or(&serde_json::Map::new());
+    let args = args_obj;
 
     match tool {
         "read_file" => {
@@ -237,8 +240,10 @@ pub fn summary(job: &Value) -> String {
         "package" => {
             let manager = args.get("manager").and_then(|v| v.as_str()).unwrap_or("");
             let action = args.get("action").and_then(|v| v.as_str()).unwrap_or("");
-            let names = args.get("names").and_then(|v| v.as_array()).unwrap_or(&Vec::<Value>::new());
-            let names_str = names.iter().filter_map(|n| n.as_str()).collect::<Vec<_>>().join(", ");
+            
+            // Fix E0716: bind the names array to extend its lifetime
+            let names_arr = args.get("names").and_then(|v| v.as_array()).unwrap_or(&Vec::<Value>::new());
+            let names_str = names_arr.iter().filter_map(|n| n.as_str()).collect::<Vec<_>>().join(", ");
             format!("{} {} with {}", action, names_str, manager)
         }
         "reload" => {
@@ -256,7 +261,10 @@ pub fn summary(job: &Value) -> String {
 /// Returns None if paths are invalid (relative or containing '..').
 pub fn grant_for(job: &Value) -> Option<(String, Vec<&'static str>)> {
     let tool = job.get("tool").and_then(|v| v.as_str())?;
-    let args = job.get("args").and_then(|v| v.as_object())?;
+    
+    // Fix E0716: bind the args object to extend its lifetime
+    let args_obj = job.get("args").and_then(|v| v.as_object())?;
+    let args = args_obj;
 
     // Helper to validate absolute paths without '..'
     let valid_path = |p: &str| -> bool {
