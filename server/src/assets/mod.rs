@@ -32,6 +32,13 @@ pub fn root() -> Option<PathBuf> {
     std::env::var("ASSET_LIBRARY").ok().filter(|s| !s.is_empty()).map(PathBuf::from)
 }
 
+/// Whether the library mount answers. After a crash or a remount a dead FUSE mount
+/// fails every read with "not connected"; scans and previews then wait instead of
+/// recording every asset as missing or broken.
+pub fn library_online(root: &std::path::Path) -> bool {
+    std::fs::read_dir(root).and_then(|mut d| d.next().transpose()).is_ok()
+}
+
 pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/assets", get(list))
@@ -547,6 +554,12 @@ async fn remove_tag(State(s): State<AppState>, Path((id, tag)): Path<(i64, i64)>
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn library_online_needs_a_readable_root() {
+        assert!(library_online(&std::env::temp_dir()));
+        assert!(!library_online(std::path::Path::new("/no/such/library")));
+    }
 
     #[test]
     fn search_words_are_quoted_prefixes() {

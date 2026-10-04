@@ -173,6 +173,7 @@ async fn scan(db: &SqlitePool, bus: &Bus, root: &Path) -> Result<()> {
     set(bus, |_| {});
     let root_buf: PathBuf = root.to_path_buf();
     let (files, mut errors) = tokio::task::spawn_blocking(move || walk(&root_buf)).await?;
+    anyhow::ensure!(super::library_online(root), "asset library offline: {}", root.display());
 
     // Packs already known: key -> (id, size, mtime, error).
     let known: HashMap<String, (i64, i64, i64, Option<String>)> =
@@ -271,6 +272,8 @@ async fn scan(db: &SqlitePool, bus: &Bus, root: &Path) -> Result<()> {
         p.done = p.total;
         p.current.clear();
     });
+    // Never mark the whole library missing because its mount went away mid-scan.
+    anyhow::ensure!(super::library_online(root), "asset library went offline during the scan");
     let now = util::now();
     sqlx::query("UPDATE asset SET missing_since = ? WHERE seen_scan < ? AND missing_since IS NULL")
         .bind(&now)
