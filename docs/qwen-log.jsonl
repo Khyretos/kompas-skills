@@ -140,3 +140,4 @@
 {"name": "capabilities-css", "out": "web/src/views/capabilities.css", "gpu_seconds": 31.9, "tokens": 760, "lines": 36, "review": "skipped", "model": "Coder", "at": "2026-10-04T15:10:24"}
 {"name": "capabilities-view", "out": "web/src/views/capabilities.ts", "gpu_seconds": 119.2, "tokens": 4162, "lines": 219, "model": "qwen3.5:9b-q8_0", "at": "2026-10-04T15:11:52"}
 {"name": "voice-server", "out": "server/src/voice.rs", "gpu_seconds": 105.3, "tokens": 4601, "lines": 400, "review": "skipped", "model": "qwen3.5:9b-q8_0", "at": "2026-10-04T15:24:13"}
+{"name": "project-panel-view", "out": "web/src/views/projectpanel.ts", "gpu_seconds": 65.4, "tokens": 2916, "lines": 104, "model": "qwen3.5:9b-q8_0", "at": "2026-10-04T15:32:51"}

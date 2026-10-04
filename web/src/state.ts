@@ -39,6 +39,8 @@ export interface AppState {
   capabilities?: import("./views/capabilities").Capabilities; // loaded when the Capabilities section opens
   expandedProjects: Set<string>; // projects open in the sidebar
   allTasksShown: Set<string>; // projects whose sidebar task list shows every task ("N more" pressed)
+  projectAssets: Record<string, import("./views/projectpanel").ProjectAsset[]>; // game projects, loaded when shown
+  assetPick: { project: string; q: string; items: import("./views/projectpanel").PickResult[]; busy: boolean }; // the picker
   activeProjectId?: string; // project picked in the sidebar (tasks pane, new chats)
   chatMenuId?: string; // chat whose options menu is open
   movingChatId?: string; // chat whose "Move to project" list is open
@@ -61,6 +63,8 @@ export const store = new Store<AppState>({
   section: "chat",
   expandedProjects: new Set(),
   allTasksShown: new Set(),
+  projectAssets: {},
+  assetPick: { project: "", q: "", items: [], busy: false },
   isAdmin: false,
   theme: "system",
   machinesRefresh: 5,

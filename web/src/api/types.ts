@@ -34,6 +34,10 @@ export interface Project {
   description: string;
   updatedAt: string; // ISO
   kind?: "internal" | "windshift";
+  /** chat (default), game (library assets attached) or programming (a repo folder on a computer). */
+  type?: "chat" | "game" | "programming";
+  repoFolder?: string | null;
+  repoMachineId?: string | null;
 }
 
 export interface Chat {

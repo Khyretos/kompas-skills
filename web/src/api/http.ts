@@ -79,6 +79,18 @@ export class HttpApi implements KompanionApi {
   testMail(to: string) { return this.request<void>("POST", "/admin/test-mail", { to }); }
 
   listProjects() { return this.request<Project[]>("GET", "/projects"); }
+  setProjectSettings(projectId: string, change: { type?: Project["type"]; repoFolder?: string; repoMachineId?: string }) {
+    return this.request<void>("PATCH", `/projects/${encodeURIComponent(projectId)}/settings`, change);
+  }
+  projectAssets(projectId: string) {
+    return this.request<import("../views/projectpanel").ProjectAsset[]>("GET", `/projects/${encodeURIComponent(projectId)}/assets`);
+  }
+  attachAsset(projectId: string, assetId: number) {
+    return this.request<void>("POST", `/projects/${encodeURIComponent(projectId)}/assets`, { assetId });
+  }
+  detachAsset(projectId: string, assetId: number) {
+    return this.request<void>("DELETE", `/projects/${encodeURIComponent(projectId)}/assets/${assetId}`);
+  }
   listChats() { return this.request<Chat[]>("GET", "/chats"); }
   listMessages(chatId: string) { return this.request<Message[]>("GET", `/chats/${encodeURIComponent(chatId)}/messages`); }
   listTasks() { return this.request<Task[]>("GET", "/tasks"); }

@@ -9,6 +9,7 @@ const grants: Record<string, GrantView[]> = {
   soucouyant: [{ target: "/home/kees/projects/kompanion", rights: ["read", "write"], grantedBy: "demo", grantedAt: "2026-10-01T10:00:00Z", expires: null }],
 };
 const actions: PcAction[] = [];
+const projectAssets: Record<string, import("../views/projectpanel").ProjectAsset[]> = {};
 const history: AccessEvent[] = [];
 
 const now = Date.now();
@@ -338,6 +339,29 @@ export class MockApi implements KompanionApi {
   async testMail() { throw new Error("The demo can't send mail."); }
   async login() {}
   async listProjects() { return structuredClone(projects); }
+  async setProjectSettings(projectId: string, change: { type?: Project["type"]; repoFolder?: string; repoMachineId?: string }) {
+    const p = projects.find((x) => x.id === projectId);
+    if (!p) throw new Error("No such project.");
+    if (change.repoFolder !== undefined && change.repoFolder && !change.repoFolder.startsWith("/")) {
+      throw new Error("Use an absolute folder, like /home/you/projects/app.");
+    }
+    if (change.type) p.type = change.type;
+    if (change.repoFolder !== undefined) p.repoFolder = change.repoFolder.replace(/\/+$/, "") || null;
+    if (change.repoMachineId !== undefined) p.repoMachineId = change.repoMachineId || null;
+    setTimeout(() => this.emit({ type: "changed", what: "projects" }), 50);
+  }
+  async projectAssets(projectId: string) { return structuredClone(projectAssets[projectId] ?? []); }
+  async attachAsset(projectId: string, assetId: number) {
+    const list = (projectAssets[projectId] ??= []);
+    if (!list.some((a) => a.id === assetId)) {
+      list.unshift({ id: assetId, name: `asset-${assetId}`, category: "", pack: "", preview: null, pv: 0, missing: false });
+    }
+    // No "project-assets" event: the demo doesn't know asset names, and the app has
+    // already shown the change (the real server sends it for other open tabs).
+  }
+  async detachAsset(projectId: string, assetId: number) {
+    projectAssets[projectId] = (projectAssets[projectId] ?? []).filter((a) => a.id !== assetId);
+  }
   async listChats() {
     return structuredClone([...chats].sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned)));
   }

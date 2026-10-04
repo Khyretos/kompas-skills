@@ -239,6 +239,29 @@ input[type="url"]:focus, select:focus, textarea:focus { outline: none; border-co
 }
 .task-editor textarea { font-family: var(--mono); font-size: 0.85rem; resize: vertical; }
 .project-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; }
+/* Project settings at the top of a project's Tasks tab: type, repo (programming), assets (game). */
+.project-panel { display: grid; gap: 0.6rem; padding: 0.6rem 0.75rem 0.75rem; border-bottom: 1px solid var(--line); }
+.project-type { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; }
+.project-panel select, .project-panel input:not([type="checkbox"]) {
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 0.4rem 0.6rem; color: var(--fg); min-width: 0;
+}
+.project-panel select:focus, .project-panel input:focus { outline: none; border-color: var(--accent); }
+.project-type select { flex: 1; }
+.project-repo { display: grid; gap: 0.45rem; font-size: 0.85rem; }
+.project-repo label { display: grid; gap: 0.2rem; }
+.project-repo .btn { justify-self: start; }
+.project-assets { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.4rem; }
+.project-asset { position: relative; }
+.project-asset .task-main { grid-template-columns: 2.5rem minmax(0, 1fr); align-items: center; column-gap: 0.6rem; padding-right: 2.4rem; cursor: default; }
+.project-asset .task-title, .project-asset .task-meta { grid-column: 2; overflow-wrap: anywhere; }
+.pa-thumb { grid-row: 1 / span 2; width: 2.5rem; height: 2.5rem; border-radius: 6px; object-fit: contain; background: var(--surface-2); }
+.pa-icon { display: grid; place-items: center; color: var(--muted); }
+.pa-remove { position: absolute; top: 0.35rem; right: 0.35rem; }
+.asset-picker { display: grid; gap: 0.4rem; }
+.pick-results { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.25rem; }
+.pick-results li { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.5rem; font-size: 0.85rem; padding: 0.3rem 0.4rem; border-radius: 6px; }
+.pick-results li:hover { background: color-mix(in srgb, var(--surface-2) 60%, transparent); }
+.pick-results .pick-name { flex: 1 1 10rem; min-width: 0; overflow-wrap: anywhere; }
 .pair { margin-top: 0.75rem; display: grid; gap: 0.35rem; }
 .pair input, .pair-result input { width: 100%; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 0.45rem 0.6rem; color: var(--fg); }
 .pair-result { margin-top: 0.75rem; display: grid; gap: 0.4rem; padding: 0.75rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }

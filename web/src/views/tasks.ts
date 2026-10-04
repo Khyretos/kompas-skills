@@ -4,6 +4,13 @@ import { clock, relTime } from "../core/time";
 import { activeProject, type AppState } from "../state";
 import type { Task, TaskEvent, TaskState } from "../api/types";
 import { icon } from "./icons";
+import { renderProjectPanel } from "./projectpanel";
+
+/** Thumbnail URLs for attached assets (set by main.ts from the Assets API). */
+let thumb: (a: { id: number; pv: number }) => string = () => "";
+export function setAssetThumbs(fn: (a: { id: number; pv: number }) => string): void {
+  thumb = fn;
+}
 
 const labels: Record<TaskState, string> = {
   queued: "Queued",
@@ -141,11 +148,14 @@ function editor(t: Task | undefined, projectId: string, s: AppState): SafeHtml {
 function runForm(t: Task, s: AppState): SafeHtml {
   const machines = s.machines.filter((m) => m.id !== "server");
   if (t.state === "running" || t.state === "done" || machines.length === 0 || !t.description) return html``;
+  // A programming project's repo is the default computer and folder.
+  const project = s.projects.find((p) => p.id === t.projectId);
+  const repo = project?.type === "programming" ? project : undefined;
   return html`
     <form class="task-run" data-id="${t.id}">
       <h4 class="label">Run it on a computer</h4>
-      <label>Computer <select name="machine">${machines.map((m) => html`<option value="${m.id}">${m.name}</option>`)}</select></label>
-      <label>Folder <input name="folder" placeholder="/home/you/projects/app" required></label>
+      <label>Computer <select name="machine">${machines.map((m) => html`<option value="${m.id}" ${m.id === repo?.repoMachineId ? "selected" : ""}>${m.name}</option>`)}</select></label>
+      <label>Folder <input name="folder" value="${repo?.repoFolder ?? ""}" placeholder="/home/you/projects/app" required></label>
       <label>Check <input name="check" placeholder="cargo test (optional)"></label>
       <p class="muted small">Kompanion plans, works step by step and reviews the result (up to 3 rounds). Steps your grants allow run by themselves; anything else asks you first. Progress shows in the task's own chat.</p>
       <button class="btn primary small" type="submit">Start</button>
@@ -229,6 +239,12 @@ export function renderTasks(s: AppState): SafeHtml {
     </div>
     <div class="task-groups">
       ${scope === "project" ? html`
+        ${renderProjectPanel(project!, {
+          machines: s.machines.filter((m) => m.id !== "server").map((m) => ({ id: m.id, name: m.name })),
+          assets: s.projectAssets[project!.id],
+          pick: s.assetPick.project === project!.id ? s.assetPick : { q: "", items: [], busy: false },
+          thumb,
+        })}
         <div class="project-bar">
           <button class="btn small" data-action="new-task">${icon("plus")} Add task</button>
           ${project!.kind === "windshift" ? html`
