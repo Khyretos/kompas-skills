@@ -76,7 +76,10 @@ export async function mountModel(el: HTMLElement, src: ModelSource, onInfo?: (i:
   let root: THREE.Object3D;
   let clips: THREE.AnimationClip[] = [];
   try {
-    ({ root, clips } = await load(src, manager));
+    const progress = (e: ProgressEvent) => {
+      if (e.total) status.textContent = `Loading the model… ${Math.round(e.loaded / 1048576)} of ${Math.round(e.total / 1048576)} MB`;
+    };
+    ({ root, clips } = await load(src, manager, progress));
   } catch (e) {
     renderer.dispose();
     renderer.forceContextLoss();
@@ -98,7 +101,7 @@ export async function mountModel(el: HTMLElement, src: ModelSource, onInfo?: (i:
   let skeleton: THREE.SkeletonHelper | undefined;
   if (bones && (!meshes || src.ext === "bvh")) {
     skeleton = new THREE.SkeletonHelper(root);
-    (skeleton.material as THREE.LineBasicMaterial).color.set(0xf3941f);
+    skeleton.setColors(new THREE.Color(0xf3941f), new THREE.Color(0xcca9ff)); // Kreative Kompas orange to lilac
     scene.add(skeleton);
   }
 
@@ -294,16 +297,16 @@ export async function mountModel(el: HTMLElement, src: ModelSource, onInfo?: (i:
   };
 }
 
-async function load(src: ModelSource, manager: THREE.LoadingManager): Promise<{ root: THREE.Object3D; clips: THREE.AnimationClip[] }> {
+async function load(src: ModelSource, manager: THREE.LoadingManager, progress: (e: ProgressEvent) => void): Promise<{ root: THREE.Object3D; clips: THREE.AnimationClip[] }> {
   const material = () => new THREE.MeshStandardMaterial({ color: 0xcca9ff, roughness: 0.8, metalness: 0.05 });
   switch (src.ext) {
     case "fbx": {
-      const g = await new FBXLoader(manager).loadAsync(src.url);
+      const g = await new FBXLoader(manager).loadAsync(src.url, progress);
       return { root: g, clips: g.animations };
     }
     case "gltf":
     case "glb": {
-      const g = await new GLTFLoader(manager).loadAsync(src.url);
+      const g = await new GLTFLoader(manager).loadAsync(src.url, progress);
       return { root: g.scene, clips: g.animations };
     }
     case "obj": {
@@ -317,28 +320,28 @@ async function load(src: ModelSource, manager: THREE.LoadingManager): Promise<{ 
         loader.setMaterials(mtl);
         hasMtl = true;
       } catch { /* no .mtl: the viewer's own material */ }
-      const g = await loader.loadAsync(src.url);
+      const g = await loader.loadAsync(src.url, progress);
       if (!hasMtl) g.traverse((o) => { if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).material = material(); });
       return { root: g, clips: [] };
     }
     case "bvh": {
-      const r = await new BVHLoader(manager).loadAsync(src.url);
+      const r = await new BVHLoader(manager).loadAsync(src.url, progress);
       const root = new THREE.Group();
       root.add(r.skeleton.bones[0]);
       return { root, clips: [r.clip] };
     }
     case "stl": {
-      const geo = await new STLLoader(manager).loadAsync(src.url);
+      const geo = await new STLLoader(manager).loadAsync(src.url, progress);
       geo.computeVertexNormals();
       return { root: new THREE.Mesh(geo, material()), clips: [] };
     }
     case "ply": {
-      const geo = await new PLYLoader(manager).loadAsync(src.url);
+      const geo = await new PLYLoader(manager).loadAsync(src.url, progress);
       geo.computeVertexNormals();
       return { root: new THREE.Mesh(geo, material()), clips: [] };
     }
     case "dae": {
-      const c = await new ColladaLoader(manager).loadAsync(src.url);
+      const c = await new ColladaLoader(manager).loadAsync(src.url, progress);
       if (!c) throw new Error("empty Collada file");
       return { root: c.scene, clips: c.scene.animations ?? [] };
     }
