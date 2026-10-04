@@ -2,7 +2,8 @@
 // Everything here is example data.
 import type { AccessEvent, GrantView } from "../views/access";
 import type { KompanionApi, ServerEvent } from "./client";
-import type { PcAction, TaskState, AdminSettings, DaySummary, MachineStats, Chat, Message, ModelProvider, Project, RoleAssignment, Server, Task } from "./types";
+import type { PcAction } from "./client";
+import type { TaskState, AdminSettings, DaySummary, MachineStats, Chat, Message, ModelProvider, Project, RoleAssignment, Server, Task } from "./types";
 
 const grants: Record<string, GrantView[]> = {
   soucouyant: [{ target: "/home/kees/projects/kompanion", rights: ["read", "write"], grantedBy: "demo", grantedAt: "2026-10-01T10:00:00Z", expires: null }],
@@ -394,7 +395,7 @@ export class MockApi implements KompanionApi {
     if (!a || a.state !== "pending") throw new Error("This step was already decided.");
     const step = (state: PcAction["state"], result: string | null, ms: number) =>
       setTimeout(() => { a.state = state; a.result = result; this.emit({ type: "changed", what: "actions" }); }, ms);
-    if (decision === "deny") return step("denied", null, 0);
+    if (decision === "deny") { step("denied", null, 0); return; }
     step("granting", null, 0);
     if (decision === "always") {
       (grants[a.machineId] ??= []).push({ target: "system", rights: ["packages", "root"], grantedBy: "demo",

@@ -31,7 +31,7 @@ test.describe("PC Agent approval cards", () => {
     await ask(page);
     
     const card = page.locator(".pc-action").last();
-    await card.locator("[data-decision=\"approve\"]').click();
+    await card.locator('[data-decision="approve"]').click();
     
     await expect(card.locator(".chip")).toContainText("done");
     
@@ -45,7 +45,7 @@ test.describe("PC Agent approval cards", () => {
     await ask(page);
     
     const card = page.locator(".pc-action").last();
-    await card.locator("[data-decision=\"always\"]').click();
+    await card.locator('[data-decision="always"]').click();
     
     await expect(card.locator(".chip")).toContainText("done");
     
@@ -59,7 +59,7 @@ test.describe("PC Agent approval cards", () => {
     await ask(page);
     
     const card = page.locator(".pc-action").last();
-    await card.locator("[data-decision=\"deny\"]').click();
+    await card.locator('[data-decision="deny"]').click();
     
     await expect(card.locator(".chip")).toContainText("declined");
   });
