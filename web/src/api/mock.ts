@@ -452,10 +452,10 @@ export class MockApi implements KompanionApi {
     await new Promise((r) => setTimeout(r, 300));
     return audio.size >= 0 ? "install htop" : "";
   }
-  /** 0.4 s of silence per sentence, so the demo "reads" without sound. */
+  /** 1.5 s of silence per sentence, so the demo "reads" without sound (long enough to stop it in a test). */
   async speak() {
     await new Promise((r) => setTimeout(r, 100));
-    const rate = 8000, n = rate * 0.4, b = new DataView(new ArrayBuffer(44 + n * 2));
+    const rate = 8000, n = rate * 1.5, b = new DataView(new ArrayBuffer(44 + n * 2));
     const put = (o: number, s: string) => { for (let i = 0; i < s.length; i++) b.setUint8(o + i, s.charCodeAt(i)); };
     put(0, "RIFF"); b.setUint32(4, 36 + n * 2, true); put(8, "WAVEfmt "); b.setUint32(16, 16, true); b.setUint16(20, 1, true);
     b.setUint16(22, 1, true); b.setUint32(24, rate, true); b.setUint32(28, rate * 2, true); b.setUint16(32, 2, true);

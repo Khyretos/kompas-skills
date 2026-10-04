@@ -22,6 +22,7 @@ import { HttpAssets, type AssetsApi } from "./api/assets";
 import { MockAssets } from "./api/assets-mock";
 import { renderActivity } from "./views/activity";
 import { renderCapabilities } from "./views/capabilities";
+import { Reader, Recorder, saveVoicePrefs, type VoicePrefs } from "./core/voice";
 
 let settingsModal: Modal | undefined;
 let assetsView: AssetsView | undefined;
@@ -123,6 +124,7 @@ async function start(server: Server): Promise<void> {
     machinesRefresh: status.machinesRefresh ?? 5, gpuPins: status.gpuPins ?? [], windshift: status.windshift, windshiftWarning: status.windshiftWarning, logoVersion: status.logoVersion,
   });
   applyTheme(status.theme ?? "system");
+  api.voiceInfo().then((voice) => store.set({ voice }), () => store.set({ voice: { enabled: false, voices: [] } }));
   wire(shellRoot);
   await openChat(chats[0]?.id);
 }
@@ -237,9 +239,23 @@ function render(s: AppState, prev: AppState): void {
     if (nearBottom || s.activeChatId !== prev.activeChatId) box.scrollTop = box.scrollHeight;
   }
 
+  if (changed(s, prev, ["voice", "voicePrefs", "recording", "speaking"])) {
+    const mic = document.getElementById("voice-mic") as HTMLButtonElement | null;
+    if (mic) {
+      mic.hidden = !(s.voice?.enabled && s.voicePrefs.input && Recorder.supported());
+      mic.setAttribute("aria-pressed", String(s.recording === "recording"));
+      mic.setAttribute("aria-busy", String(s.recording === "transcribing"));
+      mic.disabled = s.recording === "transcribing";
+      mic.setAttribute("aria-label", s.recording === "recording" ? "Stop and write it down" : "Speak");
+    }
+    const status = document.getElementById("voice-status");
+    if (status) status.textContent = s.recording === "recording" ? "Listening…" : s.recording === "transcribing" ? "Writing it down…" : "";
+    const stop = document.getElementById("voice-stop");
+    if (stop) stop.hidden = !s.speaking;
+  }
   const settings = $("#settings");
   settings.hidden = !s.settingsOpen;
-  if (s.settingsOpen && changed(s, prev, ["settingsOpen", "providers", "roles", "admin", "theme", "isAdmin", "notifications", "windshift", "logoVersion"])) {
+  if (s.settingsOpen && changed(s, prev, ["settingsOpen", "providers", "roles", "admin", "theme", "isAdmin", "notifications", "windshift", "logoVersion", "voice", "voicePrefs"])) {
     remount(settings, renderSettings(s));
   }
   firstRender = false;
@@ -269,7 +285,61 @@ function applyEvent(ev: ServerEvent): void {
       messages: s.messages.map((m) =>
         m.id === ev.messageId ? { ...m, text: m.text + ev.text, streaming: !ev.done } : m),
     });
+    if (ev.done) readAloud(store.get().messages.find((m) => m.id === ev.messageId)?.text ?? "");
   }
+}
+
+// W4 voice. Push-to-talk: a short click starts and a second click stops; holding the
+// button records until it is let go. The text lands in the message box to edit, never
+// sent by itself.
+const recorder = new Recorder();
+const reader = new Reader((text) => api.speak(text, store.get().voicePrefs.voice), (speaking) => store.set({ speaking }));
+let pressAt = 0;
+let startedByPress = false;
+
+async function startRecording(): Promise<void> {
+  if (store.get().recording !== "idle") return;
+  reader.stop(); // don't record our own voice
+  store.set({ recording: "recording" });
+  try {
+    await recorder.start();
+  } catch (e) {
+    store.set({ recording: "idle" });
+    showError(new Error(`The microphone is not available: ${e instanceof Error ? e.message : String(e)}`));
+  }
+}
+
+async function stopRecording(): Promise<void> {
+  if (store.get().recording !== "recording") return;
+  store.set({ recording: "transcribing" });
+  try {
+    const audio = await recorder.stop();
+    const text = audio.size ? await api.transcribe(audio, store.get().voicePrefs.lang) : "";
+    const box = document.getElementById("prompt") as HTMLTextAreaElement | null;
+    if (box && text) {
+      box.value = box.value.trim() ? `${box.value.trimEnd()} ${text}` : text;
+      box.dispatchEvent(new Event("input", { bubbles: true })); // grow the box
+      box.focus();
+    }
+  } catch (e) {
+    showError(e);
+  } finally {
+    store.set({ recording: "idle" });
+  }
+}
+
+function readAloud(text: string): void {
+  const s = store.get();
+  // No Dutch reading voice yet: Dutch stays text only (Settings says so).
+  if (!s.voice?.enabled || !s.voicePrefs.readAloud || s.voicePrefs.lang === "nl" || !text.trim()) return;
+  reader.read(text);
+}
+
+function setVoicePrefs(change: Partial<VoicePrefs>): void {
+  const voicePrefs = { ...store.get().voicePrefs, ...change };
+  saveVoicePrefs(voicePrefs);
+  store.set({ voicePrefs });
+  if (!voicePrefs.readAloud) reader.stop();
 }
 
 // Game projects: their attached assets load when the panel first shows, and again on
@@ -543,6 +613,15 @@ function wire(shell: HTMLElement): void {
         showError(e);
       });
     },
+    "voice-mic": () => {
+      if (startedByPress) {
+        startedByPress = false;
+        if (Date.now() - pressAt > 400) void stopRecording(); // held: let go stops
+        return; // short click: keep listening until the next click
+      }
+      if (store.get().recording === "recording") void stopRecording(); else void startRecording();
+    },
+    "voice-stop": () => reader.stop(),
     "project-more": (el) => {
       const all = new Set(store.get().allTasksShown);
       const id = el.dataset.id ?? "";
@@ -586,8 +665,24 @@ function wire(shell: HTMLElement): void {
     "close-settings": () => settingsModal?.requestClose(),
   });
 
+  shell.addEventListener("pointerdown", (ev) => {
+    if ((ev.target as HTMLElement).closest("#voice-mic") && ev.button === 0 && store.get().recording === "idle") {
+      pressAt = Date.now();
+      startedByPress = true;
+      void startRecording();
+    }
+  });
   shell.addEventListener("change", async (ev) => {
     const fid = (ev.target as HTMLElement).id;
+    if (fid === "voice-input" || fid === "voice-read") {
+      setVoicePrefs({ [fid === "voice-input" ? "input" : "readAloud"]: (ev.target as HTMLInputElement).checked });
+      return;
+    }
+    if (fid === "voice-voice" || fid === "voice-lang") {
+      const v = (ev.target as HTMLSelectElement).value;
+      setVoicePrefs(fid === "voice-voice" ? { voice: v } : { lang: v as VoicePrefs["lang"] });
+      return;
+    }
     if (fid === "project-type") {
       const sel = ev.target as HTMLSelectElement;
       const id = sel.dataset.id ?? "", type = sel.value as NonNullable<Project["type"]>;

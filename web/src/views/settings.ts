@@ -17,6 +17,29 @@ const DEFAULTS: AdminSettings = {
   colorBrand: "#5c398e", colorLinkDark: "#f3941f", colorLinkLight: "#8f4700", colorAccent: "#f3941f",
 };
 
+const LANGS: [string, string][] = [["", "Detect"], ["en", "English"], ["es", "Spanish"], ["nl", "Dutch"]];
+
+/** W4: optional voice, per device. Off until switched on here. */
+function voiceSection(s: AppState): SafeHtml {
+  const p = s.voicePrefs;
+  if (!s.voice) return html``;
+  return html`<section class="voice-settings">
+    <h3 class="label">Voice</h3>
+    ${!s.voice.enabled ? html`<p class="muted small">Voice is off on this server.</p>` : html`
+      <fieldset class="checks">
+        <legend class="sr-only">Voice on this device</legend>
+        <label><input type="checkbox" id="voice-input" ${p.input ? "checked" : ""}> Talk with the microphone button</label>
+        <label><input type="checkbox" id="voice-read" ${p.readAloud ? "checked" : ""}> Read replies aloud</label>
+      </fieldset>
+      <div class="field"><label for="voice-lang">I speak</label>
+        <select id="voice-lang">${LANGS.map(([v, l]) => html`<option value="${v}" ${v === p.lang ? "selected" : ""}>${l}</option>`)}</select></div>
+      <div class="field"><label for="voice-voice">Reading voice</label>
+        <select id="voice-voice">${s.voice.voices.map((v) => html`<option value="${v.id}" ${v.id === p.voice ? "selected" : ""}>${v.label}</option>`)}</select></div>
+      ${p.lang === "nl" ? html`<p class="warn small">There is no Dutch reading voice yet: replies stay text only while "I speak" is Dutch. The microphone works in Dutch.</p>` : ""}
+      <p class="muted small">Speech goes to Whisper and Kokoro on your own server and is never stored. These settings are kept on this device.</p>`}
+  </section>`;
+}
+
 export function renderSettings(s: AppState): SafeHtml {
   const options = s.providers.flatMap((p) => p.models.map((m) => ({ p, m, value: `${p.id}::${m.id}` })));
   return html`
@@ -65,6 +88,7 @@ export function renderSettings(s: AppState): SafeHtml {
             </div>`;
         })}</div>
       </section>
+      ${voiceSection(s)}
       <section>
         <h3 class="label">Connected models</h3>
         <ul class="providers">${s.providers.map((p) => html`

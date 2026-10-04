@@ -338,6 +338,11 @@ li.task.dragging { opacity: 0.5; }
 .composer textarea { border: 0; background: none; resize: none; max-height: 12.5rem; padding: 0.45rem 0.5rem; }
 .composer textarea:focus { border: 0; }
 .send { width: 2.5rem; padding: 0; flex: none; }
+.composer .mic { width: 2.5rem; padding: 0; flex: none; }
+.composer .mic[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.composer .mic[aria-busy="true"] { opacity: 0.6; }
+#voice-status:not(:empty) { margin-left: 0.5rem; color: var(--fg); }
+#voice-stop { margin-left: 0.5rem; }
 .composer-hint { width: min(46rem, 100%); margin: 0.35rem auto 0; font-size: 0.75rem; color: var(--muted); }
 
 /* Tasks pane */

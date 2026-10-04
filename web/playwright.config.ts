@@ -8,6 +8,10 @@ export default defineConfig({
   retries: 0,
   reporter: [["list"]],
   use: { baseURL: "http://localhost:5173", trace: "off" },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  // A fake microphone (and no permission prompt) and audio that may play without a click,
+  // for the voice tests.
+  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"], launchOptions: { args: [
+    "--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream", "--autoplay-policy=no-user-gesture-required",
+  ] } } }],
   webServer: { command: "node build.mjs --serve", url: "http://localhost:5173", reuseExistingServer: false, timeout: 60_000 },
 });

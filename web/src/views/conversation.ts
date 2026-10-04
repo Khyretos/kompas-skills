@@ -153,7 +153,10 @@ export function composer(): SafeHtml {
     <form class="composer" id="composer">
       <label class="sr-only" for="prompt">Message</label>
       <textarea id="prompt" rows="1" placeholder="Ask, plan, or hand over a task…"></textarea>
+      <button class="btn mic" type="button" id="voice-mic" data-action="voice-mic" aria-label="Speak" aria-pressed="false" hidden>${icon("mic")}</button>
       <button class="btn primary send" type="submit" aria-label="Send">${icon("send")}</button>
     </form>
-    <p class="composer-hint">Enter sends, Shift+Enter adds a line.</p>`;
+    <p class="composer-hint">Enter sends, Shift+Enter adds a line.
+      <span id="voice-status" role="status"></span>
+      <button class="btn small" type="button" id="voice-stop" data-action="voice-stop" hidden>Stop reading</button></p>`;
 }
