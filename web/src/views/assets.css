@@ -292,3 +292,431 @@
 .asset-tag-form { display: flex; gap: 0.4rem; }
 .asset-tag-form input { flex: 1; min-width: 0; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 0.4rem 0.6rem; color: var(--fg); }
 .asset-tag-form input:focus { outline: none; border-color: var(--accent); }
+
+/* Games tab: profiles, needs and picks (milestone 4). Drafted by the local Coder, fixed by Claude. */
+/* 1. Layout & Hidden Attribute */
+.asset-games {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.asset-games[hidden] {
+  display: none !important;
+}
+
+/* 2. Two-column layout (Desktop) */
+.game-list {
+  width: 15rem;
+  background: var(--surface);
+  border-right: 1px solid var(--line);
+  overflow-y: auto;
+  flex-shrink: 0;
+  padding: 0.5rem;
+}
+
+.game-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.15rem;
+}
+
+.game-main {
+  flex: 1;
+  min-width: 0;
+  padding: 1rem 1.25rem 2rem;
+  background: var(--bg);
+  overflow-y: auto;
+}
+
+.game-main > * {
+  max-width: 60rem;
+}
+
+/* 3. Mobile Layout (< 760px) */
+@media (max-width: 760px) {
+  .asset-games {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .game-main {
+    overflow: visible;
+    padding: 0.75rem;
+  }
+
+  .game-list ul {
+    display: flex;
+    overflow-x: auto;
+  }
+
+  .game-list .game-item {
+    width: auto;
+    white-space: nowrap;
+  }
+
+  .game-list {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  
+  .game-add {
+    margin-top: 0.5rem;
+  }
+}
+
+/* 4. Game List Items */
+.game-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--fg);
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  text-decoration: none;
+}
+
+.game-item:hover {
+  background: var(--surface-2);
+}
+
+.game-item small {
+  display: block;
+  font-size: 0.8rem;
+}
+
+.game-item[aria-current="true"] {
+  background: var(--surface-2);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+/* 5. Add Forms */
+.game-add,
+.need-add {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 1rem;
+}
+
+.game-add input,
+.need-add input,
+.game-add select,
+.need-add select {
+  flex: 1;
+  min-width: 0;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.6rem;
+  color: var(--fg);
+}
+
+.game-add input:focus,
+.need-add input:focus,
+.game-add select:focus,
+.need-add select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* 6. Profile Grid */
+.game-profile {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.game-profile label {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.game-profile label {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.game-profile input:not([type="checkbox"]) {
+  font-size: 0.95rem;
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.4rem 0.6rem;
+  color: var(--fg);
+}
+
+.game-profile input[type="checkbox"] {
+  width: auto;
+}
+
+.game-profile input:focus,
+.need-add select:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.game-profile .asset-check {
+  color: var(--fg);
+  font-size: 0.9rem;
+}
+
+.game-profile .asset-check {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.game-profile .row {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+/* 7. Callouts */
+.game-note,
+.game-warn {
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--radius);
+  border: 1px solid;
+  margin: 1rem 0;
+}
+
+.game-note {
+  border-color: var(--line);
+  background: var(--surface);
+}
+
+.game-warn {
+  border-color: var(--attn);
+  color: var(--attn);
+  background: transparent;
+}
+
+/* 8. Needs List */
+.needs-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 1.25rem 0 0.5rem;
+}
+
+.needs-head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.needs {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.need {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  background: var(--surface);
+}
+
+/* 9. Need Line Details */
+.need-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.need-text {
+  font-weight: 600;
+}
+
+.need-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 0.35rem;
+}
+
+.ai-chip {
+  font-size: 0.7rem;
+  border: 1px solid var(--line);
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius);
+}
+
+/* 10. Picks Grid */
+.picks {
+  list-style: none;
+  padding: 0;
+  margin: 0.6rem 0 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  gap: 0.6rem;
+}
+
+/* 11. Pick Item */
+.pick {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.5rem;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  border: 1px solid transparent;
+}
+
+.pick.candidate {
+  border-color: var(--good);
+}
+
+/* 12. Pick Thumb */
+.pick-thumb {
+  width: 64px;
+  height: 64px;
+  flex: none;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--bg);
+  display: grid;
+  place-items: center;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.pick-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pick-wave svg {
+  width: 100%;
+  height: 60%;
+}
+
+.pick-glyph .icon {
+  width: 28px;
+  height: 28px;
+  color: var(--muted);
+}
+
+.pick-thumb:focus-visible {
+  outline: 2px solid var(--accent);
+}
+
+/* 13. Pick Body */
+.pick-body {
+  min-width: 0;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.pick-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pick-name strong {
+  line-height: 1.2;
+}
+
+.pick-name small {
+  font-size: 0.75rem;
+}
+
+.pick-reason {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+/* 14. Chips */
+.chip.ship-ok {
+  color: var(--good);
+  border: 1px solid currentColor;
+  background: transparent;
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius);
+  font-size: 0.75rem;
+}
+
+.chip.kept {
+  background: var(--brand);
+  color: var(--on-brand);
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius);
+  font-size: 0.75rem;
+}
+
+/* 15. Small Utilities */
+.btn.small {
+  padding: 0.2rem 0.6rem;
+  font-size: 0.8rem;
+}
+
+.muted.small,
+p.small {
+  font-size: 0.75rem;
+  margin: 0.4rem 0 0;
+}
+
+/* 16. Needs Head */
+.needs-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin: 1.25rem 0 0.5rem;
+}
+
+.needs-head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+/* 17. Game Head */
+.game-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.game-head h2 {
+  margin: 0;
+  font-size: 1.3rem;
+  flex: 1;
+}
+
+/* 18. Assets Title Row (Contextual) */
+.assets-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* 19. Tab Visibility Logic */
+.assets-pane.games-tab .assets-filters,
+.assets-pane.games-tab .asset-chips,
+.assets-pane.games-tab .asset-active,
+.assets-pane.games-tab .assets-body {
+  display: none;
+}

@@ -88,7 +88,7 @@ fn todo_where() -> String {
 
 fn publish(bus: &Bus, ids: Vec<i64>) {
     let p = PROGRESS.lock().unwrap().clone();
-    bus.send_all(Event::Assets { scan: None, previews: Some(json!({ "ids": ids, "progress": p })), ai: None });
+    bus.send_all(Event::Assets { scan: None, previews: Some(json!({ "ids": ids, "progress": p })), ai: None, games: None });
 }
 
 /// ffmpeg and ffprobe at the lowest CPU and disk priority.

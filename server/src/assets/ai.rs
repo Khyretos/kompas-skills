@@ -199,6 +199,12 @@ impl Ai {
         }
     }
 
+    /// An OVMS stand-in for tests (chat and embeddings at the same URL).
+    #[cfg(test)]
+    pub fn fake(url: &str) -> Self {
+        Ai { http: reqwest::Client::new(), chat_url: url.into(), embed_url: url.into(), key: None, model: "Fake".into() }
+    }
+
     fn auth(&self, r: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
         match &self.key {
             Some(k) => r.bearer_auth(k),
@@ -246,6 +252,22 @@ impl Ai {
             .map(|d| shorten(&d["embedding"].as_array().map(|a| a.iter().filter_map(|x| x.as_f64()).map(|x| x as f32).collect::<Vec<_>>()).unwrap_or_default()))
             .collect())
     }
+
+    /// Orders documents by how well they answer the query (`Reranker` on ovms-cpu):
+    /// (index into `docs`, score), best first.
+    pub async fn rerank(&self, query: &str, docs: &[String]) -> Result<Vec<(usize, f64)>> {
+        let body = json!({ "model": "Reranker", "query": query, "documents": docs, "top_n": docs.len() });
+        let r = self.auth(self.http.post(format!("{}/rerank", self.embed_url)).json(&body)).send().await?;
+        let v = Self::ok_json(r).await?;
+        let results = v["results"].as_array().context("no results in the rerank answer")?;
+        let mut out: Vec<(usize, f64)> = results
+            .iter()
+            .filter_map(|x| Some((x["index"].as_u64()? as usize, x["relevance_score"].as_f64()?)))
+            .filter(|(i, _)| *i < docs.len())
+            .collect();
+        out.sort_by(|a, b| b.1.total_cmp(&a.1));
+        Ok(out)
+    }
 }
 
 // ---------- prompts and answers ----------
@@ -271,9 +293,9 @@ fn format_rules(styles: &[&str], categories: &[&str]) -> String {
         "Answer with JSON only, no other text. Fields:\n\
          - \"category\": one of: {}\n\
          - \"style\": up to 2 of: {}\n\
-         - \"mood\": up to 2 of: {}\n\
-         - \"setting\": up to 2 of: {}\n\
-         - \"subject\": 1 to 4 plain words naming what it is\n\
+         - \"mood\": up to 2 of: {} (only for music, ambience, scenes and characters; [] for UI, icons, screenshots and surface maps)\n\
+         - \"setting\": up to 2 of: {} (only when the asset clearly shows or names one, else [])\n\
+         - \"subject\": a string of 1 to 4 plain words naming what it is\n\
          - \"caption\": one short sentence a game developer would search for\n\
          Use only words from these lists; leave a list empty when nothing fits. Never guess a licence or a brand.",
         list(categories),
@@ -370,7 +392,11 @@ pub fn check(v: &Value, styles: &[&str], categories: &[&str]) -> Tagged {
         style: words(&v["style"], styles, 2),
         mood: words(&v["mood"], MOODS, 2),
         setting: words(&v["setting"], SETTINGS, 2),
-        subject: short_text(&v["subject"], 60),
+        // Models often send the subject as a list of words.
+        subject: short_text(&v["subject"], 60).or_else(|| {
+            let words: Vec<&str> = v["subject"].as_array()?.iter().filter_map(Value::as_str).map(str::trim).filter(|w| !w.is_empty()).take(4).collect();
+            short_text(&Value::from(words.join(" ")), 60)
+        }),
         caption: short_text(&v["caption"], 240),
     }
 }
@@ -530,7 +556,7 @@ fn facts(r: &Row) -> String {
 
 fn publish(bus: &Bus, ids: Vec<i64>) {
     let p = PROGRESS.lock().unwrap().clone();
-    bus.send_all(Event::Assets { scan: None, previews: None, ai: Some(json!({ "ids": ids, "progress": p })) });
+    bus.send_all(Event::Assets { scan: None, previews: None, ai: Some(json!({ "ids": ids, "progress": p })), games: None });
 }
 
 pub fn spawn(db: SqlitePool, bus: Bus, ai: Ai, previews: std::path::PathBuf) {
@@ -745,6 +771,9 @@ mod tests {
         let bad = check(&json!({"category": "music", "style": "orchestral"}), STYLES_VISUAL, PICTURE_CATEGORIES);
         assert_eq!(bad.category, None, "a category outside the prompt's list is dropped");
         assert!(bad.style.is_empty());
+        // Qwen3.5-9B on the A770 answers the subject as a list (seen in the first real batch).
+        let listed = check(&json!({"subject": ["key", "keyboard", "icon"]}), STYLES_VISUAL, PICTURE_CATEGORIES);
+        assert_eq!(listed.subject.as_deref(), Some("key keyboard icon"));
     }
 
     #[test]
