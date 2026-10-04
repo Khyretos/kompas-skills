@@ -1,8 +1,36 @@
 #!/bin/sh
-# Usage: sudo ./install.sh to install, ./install.sh --check to only check.
+# Usage: sudo ./install.sh to install, ./install.sh --check to only check, ./install.sh --selftest to run a self-test.
 set -eu
 
 cd "$(dirname "$0")"
+
+SOCK="${KK_SOCK:-/run/kompanion-gpu/stats.sock}"
+
+selftest() {
+    i=0
+    while [ $i -lt 40 ]; do
+        if ./kompanion-gpu-helper --probe "$SOCK"; then
+            return 0
+        fi
+        sleep 0.5
+        i=$((i + 1))
+    done
+    return 1
+}
+
+if [ "${1:-}" = "--selftest" ]; then
+    if [ ! -x ./kompanion-gpu-helper ]; then
+        echo "missing helper binary" >&2
+        exit 1
+    fi
+    if selftest; then
+        echo "self-test ok"
+        exit 0
+    else
+        echo "self-test failed" >&2
+        exit 1
+    fi
+fi
 
 if [ "${1:-}" = "--check" ]; then
     # Verify files exist
@@ -23,6 +51,12 @@ if [ "${1:-}" = "--check" ]; then
             echo "systemd unit verification failed" >&2
             exit 1
         fi
+    fi
+
+    # The known-good fallback, when present
+    if [ -f kompanion-gpu-helper-good ] && ! sha256sum -c kompanion-gpu-helper-good.sha256 >/dev/null 2>&1; then
+        echo "checksum mismatch: kompanion-gpu-helper-good" >&2
+        exit 1
     fi
 
     echo "check ok"
@@ -59,15 +93,33 @@ systemctl restart kompanion-gpu-helper
 
 # Wait for socket (up to 15 seconds)
 i=0
-while [ ! -S /run/kompanion-gpu/stats.sock ] && [ $i -lt 30 ]; do
+while [ ! -S "$SOCK" ] && [ $i -lt 30 ]; do
     sleep 0.5
     i=$((i + 1))
 done
 
-if [ -S /run/kompanion-gpu/stats.sock ]; then
-    echo "kompanion-gpu-helper is running"
-    exit 0
-else
+if [ ! -S "$SOCK" ]; then
     echo "the helper did not start; see: journalctl -u kompanion-gpu-helper -n 20" >&2
     exit 1
+fi
+
+if selftest; then
+    echo "kompanion-gpu-helper $(sha256sum /usr/local/bin/kompanion-gpu-helper | cut -c1-12) is running and reports GPUs."
+    exit 0
+else
+    if [ -f ./kompanion-gpu-helper-good ]; then
+        echo "The new helper reports no GPUs; going back to the last known-good build."
+        install -m 0755 kompanion-gpu-helper-good /usr/local/bin/kompanion-gpu-helper
+        systemctl restart kompanion-gpu-helper
+        if selftest; then
+            echo "Known-good helper $(sha256sum /usr/local/bin/kompanion-gpu-helper | cut -c1-12) is running and reports GPUs."
+            exit 0
+        else
+            echo "Still no GPUs; see: journalctl -u kompanion-gpu-helper -n 20" >&2
+            exit 1
+        fi
+    else
+        echo "Still no GPUs; see: journalctl -u kompanion-gpu-helper -n 20" >&2
+        exit 1
+    fi
 fi

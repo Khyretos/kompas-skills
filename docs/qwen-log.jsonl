@@ -92,3 +92,6 @@
 {"name": "P2 pairing.rs", "out": "server/src/pairing.rs", "gpu_seconds": 117.7, "tokens": 6022, "lines": 288, "model": "qwen3.5:9b-q8_0", "at": "2026-10-04T02:39:22"}
 {"name": "P5 runner setup.rs", "out": "runner/src/setup.rs", "gpu_seconds": 131.7, "tokens": 3369, "lines": 187, "model": "Coder", "at": "2026-10-04T02:40:11"}
 {"name": "K1 fdinfo known-client cache", "out": "machine-stats/src/fdinfo.rs", "mode": "patch", "gpu_seconds": 26.2, "tokens": 1400, "lines": 4, "attempts": 1, "model": "qwen3.5:9b-q8_0", "at": "2026-10-04T02:43:30"}
+{"name": "P6 pairing.rs fixes", "out": "server/src/pairing.rs", "gpu_seconds": 51.4, "tokens": 2505, "lines": 247, "review": "skipped", "model": "qwen3.5:9b-q8_0", "at": "2026-10-04T02:52:38"}
+{"name": "I1 helper --probe", "out": "gpu-helper/src/main.rs", "mode": "patch", "gpu_seconds": 14.7, "tokens": 751, "lines": 1, "attempts": 2, "model": "qwen3.5:9b-q8_0", "at": "2026-10-04T02:55:51"}
+{"name": "I1 install.sh self-test and rollback", "out": "gpu-helper/install.sh", "gpu_seconds": 47.6, "tokens": 1170, "lines": 119, "review": "skipped", "model": "Coder", "at": "2026-10-04T02:56:24"}
