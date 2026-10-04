@@ -58,3 +58,6 @@
     `with_extension`, which cuts at the last dot. Build the name: `dir.join(format!("{name}.sha256"))`.
 27. axum responses: `([(header::CONTENT_TYPE, "text/plain")], body).into_response()`, where body is a
     `String` or `Vec<u8>`. `(StatusCode::NOT_FOUND, "Not found").into_response()` for errors.
+28. Use only the crates in Cargo.toml. There is no `dirs` crate in the runner: the home folder is
+    `std::env::var("HOME")`. Trait methods need their trait imported: `Permissions::from_mode` needs
+    `std::os::unix::fs::PermissionsExt`, `write_all` needs `std::io::Write`.

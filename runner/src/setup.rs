@@ -1,10 +1,10 @@
-use std::{fs, os::unix::fs::OpenOptionsExt, path::PathBuf, process::Command};
+use std::{env, fs, os::unix::fs::PermissionsExt, path::PathBuf, process::Command};
 
 /// Returns the path to the Kompanion runner config directory.
-fn config_dir() -> PathBuf {
-    dirs::home_dir()
-        .map(|h| h.join(".config").join("kompanion-runner"))
-        .expect("$HOME must be set")
+fn config_dir() -> Result<PathBuf, String> {
+    env::var("HOME")
+        .map(|h| PathBuf::from(h).join(".config").join("kompanion-runner"))
+        .map_err(|_| "$HOME is not set".to_string())
 }
 
 /// Pairs the runner with a Kompanion server.
@@ -71,7 +71,7 @@ pub fn pair(server: &str, code: &str) -> Result<(), String> {
     let name = result.get("name").and_then(|v| v.as_str()).unwrap_or("this computer");
 
     // Create config directory with mode 0700
-    let config_path = config_dir();
+    let config_path = config_dir()?;
     fs::create_dir_all(&config_path)
         .map_err(|e| format!("failed to create config directory: {}", e))?;
     
@@ -120,9 +120,9 @@ grants_file = "~/.config/kompanion-runner/grants.json""#,
 
 /// Installs the systemd user service for the Kompanion runner.
 pub fn install_service() -> Result<(), String> {
-    let service_dir = dirs::home_dir()
-        .map(|h| h.join(".config").join("systemd").join("user"))
-        .expect("$HOME must be set");
+    let service_dir = env::var("HOME")
+        .map(|h| PathBuf::from(h).join(".config").join("systemd").join("user"))
+        .map_err(|_| "$HOME is not set".to_string())?;
     
     fs::create_dir_all(&service_dir)
         .map_err(|e| format!("failed to write service file: {}", e))?;

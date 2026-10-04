@@ -1,4 +1,3 @@
-server/src/pairing.rs
 //! One-line install of the runner on a PC (F6): the web app asks for a short
 //! pairing code, the PC runs `curl -fsSL <server>/install.sh | sh -s -- CODE`,
 //! and the script trades the code for a machine token. Codes live 15 minutes,
@@ -121,9 +120,8 @@ pub async fn pair(State(s): State<AppState>, Json(b): Json<PairBody>) -> ApiResu
     
     sqlx::query("INSERT INTO machines (id, user_id, name, token_hash, created_at) VALUES (?, ?, ?, ?, ?)")
         .bind(&id)
-        .bind(user_id)
         .bind(&user_id)
-        .bind(name)
+        .bind(&name)
         .bind(token_hash)
         .bind(now)
         .execute(&s.db)
