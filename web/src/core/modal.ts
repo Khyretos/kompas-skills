@@ -9,12 +9,15 @@ export function modal(backdrop: HTMLElement, close: () => void): Modal {
   let isDirty = false
 
   // Focus restoration helper
+  // The opener may have been re-rendered while the overlay was open: then focus
+  // the element that replaced it (same data-action).
   const restoreFocus = (): void => {
     const el = openerRef.current
-    if (el && el.isConnected) {
-      el.focus()
-      openerRef.current = null
-    }
+    openerRef.current = null
+    if (!el) return
+    const action = el.dataset.action
+    const target = el.isConnected ? el : action ? document.querySelector<HTMLElement>(`[data-action="${CSS.escape(action)}"]`) : null
+    target?.focus()
   }
 
   // Dirty state management
