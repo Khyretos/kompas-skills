@@ -507,6 +507,11 @@ async fn user_roles(s: &AppState, user_id: &str) -> ApiResult<Vec<RoleAssignment
     Ok(rows)
 }
 
+/// One role of a user: their own choice, else the config's default (`[roles]`).
+pub async fn user_role(s: &AppState, user_id: &str, role: &str) -> ApiResult<Option<RoleAssignment>> {
+    Ok(user_roles(s, user_id).await?.into_iter().find(|r| r.role == role))
+}
+
 /// Whether `id` in `table` (projects, chats or tasks) belongs to this user.
 #[derive(Deserialize)]
 pub struct ChatChange {
@@ -706,4 +711,35 @@ pub async fn events(State(s): State<AppState>, Extension(u): Extension<User>) ->
         [("x-accel-buffering", "no")],
         Sse::new(stream).keep_alive(KeepAlive::default()),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn a_role_falls_back_to_the_config_default() {
+        let db = sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
+        sqlx::migrate!().run(&db).await.unwrap();
+        sqlx::query("INSERT INTO users (id, name, password_hash, created_at) VALUES ('u1', 'u1', 'x', '2026')")
+            .execute(&db)
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO user_roles (user_id, role, provider_id, model_id) VALUES ('u1', 'worker', 'mine', 'Small')")
+            .execute(&db)
+            .await
+            .unwrap();
+        let config: crate::config::Config = toml::from_str(
+            "[roles]\norchestrator = { provider = \"ovms\", model = \"Coder\" }\nworker = { provider = \"ovms\", model = \"Coder\" }",
+        )
+        .unwrap();
+        let s = AppState::for_tests(config, db);
+        // A fresh account (no choice of its own) gets the config's model: W2 refused to start without it.
+        let o = user_role(&s, "u1", "orchestrator").await.unwrap().unwrap();
+        assert_eq!((o.provider_id.as_str(), o.model_id.as_str()), ("ovms", "Coder"));
+        // The user's own choice wins.
+        let w = user_role(&s, "u1", "worker").await.unwrap().unwrap();
+        assert_eq!((w.provider_id.as_str(), w.model_id.as_str()), ("mine", "Small"));
+        assert!(user_role(&s, "u1", "reviewer").await.unwrap().is_none());
+    }
 }

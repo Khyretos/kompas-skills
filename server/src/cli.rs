@@ -63,13 +63,9 @@ pub async fn ask(
         return Err(ApiError::BadRequest("Kompanion is still working on your last question.".into()));
     }
 
-    let role = sqlx::query_as::<_, api::RoleAssignment>(
-        "SELECT role, provider_id, model_id FROM user_roles WHERE user_id = ? AND role = 'orchestrator'"
-    )
-    .bind(&user_id)
-    .fetch_optional(&s.db)
-    .await?
-    .ok_or_else(|| ApiError::BadRequest("No model is set for the orchestrator yet (Kompanion → Settings → Models and roles).".into()))?;
+    let role = api::user_role(&s, &user_id, "orchestrator")
+        .await?
+        .ok_or_else(|| ApiError::BadRequest("No model is set for the orchestrator yet (Kompanion → Settings → Models and roles).".into()))?;
 
     let msg = api::insert_message(&s, &chat_id, "user", text).await?;
     s.bus.send(&user_id, Event::Message { message: msg.clone() });

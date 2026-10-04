@@ -131,3 +131,5 @@
 {"name": "AC1 server activity steps with grants", "out": "server/src/activity.rs", "gpu_seconds": 96.7, "tokens": 1152, "lines": 135, "review": "skipped", "model": "Coder", "at": "2026-10-04T06:51:48"}
 {"name": "AC2 web activity redesign", "out": "web/src/views/activity.ts", "gpu_seconds": 164.1, "tokens": 1838, "lines": 181, "review": "skipped", "model": "Coder", "at": "2026-10-04T06:52:56"}
 {"name": "AC3 activity tests", "out": "web/tests/activity.spec.ts", "gpu_seconds": 95.4, "tokens": 1123, "lines": 81, "review": "skipped", "model": "Coder", "at": "2026-10-04T06:54:58"}
+{"name": "taskrun-plan-done-when", "out": "/tmp/claude-1000/-home-khyretos-Docker/d157d1e8-d531-5c17-ab01-709ad8e0935e/scratchpad/parse.rs", "gpu_seconds": 114.3, "tokens": 5909, "lines": 11, "model": "qwen3.5:9b-q8_0", "at": "2026-10-04T14:24:26"}
+{"name": "taskrun-plan-done-when", "out": "server/src/taskrun/parse.rs", "mode": "patch", "gpu_seconds": 29.8, "tokens": 1547, "lines": 3, "attempts": 1, "model": "qwen3.5:9b-q8_0", "at": "2026-10-04T14:25:13"}

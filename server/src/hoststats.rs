@@ -410,16 +410,22 @@ pub async fn report(
         .execute(&s.db)
         .await?;
     let jobs = crate::access::take_jobs(&s.db, &id).await.unwrap_or_default();
-    // While a chat waits on this computer (approval steps, grants, jobs), report
-    // every 2 s so each step runs quickly.
+    // While an agent works on this computer, report every second so each step runs quickly:
+    // a step in flight, a task running here, or a step in the last 2 minutes (the model
+    // thinks between steps; without this the next job waited for a 60 s report).
+    let recent = util::minutes_ago(2);
     let busy: Option<(i64,)> = sqlx::query_as(
-        "SELECT 1 FROM pc_actions WHERE machine_id = ? AND state IN ('pending', 'approved', 'always', 'granting', 'running') LIMIT 1",
+        "SELECT 1 FROM pc_actions WHERE machine_id = ?1
+           AND (state IN ('pending', 'approved', 'always', 'granting', 'running') OR created_at > ?2)
+         UNION ALL SELECT 1 FROM tasks WHERE machine_id = ?1 AND state = 'running'
+         LIMIT 1",
     )
     .bind(&id)
+    .bind(&recent)
     .fetch_optional(&s.db)
     .await
     .unwrap_or(None);
-    let interval = if busy.is_some() || !jobs.is_empty() { 2 } else { interval };
+    let interval = if busy.is_some() || !jobs.is_empty() { 1 } else { interval };
     Ok(Json(json!({ "interval": interval, "jobs": jobs })))
 }
 

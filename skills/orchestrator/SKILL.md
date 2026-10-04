@@ -22,3 +22,14 @@ Lessons for the orchestrator role. Numbered and dated, newest last.
   ancestor of HEAD: other threads merge too (2026-10-04, a deploy without their 0100 migration
   crash-looped production). Before adding a migration, check the numbers on origin/main
   (`git ls-tree origin/main server/migrations/`); the asset thread uses 0100 and up.
+- (2026-10-04, W2 end-to-end) Plan steps are changes, each with a "done when" the worker can see:
+  `[{"step": "add char_count to textutil.py", "done_when": "textutil.py defines char_count"}]`.
+  Never a step that only opens, reads or finds something, and never "run the tests": the check
+  runs by itself after the steps. A small task is one or two steps. The worker gets only its
+  step and stops once done_when holds. With 7 fine-grained steps the worker did everything in
+  step 1 and re-checked it six times (22 tool calls, 21 min); with this, 7 tool calls, 38 s.
+- Test W2 changes on a throwaway instance, not on production: a second container from the new
+  image on another port with its own volume, a runner in an Alpine container sharing that
+  container's network (`--network container:…`, so `http://127.0.0.1` is allowed) with only a
+  test repo mounted, and a project from `kompanion-server import`. Fresh account each run, so
+  defaults get tested too.

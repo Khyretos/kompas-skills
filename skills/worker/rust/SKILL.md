@@ -77,3 +77,10 @@
     green. CI's server job now uses the same image; `CFLAGS` in the Dockerfile and in build.yml map
     the BSD names to `uint8_t`/`uint16_t`/`uint64_t`. Before adding a `-sys` or C crate, build the
     Docker image (or watch the server job) once.
+35. (2026-10-04) Resolve a model role with `api::user_role(&s, user_id, "worker")`: the user's own
+    choice, else `[roles]` from kompanion.toml. Never query `user_roles` directly; a fresh account
+    has no rows there, so W2 and `kompanion-runner ask` refused to start ("set the orchestrator
+    model first") although Settings showed the defaults.
+36. The drafting pipeline (`tools/qwen/pipeline.py`) strips code fences from whole-file answers, so
+    a file with a ``` inside a string or doc comment comes back cut to a fragment. Use
+    `"mode": "patch"` (search/replace blocks) for such files.

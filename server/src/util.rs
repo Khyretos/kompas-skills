@@ -20,6 +20,12 @@ pub fn in_hours(hours: i64) -> String {
         .unwrap_or_default()
 }
 
+pub fn minutes_ago(minutes: i64) -> String {
+    (OffsetDateTime::now_utc() - time::Duration::minutes(minutes))
+        .format(&Rfc3339)
+        .unwrap_or_default()
+}
+
 pub fn new_id() -> String {
     uuid::Uuid::new_v4().to_string()
 }
