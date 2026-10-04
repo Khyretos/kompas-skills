@@ -61,3 +61,6 @@
 28. Use only the crates in Cargo.toml. There is no `dirs` crate in the runner: the home folder is
     `std::env::var("HOME")`. Trait methods need their trait imported: `Permissions::from_mode` needs
     `std::os::unix::fs::PermissionsExt`, `write_all` needs `std::io::Write`.
+29. Know the data shape before reading it. A runner job is flat: `{"tool": "edit_file", "path": ..,
+    "old": .., "new": ..}`, with no nested `args`. Read `job["path"]`, never `job["args"]["path"]`,
+    and write the tests with the same flat shape.

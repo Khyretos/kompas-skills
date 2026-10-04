@@ -198,149 +198,57 @@ pub fn to_job(name: &str, args: &Value) -> Option<Value> {
     Some(Value::Object(map))
 }
 
-/// Generate a short, readable summary line for a job.
+/// One readable line for an approval card. The job is `{"tool": name, ...args}`.
 pub fn summary(job: &Value) -> String {
-    let tool = job.get("tool").and_then(|v| v.as_str()).unwrap_or("");
-    
-    // Fix E0716: bind the args object to extend its lifetime
-    let args_obj = job.get("args").and_then(|v| v.as_object()).unwrap_or(&serde_json::Map::new());
-    let args = args_obj;
-
-    match tool {
-        "read_file" => {
-            let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("");
-            format!("Read {}", path)
-        }
-        "list_dir" => {
-            let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("");
-            format!("List {}", path)
-        }
-        "write_file" => {
-            let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("");
-            format!("Write {}", path)
-        }
-        "edit_file" => {
-            let path = args.get("path").and_then(|v| v.as_str()).unwrap_or("");
-            format!("Edit {}", path)
-        }
-        "shell" => {
-            let cwd = args.get("cwd").and_then(|v| v.as_str()).unwrap_or("");
-            let cmd = args.get("command").and_then(|v| v.as_str()).unwrap_or("");
-            format!("Run `{}` in {}", cmd, cwd)
-        }
-        "service" => {
-            let action = args.get("action").and_then(|v| v.as_str()).unwrap_or("");
-            let unit = args.get("unit").and_then(|v| v.as_str()).unwrap_or("");
-            if unit != "" {
-                format!("{} the user service {}", action, unit)
-            } else {
-                format!("{}", action)
-            }
-        }
+    let s = |k: &str| job[k].as_str().unwrap_or("").to_string();
+    let line = match job["tool"].as_str().unwrap_or("") {
+        "read_file" => format!("Read {}", s("path")),
+        "list_dir" => format!("List {}", s("path")),
+        "write_file" => format!("Write {}", s("path")),
+        "edit_file" => format!("Edit {}", s("path")),
+        "shell" => format!("Run `{}` in {}", s("command"), s("cwd")),
+        "service" => match job["unit"].as_str() {
+            Some(unit) => format!("{} the user service {unit}", s("action")),
+            None => format!("{} user services", s("action")),
+        },
         "package" => {
-            let manager = args.get("manager").and_then(|v| v.as_str()).unwrap_or("");
-            let action = args.get("action").and_then(|v| v.as_str()).unwrap_or("");
-            
-            // Fix E0716: bind the names array to extend its lifetime
-            let names_arr = args.get("names").and_then(|v| v.as_array()).unwrap_or(&Vec::<Value>::new());
-            let names_str = names_arr.iter().filter_map(|n| n.as_str()).collect::<Vec<_>>().join(", ");
-            format!("{} {} with {}", action, names_str, manager)
+            let names: Vec<&str> = job["names"].as_array().map(|a| a.iter().filter_map(Value::as_str).collect()).unwrap_or_default();
+            format!("{} {} with {}", s("action"), names.join(", "), s("manager"))
         }
-        "reload" => {
-            let what = args.get("what").and_then(|v| v.as_str()).unwrap_or("");
-            format!("reload {}", what)
+        "reload" => format!("reload {}", s("what")),
+        "system_info" => "Show system info".to_string(),
+        other => format!("Run {other}"),
+    };
+    line.chars().take(200).collect()
+}
+
+/// The grant "Always allow" creates for this job: (target, rights).
+pub fn grant_for(job: &Value) -> Option<(String, Vec<&'static str>)> {
+    let path = || job["path"].as_str().filter(|p| safe(p)).map(str::to_string);
+    match job["tool"].as_str()? {
+        "read_file" => Some((parent(&path()?), vec!["read"])),
+        "list_dir" => Some((path()?, vec!["read"])),
+        "write_file" | "edit_file" => Some((parent(&path()?), vec!["write"])),
+        "shell" => Some((job["cwd"].as_str().filter(|p| safe(p))?.to_string(), vec!["shell"])),
+        "service" => Some(("system".into(), vec!["services"])),
+        "package" => {
+            let changes = matches!(job["action"].as_str(), Some("install" | "remove"));
+            let root = changes && job["manager"].as_str() != Some("flatpak");
+            Some(("system".into(), if root { vec!["packages", "root"] } else { vec!["packages"] }))
         }
-        "system_info" => {
-            "Show system info".to_string()
-        }
-        _ => "Unknown job".to_string(),
+        "reload" => Some(("system".into(), vec!["desktop"])),
+        _ => None,
     }
 }
 
-/// Determine the grant required for a job.
-/// Returns None if paths are invalid (relative or containing '..').
-pub fn grant_for(job: &Value) -> Option<(String, Vec<&'static str>)> {
-    let tool = job.get("tool").and_then(|v| v.as_str())?;
-    
-    // Fix E0716: bind the args object to extend its lifetime
-    let args_obj = job.get("args").and_then(|v| v.as_object())?;
-    let args = args_obj;
+/// The folder a path is in ("/" for top-level files).
+fn parent(path: &str) -> String {
+    std::path::Path::new(path).parent().map(|p| p.to_string_lossy().into_owned()).filter(|p| !p.is_empty()).unwrap_or_else(|| "/".into())
+}
 
-    // Helper to validate absolute paths without '..'
-    let valid_path = |p: &str| -> bool {
-        p.starts_with('/') && !p.split('/').any(|c| c == "..")
-    };
-
-    // Helper to get parent folder ("/" for top-level files)
-    fn parent(path: &str) -> String {
-        std::path::Path::new(path)
-            .parent()
-            .map(|p| p.to_string_lossy().into_owned())
-            .filter(|p| !p.is_empty())
-            .unwrap_or_else(|| "/".into())
-    }
-
-    match tool {
-        "read_file" => {
-            let path = args.get("path").and_then(|v| v.as_str())?;
-            if !valid_path(path) {
-                return None;
-            }
-            // Parent folder of path
-            Some((parent(path), vec!["read"]))
-        }
-        "list_dir" => {
-            let path = args.get("path").and_then(|v| v.as_str())?;
-            if !valid_path(path) {
-                return None;
-            }
-            // Path itself
-            Some((path.to_string(), vec!["read"]))
-        }
-        "write_file" => {
-            let path = args.get("path").and_then(|v| v.as_str())?;
-            if !valid_path(path) {
-                return None;
-            }
-            Some((parent(path), vec!["write"]))
-        }
-        "edit_file" => {
-            let path = args.get("path").and_then(|v| v.as_str())?;
-            if !valid_path(path) {
-                return None;
-            }
-            Some((parent(path), vec!["write"]))
-        }
-        "shell" => {
-            let cwd = args.get("cwd").and_then(|v| v.as_str())?;
-            if !valid_path(cwd) {
-                return None;
-            }
-            Some((cwd.to_string(), vec!["shell"]))
-        }
-        "service" => {
-            Some(("system".to_string(), vec!["services"]))
-        }
-        "package" => {
-            let manager = args.get("manager").and_then(|v| v.as_str())?;
-            let action = args.get("action").and_then(|v| v.as_str())?;
-            // If action is install/remove and manager is not flatpak -> packages, root
-            // else -> packages
-            let perms = if (action == "install" || action == "remove") && manager != "flatpak" {
-                vec!["packages", "root"]
-            } else {
-                vec!["packages"]
-            };
-            Some(("system".to_string(), perms))
-        }
-        "reload" => {
-            Some(("system".to_string(), vec!["desktop"]))
-        }
-        "system_info" => {
-            None
-        }
-        _ => None,
-    }
+/// Absolute and without `..` components.
+fn safe(path: &str) -> bool {
+    path.starts_with('/') && !path.split('/').any(|c| c == "..")
 }
 
 #[cfg(test)]
@@ -381,11 +289,9 @@ mod tests {
     fn test_grant_for_edit_file() {
         let job = json!({
             "tool": "edit_file",
-            "args": {
-                "path": "/home/k/x.conf",
+            "path": "/home/k/x.conf",
                 "old": "foo",
                 "new": "bar"
-            }
         });
         let grant = grant_for(&job).unwrap();
         assert_eq!(grant.0, "/home/k");
@@ -396,11 +302,9 @@ mod tests {
     fn test_grant_for_package_install() {
         let job = json!({
             "tool": "package",
-            "args": {
-                "manager": "paru",
+            "manager": "paru",
                 "action": "install",
                 "names": ["htop"]
-            }
         });
         let grant = grant_for(&job).unwrap();
         assert_eq!(grant.0, "system");
@@ -411,9 +315,7 @@ mod tests {
     fn test_grant_for_read_file_relative() {
         let job = json!({
             "tool": "read_file",
-            "args": {
-                "path": "relative/path.txt"
-            }
+            "path": "relative/path.txt"
         });
         assert!(grant_for(&job).is_none());
     }
