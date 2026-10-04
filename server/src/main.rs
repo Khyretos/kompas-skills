@@ -1,5 +1,6 @@
 mod access;
 mod admin;
+mod assets;
 mod api;
 mod auth;
 mod config;
@@ -121,6 +122,7 @@ async fn main() -> anyhow::Result<()> {
     };
     hoststats::HostStats::spawn_live(state.clone());
     notify::spawn_daily(state.db.clone());
+    assets::spawn(state.clone());
     if let Some(ws) = windshift {
         tracing::info!("Windshift sync on");
         windshift::spawn(state.db.clone(), ws);
@@ -180,6 +182,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/me/notifications", get(notify::get_prefs).put(notify::put_prefs))
         .route("/me/prefs", axum::routing::put(admin::set_prefs))
         .route("/events", get(api::events))
+        .merge(assets::routes())
         // Inside the guard, so the signed-in user is known.
         .layer(middleware::from_fn_with_state(state.clone(), live::notify_changes))
         .layer(middleware::from_fn_with_state(state.clone(), auth::guard))

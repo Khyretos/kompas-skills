@@ -33,6 +33,7 @@ export interface AppState {
   taskScope: "project" | "all";
   settingsOpen: boolean;
   pane: "main" | "left" | "right"; // which pane is visible on a phone
+  section: "chat" | "assets"; // what the middle of the screen shows
   expandedProjects: Set<string>; // projects open in the sidebar
   activeProjectId?: string; // project picked in the sidebar (tasks pane, new chats)
   chatMenuId?: string; // chat whose options menu is open
@@ -53,6 +54,7 @@ export const store = new Store<AppState>({
   taskScope: "project",
   settingsOpen: false,
   pane: "main",
+  section: "chat",
   expandedProjects: new Set(),
   isAdmin: false,
   theme: "system",
