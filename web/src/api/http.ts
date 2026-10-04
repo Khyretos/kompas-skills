@@ -106,8 +106,12 @@ export class HttpApi implements KompanionApi {
     return this.request<void>("PATCH", `/projects/${encodeURIComponent(projectId)}`, { kind: "internal" });
   }
   deleteChat(chatId: string) { return this.request<void>("DELETE", `/chats/${encodeURIComponent(chatId)}`); }
-  send(chatId: string, text: string) {
-    return this.request<void>("POST", `/chats/${encodeURIComponent(chatId)}/messages`, { text });
+  send(chatId: string, text: string, machineId?: string) {
+    return this.request<void>("POST", `/chats/${encodeURIComponent(chatId)}/messages`, { text, machine_id: machineId ?? null });
+  }
+  listActions(chatId: string) { return this.request<import("./client").PcAction[]>("GET", `/chats/${encodeURIComponent(chatId)}/actions`); }
+  decideAction(id: string, decision: "approve" | "always" | "deny") {
+    return this.request<void>("POST", `/actions/${encodeURIComponent(id)}/decide`, { decision });
   }
   async answer(): Promise<void> {
     throw new ApiError("Tasks arrive in a later milestone.", 501);

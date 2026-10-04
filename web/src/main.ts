@@ -16,6 +16,7 @@ import { KeyedList } from "./core/keyed";
 import { paneTabs, renderTasks } from "./views/tasks";
 import { renderMachines, REFRESH_STEPS, setGpuView } from "./views/machines";
 import { grantFromForm, renderAccess, type GrantView } from "./views/access";
+import { renderPcActions, renderPcPicker } from "./views/pcactions";
 
 let settingsModal: Modal | undefined;
 
@@ -96,7 +97,7 @@ async function start(server: Server): Promise<void> {
           <div class="empty-slot" id="empty-slot"></div>
           <div class="msg-list" id="msg-list" role="log" aria-live="polite"></div>
         </div>
-        <div class="composer-wrap">${composer()}</div>
+        <div class="composer-wrap"><div id="pc-actions"></div><div id="pc-slot"></div>${composer()}</div>
       </main>
       <aside class="pane right" id="right" aria-label="Tasks"></aside>
       <div class="scrim" data-action="pane" data-pane="main"></div>
@@ -122,6 +123,7 @@ async function openChat(chatId?: string): Promise<void> {
   store.set({ activeChatId: chatId, messages, openTaskId: undefined, pane: "main" });
   const prompt = document.getElementById("prompt") as HTMLTextAreaElement | null;
   if (prompt && window.matchMedia("(pointer: fine)").matches) prompt.focus();
+  store.set({ pcActions: chatId ? await api.listActions(chatId).catch(() => []) : [] });
 }
 
 let messageList: KeyedList<MessageView> | undefined;
@@ -160,6 +162,12 @@ function render(s: AppState, prev: AppState): void {
   }
   if (changed(s, prev, ["chats", "projects", "activeChatId", "activeProjectId", "messages", "roles", "tasks"])) {
     mount($("#conv-head"), renderHeader(s));
+  }
+  if (changed(s, prev, ["machines", "pcMachineId"])) {
+    mount($("#pc-slot"), renderPcPicker(s.machines.filter((m) => m.id !== "server"), s.pcMachineId));
+  }
+  if (changed(s, prev, ["pcActions", "machines"])) {
+    mount($("#pc-actions"), renderPcActions(s.pcActions, Object.fromEntries(s.machines.map((m) => [m.id, m.name]))));
   }
   const rightKeys: (keyof AppState)[] = s.rightTab === "tasks"
     ? ["rightTab", "tasks", "projects", "openTaskId", "editingTaskId", "taskScope", "activeProjectId", "activeChatId", "chats"]
@@ -241,6 +249,7 @@ function refetch(what: string): void {
       else if (what === "chats") store.set({ chats: await api.listChats() });
       else if (what === "machines") store.set({ machines: await api.listMachines() });
       else if (what === "access") await loadAccess();
+      else if (what === "actions" && s.activeChatId) store.set({ pcActions: await api.listActions(s.activeChatId) });
       else if (what === "settings" && s.settingsOpen) {
         store.set({ notifications: await api.getNotifications(), roles: await api.listRoles() });
         if (s.isAdmin) store.set({ admin: await api.getAdmin() });
@@ -296,6 +305,13 @@ function wire(shell: HTMLElement): void {
       api.setGpuPins(gpuPins).catch(showError);
     },
     "pair-done": () => store.set({ pairing: undefined }),
+    "pc-decide": (el) => {
+      const id = el.dataset.id ?? "";
+      const decision = el.dataset.decision as "approve" | "always" | "deny";
+      const before = store.get().pcActions;
+      store.set({ pcActions: before.map((a) => (a.id === id ? { ...a, state: decision === "deny" ? "denied" : "approved" } : a)) });
+      return api.decideAction(id, decision).catch((e) => { store.set({ pcActions: before }); showError(e); });
+    },
     "copy-text": (el) => navigator.clipboard.writeText(el.dataset.text ?? "").then(
       () => { el.textContent = "Copied"; setTimeout(() => { el.textContent = "Copy"; }, 1500); }, showError),
     unpair: (el) => {
@@ -377,6 +393,10 @@ function wire(shell: HTMLElement): void {
   });
 
   shell.addEventListener("change", async (ev) => {
+    if ((ev.target as HTMLElement).id === "pc-machine") {
+      store.set({ pcMachineId: (ev.target as HTMLSelectElement).value || undefined });
+      return;
+    }
     const radio = ev.target as HTMLInputElement;
     if (radio.id === "logo-file" && radio.files?.[0]) {
       const file = radio.files[0];
@@ -530,7 +550,7 @@ function wire(shell: HTMLElement): void {
       store.set({ chats: [chat, ...store.get().chats], activeChatId: chat.id });
       chatId = chat.id;
     }
-    await api.send(chatId, text).catch(showError);
+    await api.send(chatId, text, store.get().pcMachineId).catch(showError);
   };
   const autosize = () => {
     prompt.style.height = "auto";

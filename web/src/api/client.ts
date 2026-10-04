@@ -3,6 +3,16 @@
 // the real server over HTTPS + server-sent events.
 import type { NotificationPrefs, TaskState, AdminSettings, ThemeChoice, DaySummary, MachineStats, ServerStatus, Chat, Message, Project, RoleAssignment, ModelProvider, Server, Task } from "./types";
 
+/** A step Kompanion wants to run on a paired computer (F6), waiting for approval. */
+export interface PcAction {
+  id: string;
+  machineId: string;
+  summary: string;
+  state: "pending" | "approved" | "denied" | "done" | "failed" | "refused";
+  result: string | null;
+  createdAt: string;
+}
+
 export interface KompanionApi {
   discover(): Promise<Server[]>;
   connect(url: string): Promise<Server>;
@@ -52,7 +62,10 @@ export interface KompanionApi {
   reorderTasks(projectId: string, ids: string[]): Promise<void>;
   makeProjectInternal(projectId: string): Promise<void>;
   /** Sends a message; the reply streams back through `onEvent`. */
-  send(chatId: string, text: string): Promise<void>;
+  /** With `machineId`, the answer may use that computer's tools (each step needs approval). */
+  send(chatId: string, text: string, machineId?: string): Promise<void>;
+  listActions(chatId: string): Promise<PcAction[]>;
+  decideAction(id: string, decision: "approve" | "always" | "deny"): Promise<void>;
   answer(taskId: string, optionId: string): Promise<void>;
 
   /** Live updates: streamed tokens, task progress, new messages. A "resync"

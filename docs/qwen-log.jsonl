@@ -108,3 +108,6 @@
 {"name": "fix server/src/pcagent/mod.rs", "out": "server/src/pcagent/mod.rs", "gpu_seconds": 141.1, "tokens": 2773, "lines": 290, "review": "skipped", "model": "Coder", "at": "2026-10-04T04:02:59"}
 {"name": "fix server/src/pcagent/tools.rs", "out": "server/src/pcagent/tools.rs", "gpu_seconds": 177.9, "tokens": 3528, "lines": 412, "review": "skipped", "model": "Coder", "at": "2026-10-04T04:03:36"}
 {"name": "fix server/src/pcagent/tools.rs", "out": "server/src/pcagent/tools.rs", "gpu_seconds": 153.9, "tokens": 3605, "lines": 420, "review": "skipped", "model": "Coder", "at": "2026-10-04T04:10:55"}
+{"name": "C6 pcactions view", "out": "web/src/views/pcactions.ts", "gpu_seconds": 70.8, "tokens": 1349, "lines": 74, "model": "Coder", "at": "2026-10-04T04:25:09"}
+{"name": "C6 main.ts wiring 1-7", "out": "web/src/main.ts", "mode": "patch", "gpu_seconds": 68.5, "tokens": 1394, "lines": 7, "attempts": 1, "model": "Coder", "at": "2026-10-04T04:27:58"}
+{"name": "C6 main.ts change listener", "out": "web/src/main.ts", "mode": "patch", "gpu_seconds": 5.7, "tokens": 100, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-04T04:28:04"}

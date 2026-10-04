@@ -387,6 +387,8 @@ export class MockApi implements KompanionApi {
     if (i >= 0) chats.splice(i, 1);
   }
 
+  async listActions() { return []; }
+  async decideAction() {}
   async send(chatId: string, text: string) {
     const user: Message = { id: id("m"), chatId, author: "user", text, at: new Date().toISOString() };
     messages.push(user);
