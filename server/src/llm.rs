@@ -313,8 +313,6 @@ mod tests {
     }
 }
 
-use serde_json::Value;
-
 /// One chat completion with tools (OpenAI function calling), not streamed. Returns
 /// the assistant message object: `content` and/or `tool_calls`. Used by the PC
 /// agent (pcagent.rs).

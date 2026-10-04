@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
 
+# soucouyant also runs other repos' CI and ComfyUI (32 GB RAM): cap parallel compiles.
+env:
+  CARGO_BUILD_JOBS: "6"
+
 jobs:
   server:
     runs-on: soucouyant

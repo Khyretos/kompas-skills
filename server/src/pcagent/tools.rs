@@ -160,7 +160,7 @@ pub fn to_job(name: &str, args: &Value) -> Option<Value> {
             Value::Object(map) => {
                 let mut out = serde_json::Map::new();
                 for (k, val) in map {
-                    if !known.contains(k) {
+                    if !known.contains(&k.as_str()) {
                         continue;
                     }
                     match k.as_str() {
@@ -193,7 +193,9 @@ pub fn to_job(name: &str, args: &Value) -> Option<Value> {
     };
 
     let clean = clean_args(args)?;
-    Some(json!({ "tool": name, ..clean }))
+    let Value::Object(mut map) = clean else { return None };
+    map.insert("tool".into(), json!(name));
+    Some(Value::Object(map))
 }
 
 /// Generate a short, readable summary line for a job.
@@ -258,8 +260,17 @@ pub fn grant_for(job: &Value) -> Option<(String, Vec<&'static str>)> {
 
     // Helper to validate absolute paths without '..'
     let valid_path = |p: &str| -> bool {
-        p.starts_with('/') && !p.contains("..")
+        p.starts_with('/') && !p.split('/').any(|c| c == "..")
     };
+
+    // Helper to get parent folder ("/" for top-level files)
+    fn parent(path: &str) -> String {
+        std::path::Path::new(path)
+            .parent()
+            .map(|p| p.to_string_lossy().into_owned())
+            .filter(|p| !p.is_empty())
+            .unwrap_or_else(|| "/".into())
+    }
 
     match tool {
         "read_file" => {
@@ -268,12 +279,7 @@ pub fn grant_for(job: &Value) -> Option<(String, Vec<&'static str>)> {
                 return None;
             }
             // Parent folder of path
-            let parent = if path == "/" {
-                "/".to_string()
-            } else {
-                path[..path.rfind('/').unwrap_or(0)..].trim_start_matches('/').to_string()
-            };
-            Some((parent, vec!["read"]))
+            Some((parent(path), vec!["read"]))
         }
         "list_dir" => {
             let path = args.get("path").and_then(|v| v.as_str())?;
@@ -288,24 +294,14 @@ pub fn grant_for(job: &Value) -> Option<(String, Vec<&'static str>)> {
             if !valid_path(path) {
                 return None;
             }
-            let parent = if path == "/" {
-                "/".to_string()
-            } else {
-                path[..path.rfind('/').unwrap_or(0)..].trim_start_matches('/').to_string()
-            };
-            Some((parent, vec!["write"]))
+            Some((parent(path), vec!["write"]))
         }
         "edit_file" => {
             let path = args.get("path").and_then(|v| v.as_str())?;
             if !valid_path(path) {
                 return None;
             }
-            let parent = if path == "/" {
-                "/".to_string()
-            } else {
-                path[..path.rfind('/').unwrap_or(0)..].trim_start_matches('/').to_string()
-            };
-            Some((parent, vec!["write"]))
+            Some((parent(path), vec!["write"]))
         }
         "shell" => {
             let cwd = args.get("cwd").and_then(|v| v.as_str())?;
