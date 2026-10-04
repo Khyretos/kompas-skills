@@ -4,7 +4,7 @@ set -eu
 
 cd "$(dirname "$0")"
 
-if [ "$1" = "--check" ]; then
+if [ "${1:-}" = "--check" ]; then
     # Verify files exist
     if [ ! -f kompanion-gpu-helper ] || [ ! -f kompanion-gpu-helper.sha256 ] || [ ! -f kompanion-gpu-helper.service ]; then
         echo "missing required files" >&2
@@ -48,6 +48,7 @@ if command -v systemd-analyze >/dev/null 2>&1; then
 fi
 
 # Install
+[ "$(id -u)" = 0 ] || { echo "run with sudo: sudo ./install.sh"; exit 1; }
 getent group kompanion-gpu >/dev/null || groupadd --system --gid 10050 kompanion-gpu
 getent passwd kompanion-gpu >/dev/null || useradd --system --uid 10050 --gid kompanion-gpu --no-create-home --shell /usr/sbin/nologin kompanion-gpu
 install -m 0755 kompanion-gpu-helper /usr/local/bin/kompanion-gpu-helper
