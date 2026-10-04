@@ -78,7 +78,7 @@ pub async fn list(
         let chat_id = &row.chat_id;
         let chat_title = row.chat_title.as_deref().unwrap_or("");
 
-        let tool_value = serde_json::from_str::<Value>(&row.tool).unwrap_or(Value::Null);
+        let tool_value = row.tool.as_deref().and_then(|t| serde_json::from_str::<Value>(t).ok()).unwrap_or(Value::Null);
 
         let mut item = json!({
             "id": row.id,

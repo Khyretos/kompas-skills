@@ -38,7 +38,7 @@ const STATE: Record<string, string> = {
 };
 
 function kindIcon(it: ActivityItem): string {
-  const toolName = it.tool?.tool;
+  const toolName = String(it.tool?.tool ?? "");
   if (toolName === "shell") return "terminal";
   if (["read_file", "write_file", "edit_file", "list_dir"].includes(toolName)) return "edit";
   if (toolName === "package") return "box";
