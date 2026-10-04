@@ -26,10 +26,6 @@ export function renderPcPicker(
     </div>
   `;
 }
-      </select>
-    </label>
-  `;
-}
 
 const stateLabels: Record<string, string> = {
   pending: "waiting for you",
