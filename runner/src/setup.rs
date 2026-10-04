@@ -1,4 +1,4 @@
-use std::{env, fs, os::unix::fs::{OpenOptionsExt, PermissionsExt}, path::PathBuf, process::Command};
+use std::{env, fs, io::Write, os::unix::fs::{OpenOptionsExt, PermissionsExt}, path::PathBuf, process::Command};
 
 /// The systemd user unit the installer writes.
 const UNIT: &str = r#"[Unit]
