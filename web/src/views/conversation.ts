@@ -20,10 +20,13 @@ const STEP_LABEL: Record<string, string> = {
   refused: "not allowed",
 };
 
+/** Steps the user opened stay open across re-renders (main.ts keeps this in step). */
+export const openSteps = new Set<string>();
+
 function renderStep(a: PcAction, machines: Record<string, string>): SafeHtml {
   const busy = ["approved", "always", "granting", "running"].includes(a.state);
   return html`
-    <details class="step ${a.state}" ${busy ? "open" : ""}>
+    <details class="step ${a.state}" data-step="${a.id}" data-state="${a.state}" ${busy || openSteps.has(a.id) ? "open" : ""}>
       <summary>
         ${icon(busy ? "spark" : a.state === "done" ? "terminal" : "close")}
         <span class="step-summary">${a.summary}</span>

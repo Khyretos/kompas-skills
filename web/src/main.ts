@@ -11,7 +11,7 @@ import { onCodeAction } from "./core/codeblocks";
 import { store, type AppState } from "./state";
 import { showConnect } from "./views/connect";
 import { renderSidebar } from "./views/sidebar";
-import { composer, fillMessage, messageViews, renderEmpty, renderHeader, renderMessage, type MessageView } from "./views/conversation";
+import { composer, fillMessage, messageViews, openSteps, renderEmpty, renderHeader, renderMessage, type MessageView } from "./views/conversation";
 import { KeyedList } from "./core/keyed";
 import { paneTabs, renderTasks } from "./views/tasks";
 import { renderMachines, REFRESH_STEPS, setGpuView } from "./views/machines";
@@ -270,7 +270,12 @@ function refetch(what: string): void {
       else if (what === "machines") store.set({ machines: await api.listMachines() });
       else if (what === "access") await loadAccess();
       if ((what === "access" || what === "actions") && s.rightTab === "activity") store.set({ activity: await api.listActivity() });
-      else if (what === "actions" && s.activeChatId) store.set({ pcActions: await api.listActions(s.activeChatId) });
+      else if (what === "actions" && s.activeChatId) {
+        // Only a real change replaces the list: equal data as new objects would
+        // re-render the chat and close a step the user just opened.
+        const pcActions = await api.listActions(s.activeChatId);
+        if (JSON.stringify(pcActions) !== JSON.stringify(store.get().pcActions)) store.set({ pcActions });
+      }
       else if (what === "settings" && s.settingsOpen) {
         store.set({ notifications: await api.getNotifications(), roles: await api.listRoles() });
         if (s.isAdmin) store.set({ admin: await api.getAdmin() });
@@ -437,6 +442,13 @@ function wire(shell: HTMLElement): void {
     "close-settings": () => settingsModal?.requestClose(),
   });
 
+  // Remember which steps are open, so a re-render keeps them open.
+  shell.addEventListener("toggle", (ev) => {
+    const d = ev.target as HTMLDetailsElement;
+    const id = d.dataset?.step;
+    if (!id) return;
+    if (d.open) openSteps.add(id); else openSteps.delete(id);
+  }, true);
   shell.addEventListener("change", async (ev) => {
     const fid = (ev.target as HTMLElement).id;
     if (fid === "activity-failed") {
