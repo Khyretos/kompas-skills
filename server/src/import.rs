@@ -57,6 +57,46 @@ const STATES: &[&str] = &[
     "failed",
 ];
 
+/// Settings row the import (a separate process) bumps after it changed projects or tasks.
+const CHANGE_KEY: &str = "external_change";
+
+async fn change_mark(db: &SqlitePool) -> Option<String> {
+    sqlx::query_as::<_, (String,)>("SELECT value FROM settings WHERE key = ?")
+        .bind(CHANGE_KEY)
+        .fetch_optional(db)
+        .await
+        .ok()
+        .flatten()
+        .map(|(v,)| v)
+}
+
+/// True once when the mark changed since `last` (which it updates).
+async fn changed_since(db: &SqlitePool, last: &mut Option<String>) -> bool {
+    let now = change_mark(db).await;
+    if now != *last {
+        *last = now;
+        true
+    } else {
+        false
+    }
+}
+
+/// In the server: every 2 s, look for an import by another process and send the same
+/// "changed" events the API sends, so every open app updates without a refresh.
+pub fn watch(s: crate::AppState) {
+    tokio::spawn(async move {
+        let mut last = change_mark(&s.db).await;
+        let mut tick = tokio::time::interval(std::time::Duration::from_secs(2));
+        loop {
+            tick.tick().await;
+            if changed_since(&s.db, &mut last).await {
+                s.bus.send_all(crate::events::Event::Changed { what: "projects", machine_id: None });
+                s.bus.send_all(crate::events::Event::Changed { what: "tasks", machine_id: None });
+            }
+        }
+    });
+}
+
 pub async fn run(db: &SqlitePool, path: &str, user: Option<&str>) -> Result<()> {
     let owner: Option<(String,)> = match user {
         Some(name) => {
@@ -126,7 +166,42 @@ pub async fn run(db: &SqlitePool, path: &str, user: Option<&str>) -> Result<()> 
             nt += 1;
         }
     }
+    // Tell the running server (another process) so open apps update without a refresh.
+    sqlx::query("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+        .bind(CHANGE_KEY)
+        .bind(format!("{} {}", util::now(), util::new_id()))
+        .execute(&mut *tx)
+        .await?;
     tx.commit().await?;
     println!("Imported {np} projects and {nt} tasks.");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn an_import_marks_a_change_the_server_sees_once() {
+        let db = sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
+        sqlx::migrate!().run(&db).await.unwrap();
+        sqlx::query("INSERT INTO users (id, name, password_hash, created_at) VALUES ('u1', 'kees', 'x', '2026')")
+            .execute(&db)
+            .await
+            .unwrap();
+        let mut last = change_mark(&db).await;
+        assert!(!changed_since(&db, &mut last).await);
+        let path = std::env::temp_dir().join(format!("kk-import-{}.json", std::process::id()));
+        std::fs::write(
+            &path,
+            r#"{"projects":[{"id":"p1","name":"P","tasks":[{"id":"t1","title":"T","description":"**Goal:** x\n1. y"}]}]}"#,
+        )
+        .unwrap();
+        run(&db, path.to_str().unwrap(), Some("kees")).await.unwrap();
+        assert!(changed_since(&db, &mut last).await); // the watcher sends its events now
+        assert!(!changed_since(&db, &mut last).await); // and only once
+        run(&db, path.to_str().unwrap(), Some("kees")).await.unwrap();
+        assert!(changed_since(&db, &mut last).await); // every import counts, even an identical one
+        std::fs::remove_file(path).ok();
+    }
 }

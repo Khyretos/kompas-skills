@@ -130,6 +130,7 @@ async fn main() -> anyhow::Result<()> {
     hoststats::HostStats::spawn_live(state.clone());
     notify::spawn_daily(state.db.clone());
     assets::spawn(state.clone());
+    import::watch(state.clone());
     if let Some(ws) = windshift {
         tracing::info!("Windshift sync on");
         windshift::spawn(state.db.clone(), ws);
