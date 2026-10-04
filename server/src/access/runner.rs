@@ -151,6 +151,10 @@ pub async fn results(
             .await?;
         let tool: Value = serde_json::from_str(&tool).unwrap_or(Value::Null);
         let target = tool["path"].as_str().or(tool["cwd"].as_str()).or(tool["target"].as_str());
+        // Grant changes are logged where they are decided ("granted"/"revoked" with
+        // the reason); the runner applying them is not a separate "used" entry.
+        let internal = matches!(tool["tool"].as_str(), Some("add_grant" | "revoke_grant"));
+        if !internal {
         sqlx::query(
             "INSERT INTO access_log (machine_id, user_id, at, kind, target, detail) VALUES (?, ?, ?, ?, ?, ?)",
         )
@@ -162,6 +166,7 @@ pub async fn results(
         .bind(tool["tool"].as_str())
         .execute(&s.db)
         .await?;
+        }
     }
     if let Some(grants) = &b.grants {
         mirror_grants(&s.db, &machine_id, grants).await?;

@@ -31,7 +31,7 @@ pub async fn ask(
         .bind(&machine_id)
         .fetch_one(&s.db)
         .await
-        .map_err(|_| ApiError::NotFound("Machine not found."))?;
+        .map_err(|_| ApiError::NotFound)?;
 
     let title = format!("kompanion ask ({})", machine_name);
     let chat_id = sqlx::query_scalar::<_, String>(
@@ -74,16 +74,15 @@ pub async fn ask(
     let msg = api::insert_message(&s, &chat_id, "user", text).await?;
     s.bus.send(&user_id, Event::Message { message: msg.clone() });
 
-    let mut running = RUNNING.lock().unwrap();
-    running.insert(chat_id.clone());
-
+    RUNNING.lock().unwrap().insert(chat_id.clone());
+    let (s2, chat2, after) = (s.clone(), chat_id.clone(), msg.at.clone());
     tokio::spawn(async move {
-        let _ = pcagent::run(s, user_id, chat_id, machine_id, machine_name, role).await;
-        let mut r = running.lock().unwrap();
-        r.remove(&chat_id);
+        pcagent::run(s2, user_id, chat2.clone(), machine_id, machine_name, role).await;
+        RUNNING.lock().unwrap().remove(&chat2);
     });
 
-    Ok((StatusCode::ACCEPTED, json!({ "chatId": chat_id, "after": msg.at }).into()))
+    return Ok((StatusCode::ACCEPTED, Json(json!({ "chatId": chat_id, "after": after }))));
+
 }
 
 #[derive(Deserialize)]
@@ -106,7 +105,7 @@ pub async fn poll(
     .bind(&user_id)
     .fetch_optional(&s.db)
     .await?
-    .ok_or_else(|| ApiError::NotFound("Chat not found."))?;
+    .ok_or_else(|| ApiError::NotFound)?;
 
     let messages = sqlx::query_as::<_, (String, String, String)>(
         "SELECT author, text, at FROM messages WHERE chat_id = ? AND at > ? AND author <> 'user' ORDER BY at, rowid"

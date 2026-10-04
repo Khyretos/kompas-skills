@@ -153,33 +153,120 @@ async fn step(s: &AppState, user_id: &str, chat_id: &str, machine_id: &str, job:
         "denied" => return "The user declined this step; nothing was done.".into(),
         _ => {}
     }
+    let always = state == "always";
 
-    let job_id = match access::queue_job(&s.db, machine_id, user_id, job, None).await {
-        Ok(j) => j,
-        Err(e) => {
-            set_action(s, &id, "failed", &e.to_string()).await;
+    // The computer only runs what is granted. Approve adds a grant for this one
+    // step (10 minutes, removed again afterwards, the earlier grant on that target
+    // restored); Always allow adds one for 24 hours.
+    let needed = tools::grant_for(job);
+    let mut restore: Option<Option<Value>> = None;
+    if let Some((target, rights)) = &needed {
+        set_action(s, &id, "granting", "").await;
+        changed(s, user_id);
+        let before = current_grant(s, machine_id, target).await;
+        let expires = if always { util::in_hours(24) } else { in_minutes(10) };
+        let grant = json!({ "tool": "add_grant", "grant": {
+            "target": target, "rights": rights, "granted_by": user_name(s, user_id).await,
+            "granted_at": util::now(), "expires": expires,
+        } });
+        let ok = match access::queue_job(&s.db, machine_id, user_id, &grant, None).await {
+            Ok(job_id) => wait_job(s, &job_id).await.0 == "done",
+            Err(_) => false,
+        };
+        if !ok {
+            set_action(s, &id, "failed", "The computer did not confirm the grant.").await;
             changed(s, user_id);
-            return format!("failed: {e}");
+            return "failed: the computer did not confirm the grant, so nothing was run.".into();
         }
+        log_access(s, machine_id, user_id, "granted", target, if always { "always allow, 24 h" } else { "one step, 10 min" }).await;
+        if !always {
+            restore = Some(before);
+        }
+    }
+
+    set_action(s, &id, "running", "").await;
+    changed(s, user_id);
+    let (state, result) = match access::queue_job(&s.db, machine_id, user_id, job, None).await {
+        Ok(job_id) => wait_job(s, &job_id).await,
+        Err(e) => ("failed".to_string(), e.to_string()),
     };
-    let (mut state, mut result) = ("failed".to_string(), "The computer did not answer within 30 minutes.".to_string());
+
+    // A one-step grant goes away again; an earlier grant on that target comes back.
+    if let (Some(before), Some((target, _))) = (restore, &needed) {
+        let _ = access::queue_job(&s.db, machine_id, user_id, &json!({ "tool": "revoke_grant", "target": target }), None).await;
+        if let Some(g) = before {
+            let _ = access::queue_job(&s.db, machine_id, user_id, &json!({ "tool": "add_grant", "grant": g }), None).await;
+        }
+        log_access(s, machine_id, user_id, "revoked", target, "one step done").await;
+    }
+    set_action(s, &id, &state, &result).await;
+    changed(s, user_id);
+    cut(&format!("{state}: {result}"), 8000).to_string()
+}
+
+fn in_minutes(m: i64) -> String {
+    (time::OffsetDateTime::now_utc() + time::Duration::minutes(m))
+        .format(&time::format_description::well_known::Rfc3339)
+        .unwrap_or_default()
+}
+
+async fn user_name(s: &AppState, user_id: &str) -> String {
+    sqlx::query_as::<_, (String,)>("SELECT name FROM users WHERE id = ?")
+        .bind(user_id)
+        .fetch_optional(&s.db)
+        .await
+        .ok()
+        .flatten()
+        .map(|r| r.0)
+        .unwrap_or_else(|| "kompanion".into())
+}
+
+/// The computer's current grant on `target`, as the runner's grant JSON, from the
+/// server's mirror of its grants.json.
+async fn current_grant(s: &AppState, machine_id: &str, target: &str) -> Option<Value> {
+    let row: Option<(String, String, String, Option<String>)> = sqlx::query_as(
+        "SELECT rights, granted_by, granted_at, expires FROM machine_grants WHERE machine_id = ? AND target = ?",
+    )
+    .bind(machine_id)
+    .bind(target)
+    .fetch_optional(&s.db)
+    .await
+    .ok()
+    .flatten();
+    row.map(|(rights, by, at, expires)| {
+        json!({ "target": target, "rights": serde_json::from_str::<Value>(&rights).unwrap_or(json!([])),
+                "granted_by": by, "granted_at": at, "expires": expires })
+    })
+}
+
+async fn log_access(s: &AppState, machine_id: &str, user_id: &str, kind: &str, target: &str, detail: &str) {
+    let _ = sqlx::query("INSERT INTO access_log (machine_id, user_id, at, kind, target, detail) VALUES (?, ?, ?, ?, ?, ?)")
+        .bind(machine_id)
+        .bind(user_id)
+        .bind(util::now())
+        .bind(kind)
+        .bind(target)
+        .bind(detail)
+        .execute(&s.db)
+        .await;
+}
+
+/// Waits for a runner job to finish: (state, result).
+async fn wait_job(s: &AppState, job_id: &str) -> (String, String) {
     for _ in 0..WAIT_SECS {
         tokio::time::sleep(Duration::from_secs(1)).await;
         let row: Option<(String, Option<String>)> = sqlx::query_as("SELECT state, result FROM machine_jobs WHERE id = ?")
-            .bind(&job_id)
+            .bind(job_id)
             .fetch_optional(&s.db)
             .await
             .unwrap_or(None);
         if let Some((st, res)) = row
             && matches!(st.as_str(), "done" | "failed" | "refused")
         {
-            (state, result) = (st, res.unwrap_or_default());
-            break;
+            return (st, res.unwrap_or_default());
         }
     }
-    set_action(s, &id, &state, &result).await;
-    changed(s, user_id);
-    cut(&format!("{state}: {result}"), 8000).to_string()
+    ("failed".into(), "The computer did not answer within 30 minutes.".into())
 }
 
 #[derive(Deserialize)]
@@ -207,25 +294,7 @@ pub async fn decide(
     let new_state = match b.decision.as_str() {
         "deny" => "denied",
         "approve" => "approved",
-        "always" => {
-            let job: Value = serde_json::from_str(&tool).unwrap_or(Value::Null);
-            if let Some((target, rights)) = tools::grant_for(&job) {
-                let grant = json!({ "tool": "add_grant", "grant": {
-                    "target": target, "rights": rights, "granted_by": u.name,
-                    "granted_at": util::now(), "expires": util::in_hours(24),
-                } });
-                access::queue_job(&s.db, &machine_id, &u.id, &grant, None).await?;
-                sqlx::query("INSERT INTO access_log (machine_id, user_id, at, kind, target, detail) VALUES (?, ?, ?, 'granted', ?, ?)")
-                    .bind(&machine_id)
-                    .bind(&u.id)
-                    .bind(util::now())
-                    .bind(&target)
-                    .bind("always allow, 24 h")
-                    .execute(&s.db)
-                    .await?;
-            }
-            "approved"
-        }
+        "always" => "always",
         _ => return Err(ApiError::BadRequest("Unknown decision.".into())),
     };
     sqlx::query("UPDATE pc_actions SET state = ?, decided_at = ? WHERE id = ? AND state = 'pending'")
@@ -244,8 +313,8 @@ pub async fn list(
     Extension(u): Extension<User>,
     Path(chat_id): Path<String>,
 ) -> ApiResult<Json<Vec<Value>>> {
-    let rows: Vec<(String, String, String, String, Option<String>, String)> = sqlx::query_as(
-        "SELECT id, machine_id, summary, state, result, created_at FROM (
+    let rows: Vec<(String, String, String, String, Option<String>, String, String)> = sqlx::query_as(
+        "SELECT id, machine_id, summary, state, result, created_at, tool FROM (
            SELECT * FROM pc_actions WHERE chat_id = ? AND user_id = ? ORDER BY created_at DESC LIMIT 50
          ) ORDER BY created_at",
     )
@@ -255,11 +324,26 @@ pub async fn list(
     .await?;
     Ok(Json(
         rows.into_iter()
-            .map(|(id, machine_id, summary, state, result, created_at)| {
-                json!({ "id": id, "machineId": machine_id, "summary": summary, "state": state, "result": result, "createdAt": created_at })
+            .map(|(id, machine_id, summary, state, result, created_at, tool)| {
+                let job: Value = serde_json::from_str(&tool).unwrap_or(Value::Null);
+                json!({ "id": id, "machineId": machine_id, "summary": summary, "state": state, "result": result,
+                        "createdAt": created_at, "needs": needs_text(&job) })
             })
             .collect(),
     ))
+}
+
+/// What a step needs on the computer, for the card: "packages + root (asks for the password on the PC)".
+fn needs_text(job: &Value) -> Option<String> {
+    let (target, rights) = tools::grant_for(job)?;
+    let mut text = rights.join(" + ");
+    if target != "system" {
+        text = format!("{text} on {target}");
+    }
+    if rights.contains(&"root") {
+        text.push_str(" (asks for the password on the PC)");
+    }
+    Some(text)
 }
 
 #[cfg(test)]

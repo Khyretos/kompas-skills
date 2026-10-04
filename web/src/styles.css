@@ -608,8 +608,11 @@ button[aria-busy="true"]::after {
 .gpu.stale .gpu-bar { opacity: 0.55; }
 
 /* PC agent (F6): the computer picker and the approval cards above the composer. */
-.pc-pick { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--muted); margin: 0 0 0.4rem; }
-.pc-pick select { font-size: 0.85rem; padding: 0.15rem 0.4rem; }
+.pc-pick { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--muted); margin: 0 0 0.4rem; }
+.pc-pick select {
+  font-size: 0.85rem; padding: 0.2rem 0.5rem; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--surface); color: var(--fg); min-width: 10rem;
+}
 .pc-actions { display: grid; gap: 0.5rem; margin-bottom: 0.6rem; max-height: 40vh; overflow-y: auto; }
 .pc-action {
   border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 8px;

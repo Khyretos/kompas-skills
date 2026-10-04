@@ -1,108 +1,87 @@
 //! `kompanion-runner ask "..."`: asks Kompanion from this computer's terminal. The
-//! answer may use this computer's tools; each step is approved in the Kompanion web app.
+//! answer may use this computer's tools; each step is approved in the Kompanion web
+//! app. (Claude wrote this after two failed model drafts.)
+
 use std::{thread, time::Duration};
 
-use serde_json::json;
-use ureq::AgentBuilder;
+use serde_json::Value;
+
+fn error_text(e: ureq::Error, base: &str) -> String {
+    match e {
+        ureq::Error::Status(code, resp) => resp
+            .into_json::<Value>()
+            .ok()
+            .and_then(|v| v["error"].as_str().map(str::to_string))
+            .unwrap_or_else(|| format!("Kompanion answered HTTP {code}")),
+        e => format!("can't reach {base}: {e}"),
+    }
+}
+
+/// `after` is an RFC 3339 time; `+` and `:` must be escaped in the query string.
+fn encode(after: &str) -> String {
+    after.replace('+', "%2B").replace(':', "%3A")
+}
 
 pub fn ask(server: &str, machine_id: &str, token: &str, question: &str) -> Result<(), String> {
-    let agent = AgentBuilder::new()
-        .timeout(Duration::from_secs(30))
-        .build();
-
+    let agent = ureq::AgentBuilder::new().timeout(Duration::from_secs(30)).build();
     let base = server.trim_end_matches('/');
-
-    // Step 2: Initial POST request
-    let mut resp = match agent
-        .post(format!("{base}/api/machines/{machine_id}/ask"))
-        .header("Authorization", format!("Bearer {token}"))
-        .header("X-Kompanion", "1")
-        .send_json(&json!({"text": question}))
-    {
-        Ok(r) => r,
-        Err(e) => return Err(format!("can't reach {base}: {e}")),
+    let auth = format!("Bearer {token}");
+    let started: Value = agent
+        .post(&format!("{base}/api/machines/{machine_id}/ask"))
+        .set("Authorization", &auth)
+        .set("X-Kompanion", "1")
+        .send_json(serde_json::json!({ "text": question }))
+        .map_err(|e| error_text(e, base))?
+        .into_json()
+        .map_err(|e| format!("unexpected answer: {e}"))?;
+    let (Some(chat_id), Some(mut after)) = (
+        started["chatId"].as_str().map(str::to_string),
+        started["after"].as_str().map(str::to_string),
+    ) else {
+        return Err("unexpected answer from Kompanion".into());
     };
 
-    let body: serde_json::Value = resp.into_json().map_err(|e| e.to_string())?;
-
-    if let Some(err_val) = body.get("error").and_then(|v| v.as_str()) {
-        return Err(err_val.to_string());
-    }
-
-    let chat_id = body["chatId"]
-        .as_str()
-        .ok_or("Missing chatId in response")?
-        .to_string();
-    let after = body["after"]
-        .as_str()
-        .ok_or("Missing 'after' field in response")?
-        .to_string();
-
-    // Step 3: Polling loop
-    let max_polls = 1800;
-    let mut polls = 0;
-    let mut pending_shown: Vec<String> = Vec::new();
-    let mut last_error_count = 0;
-    let mut running = true;
-
-    while running && polls < max_polls {
+    let mut shown: Vec<String> = Vec::new();
+    let mut failures = 0u32;
+    for _ in 0..1800 {
         thread::sleep(Duration::from_secs(2));
-        polls += 1;
-
-        let encoded_after = after.replace('+', "%2B").replace(':', "%3A");
-        let url = format!(
-            "{base}/api/machines/{machine_id}/ask/{}?after={}",
-            chat_id, encoded_after
-        );
-
-        let resp = match agent.get(&url).header("Authorization", format!("Bearer {token}")).call() {
-            Ok(r) => r,
+        let url = format!("{base}/api/machines/{machine_id}/ask/{chat_id}?after={}", encode(&after));
+        let v: Value = match agent.get(&url).set("Authorization", &auth).call().map_err(|e| error_text(e, base)).and_then(|r| r.into_json().map_err(|e| e.to_string())) {
+            Ok(v) => v,
             Err(_) => {
-                last_error_count += 1;
-                if last_error_count >= 10 {
-                    println!("(connection problem, retrying)");
-                    last_error_count = 0;
+                if failures % 10 == 0 {
+                    eprintln!("(connection problem, retrying)");
                 }
+                failures += 1;
                 continue;
             }
         };
-
-        let body: serde_json::Value = resp.into_json().map_err(|e| e.to_string())?;
-
-        if let Some(msgs) = body.get("messages").and_then(|v| v.as_array()) {
-            for item in msgs {
-                if let Some(text) = item.get("text").and_then(|v| v.as_str()) {
-                    println!("\n{text}");
-                }
-                if let Some(at) = item.get("at").and_then(|v| v.as_str()) {
-                    after = at.to_string();
-                }
+        for m in v["messages"].as_array().into_iter().flatten() {
+            println!("\n{}", m["text"].as_str().unwrap_or(""));
+            if let Some(at) = m["at"].as_str() {
+                after = at.to_string();
             }
         }
-
-        if let Some(pending) = body.get("pending").and_then(|v| v.as_array()) {
-            for item in pending {
-                if let Some(summary) = item.get("summary").and_then(|v| v.as_str()) {
-                    if !pending_shown.contains(summary) {
-                        println!("⏳ Waiting for your approval in Kompanion: {summary}");
-                        pending_shown.push(summary.to_string());
-                    }
-                }
+        let pending: Vec<String> = v["pending"].as_array().into_iter().flatten().filter_map(|p| p.as_str().map(str::to_string)).collect();
+        for p in &pending {
+            if !shown.contains(p) {
+                println!("⏳ Waiting for your approval in Kompanion: {p}");
+                shown.push(p.clone());
             }
         }
-
-        if let Some(is_running) = body.get("running").and_then(|v| v.as_bool()) {
-            running = *is_running;
-        }
-
-        if !running && pending_shown.is_empty() {
-            break;
+        if v["running"] == Value::Bool(false) && pending.is_empty() {
+            return Ok(());
         }
     }
+    Err("Gave up waiting after an hour.".into())
+}
 
-    if running {
-        Err("Gave up waiting after an hour.".to_string())
-    } else {
-        Ok(())
+#[cfg(test)]
+mod tests {
+    use super::encode;
+
+    #[test]
+    fn encodes_the_time() {
+        assert_eq!(encode("2026-10-04T02:00:00+00:00"), "2026-10-04T02%3A00%3A00%2B00%3A00");
     }
 }

@@ -17,11 +17,15 @@ export function renderPcPicker(
     })}
   `;
 
+  const picked = machines.find((m) => m.id === selected);
   return html`
-    <label class="pc-pick">
-      Use
-      <select id="pc-machine" aria-label="Computer Kompanion may act on">
-        ${options}
+    <div class="pc-pick">
+      <label for="pc-machine">Computer</label>
+      <select id="pc-machine">${options}</select>
+      ${picked ? html`<span class="muted small">Kompanion may act on ${picked.name}; every step asks you first.</span>` : ""}
+    </div>
+  `;
+}
       </select>
     </label>
   `;
@@ -29,7 +33,10 @@ export function renderPcPicker(
 
 const stateLabels: Record<string, string> = {
   pending: "waiting for you",
-  approved: "running…",
+  approved: "starting…",
+  always: "starting…",
+  granting: "waiting for the computer to allow it…",
+  running: "running…",
   denied: "declined",
   done: "done",
   failed: "failed",
@@ -58,6 +65,7 @@ export function renderPcActions(actions: PcAction[], machineNames: Record<string
           <article class="pc-action ${a.state}">
             <strong>${a.summary}</strong>
             <span class="muted small">on ${machineNames[a.machineId] ?? "a computer"}</span>
+            ${a.needs && a.state === "pending" ? html`<span class="small">Needs: ${a.needs}</span>` : ""}
             <span class="chip ${a.state}">${label}</span>
             ${hasResult ? html`
               <details>

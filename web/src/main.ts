@@ -309,7 +309,7 @@ function wire(shell: HTMLElement): void {
       const id = el.dataset.id ?? "";
       const decision = el.dataset.decision as "approve" | "always" | "deny";
       const before = store.get().pcActions;
-      store.set({ pcActions: before.map((a) => (a.id === id ? { ...a, state: decision === "deny" ? "denied" : "approved" } : a)) });
+      store.set({ pcActions: before.map((a) => (a.id === id ? { ...a, state: decision === "deny" ? "denied" : decision === "always" ? "always" : "approved" } : a)) });
       return api.decideAction(id, decision).catch((e) => { store.set({ pcActions: before }); showError(e); });
     },
     "copy-text": (el) => navigator.clipboard.writeText(el.dataset.text ?? "").then(

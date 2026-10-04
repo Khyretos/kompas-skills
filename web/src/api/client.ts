@@ -8,7 +8,9 @@ export interface PcAction {
   id: string;
   machineId: string;
   summary: string;
-  state: "pending" | "approved" | "denied" | "done" | "failed" | "refused";
+  state: "pending" | "approved" | "always" | "granting" | "running" | "denied" | "done" | "failed" | "refused";
+  /** The grant the step needs, e.g. "packages + root (asks for the password on the PC)". */
+  needs?: string | null;
   result: string | null;
   createdAt: string;
 }
