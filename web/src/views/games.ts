@@ -26,9 +26,11 @@ export class GamesView {
     private api: AssetsApi,
     private categories: () => string[],
     private openAsset: (id: number) => void,
+    private showUsed: (game: number, name: string) => void,
   ) {}
 
-  show(): void {
+  show(game?: number): void {
+    if (game !== undefined) this.selected = game;
     if (!this.started) {
       this.started = true;
       this.wire();
@@ -48,6 +50,7 @@ export class GamesView {
       "pick-reject": (b) => this.setPick(Number(b.dataset.need), Number(b.dataset.asset), "rejected"),
       "pick-undo": (b) => this.undoPick(Number(b.dataset.need), Number(b.dataset.asset)),
       "pick-open": (b) => this.openAsset(Number(b.dataset.asset)),
+      "game-show-used": () => { if (this.detail) this.showUsed(this.detail.id, this.detail.name); },
     });
     this.el.addEventListener("input", (ev) => {
       const form = (ev.target as HTMLElement).closest("form");
@@ -98,7 +101,7 @@ export class GamesView {
     }
   }
 
-  private async select(id: number): Promise<void> {
+  async select(id: number): Promise<void> {
     if (id === this.selected) return;
     this.selected = id;
     this.detail = undefined;
@@ -123,7 +126,7 @@ export class GamesView {
         <ul>${this.games.map((g) => html`<li><button class="game-item" data-action="game-select" data-id="${g.id}"
           aria-current="${g.id === this.selected ? "true" : "false"}">
           <span class="game-name">${g.name}</span>
-          <small class="muted">${g.source === "own" ? "added by you" : g.source}${g.missingSince ? " · gone from its repo" : ""}${g.needs ? ` · ${g.needs} needs` : ""}${g.candidates ? ` · ${g.candidates} kept` : ""}</small></button></li>`)}</ul>
+          <small class="muted">${g.source === "own" ? "added by you" : g.source}${g.missingSince ? " · gone from its repo" : ""}${g.used ? ` · uses ${g.used}` : ""}${g.needs ? ` · ${g.needs} needs` : ""}${g.candidates ? ` · ${g.candidates} kept` : ""}</small></button></li>`)}</ul>
         <form id="game-add" class="game-add">
           <input name="name" maxlength="80" placeholder="Add a game" aria-label="New game name" autocomplete="off">
           <button class="btn" type="submit">Add</button></form>
@@ -156,11 +159,12 @@ export class GamesView {
         ${g.source === "own" || g.missingSince ? html`<button class="btn subtle" data-action="game-remove">Remove</button>` : ""}
       </header>
       ${g.about ? html`<p class="muted">${g.about}</p>` : ""}
+      ${this.renderScenes(g)}
       ${g.profileBy === "ai" ? html`<p class="game-note">The AI drafted this profile and the needs marked AI. Check them and save to confirm.</p>` : ""}
       <form id="game-profile" class="game-profile">
-        <label>Genre <input name="genre" maxlength="60" value="${g.genre}" placeholder="Exploration"></label>
-        <label>Art style <input name="artStyle" maxlength="60" value="${g.artStyle}" placeholder="Low-poly"></label>
-        <label>Setting <input name="setting" maxlength="60" value="${g.setting}" placeholder="Forest"></label>
+        <label>Genre <input name="genre" maxlength="60" value="${g.genre}" placeholder="e.g. exploration"></label>
+        <label>Art style <input name="artStyle" maxlength="60" value="${g.artStyle}" placeholder="e.g. low-poly"></label>
+        <label>Setting <input name="setting" maxlength="60" value="${g.setting}" placeholder="e.g. forest"></label>
         <label class="asset-check"><input type="checkbox" name="commercial" ${g.commercial ? "checked" : ""}> Will be sold
           <small class="muted">(only packs whose licence allows it)</small></label>
         <div class="row">
@@ -180,6 +184,19 @@ export class GamesView {
         <select name="category" aria-label="Category of the need"><option value="">Any category</option>
           ${cats.map((c) => html`<option value="${c}">${label1(c)}</option>`)}</select>
         <button class="btn" type="submit">Add</button></form>`;
+  }
+
+  /** What the game's scene files already use (kk-engine *.scene.json), and what they name
+   *  that the library doesn't have. */
+  private renderScenes(g: GameDetail): SafeHtml {
+    const s = g.scenes;
+    if (!s.scenes) return html``;
+    const missing = s.missing.length ? html`<details class="game-missing"><summary>${s.missing.length} name${s.missing.length === 1 ? "" : "s"} not in the library</summary>
+      <ul>${s.missing.map((m) => html`<li><code>${m.name}</code> <small class="muted">${m.kind} · ${m.scene.split("/").pop()}</small></li>`)}</ul></details>` : "";
+    return html`<div class="game-scenes" role="group" aria-label="Used in its scenes">
+      <p>Its ${s.scenes === 1 ? "scene uses" : `${s.scenes} scenes use`} <strong>${s.assets}</strong> asset${s.assets === 1 ? "" : "s"} from ${s.packs} pack${s.packs === 1 ? "" : "s"}.</p>
+      ${s.assets ? html`<button class="btn small" data-action="game-show-used">Show them in the library</button>` : ""}
+      ${missing}</div>`;
   }
 
   private renderNeed(n: Need, g: GameDetail): SafeHtml {

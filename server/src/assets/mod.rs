@@ -5,6 +5,7 @@
 pub mod ai;
 mod classify;
 mod games;
+mod scenes;
 mod preview;
 mod scan;
 mod zipindex;
@@ -84,6 +85,7 @@ pub fn spawn(state: AppState) {
                 if let Err(e) = scan::run(&state.db, &state.bus, &root).await {
                     tracing::error!(error = ?e, "asset scan");
                 }
+                used_in(&state).await;
                 preview::wake();
             } else {
                 tracing::warn!(path = %root.display(), "asset library not mounted");
@@ -91,6 +93,18 @@ pub fn spawn(state: AppState) {
             tokio::time::sleep(Duration::from_secs(3600)).await;
         }
     });
+}
+
+/// "Used in" from the game repos' scenes, after the library changed.
+async fn used_in(s: &AppState) {
+    match scenes::run(&s.db).await {
+        Ok((scenes, uses)) if scenes > 0 => {
+            tracing::info!(scenes, uses, "asset use from game scenes");
+            s.bus.send_all(crate::events::Event::Assets { scan: None, previews: None, ai: None, games: Some(json!({ "game": 0 })) });
+        }
+        Ok(_) => {}
+        Err(e) => tracing::warn!(error = ?e, "asset use from game scenes"),
+    }
 }
 
 async fn start_scan(State(s): State<AppState>, Extension(u): Extension<User>) -> ApiResult<StatusCode> {
@@ -108,6 +122,8 @@ async fn start_scan(State(s): State<AppState>, Extension(u): Extension<User>) ->
         if let Err(e) = scan::run(&s.db, &s.bus, &root).await {
             tracing::error!(error = ?e, "asset scan");
         }
+        let _ = games::discover(&s.db).await;
+        used_in(&s).await;
         preview::wake();
     });
     Ok(StatusCode::ACCEPTED)
@@ -175,6 +191,8 @@ pub struct Filter {
     /// Search `q` by meaning (vectors) instead of by words.
     #[serde(default)]
     meaning: bool,
+    /// Only assets this game's scenes use.
+    used_by: Option<i64>,
     offset: Option<i64>,
     limit: Option<i64>,
 }
@@ -247,6 +265,10 @@ fn where_clause(f: &Filter, skip: &str, near: Option<&str>) -> (String, Vec<Stri
         sql.push("a.id IN (SELECT x.asset_id FROM asset_tag x JOIN asset_tagname t ON t.id = x.tag_id WHERE t.kind = ? AND t.name = ?)".into());
         binds.push(kind.to_string());
         binds.push(name.to_string());
+    }
+    if let Some(g) = f.used_by {
+        sql.push("a.id IN (SELECT asset_id FROM asset_use WHERE game_id = ?)".into());
+        binds.push(g.to_string());
     }
     if let Some(n) = near {
         sql.push("instr(?, ',' || a.id || ',') > 0".into());
@@ -421,9 +443,11 @@ async fn detail(State(s): State<AppState>, Path(id): Path<i64>) -> ApiResult<Jso
             .fetch_all(&s.db)
             .await?;
     let licence = games::licence_of_pack(&s.db, pack_id).await?;
+    let used_in = scenes::used_in(&s.db, id).await?;
     let mut out = item_json(item);
     let extra = json!({
         "licence": licence,
+        "usedIn": used_in,
         "packKind": pack_kind, "mtime": mtime, "rule": rule, "missingSince": missing, "sampleRate": rate,
         "channels": channels, "hasAlpha": alpha, "previewState": state, "previewError": error,
         "aiState": ai_state, "aiError": ai_error, "aiCaption": caption, "aiSubject": subject, "transcript": transcript,

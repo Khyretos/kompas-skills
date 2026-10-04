@@ -75,7 +75,7 @@ pub fn repos() -> Vec<PathBuf> {
         .collect()
 }
 
-fn repo_name(repo: &FsPath) -> String {
+pub fn repo_name(repo: &FsPath) -> String {
     repo.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_else(|| "repo".into())
 }
 
@@ -109,6 +109,15 @@ pub fn find_games(repo: &FsPath) -> Vec<Found> {
             })
         })
         .collect();
+    // Scenes outside a game folder (kk-engine's scenes/) count as the repo's shared scenes.
+    if super::scenes::scene_files(repo).iter().any(|s| !s.starts_with("games/")) {
+        out.push(Found {
+            key: format!("{name}/scenes"),
+            name: format!("{name} scenes"),
+            path: "scenes".into(),
+            about: "Scenes outside a game folder.".into(),
+        });
+    }
     out.sort_by(|a, b| a.key.cmp(&b.key));
     out
 }
@@ -373,6 +382,8 @@ async fn list_games(State(s): State<AppState>) -> ApiResult<Json<Value>> {
     .fetch_all(&s.db)
     .await?;
     let counts: HashMap<i64, (i64, i64)> = counts.into_iter().map(|(g, n, c)| (g, (n, c))).collect();
+    let used: HashMap<i64, i64> =
+        sqlx::query_as::<_, (i64, i64)>("SELECT game_id, COUNT(DISTINCT asset_id) FROM asset_use GROUP BY game_id").fetch_all(&s.db).await?.into_iter().collect();
     Ok(Json(Value::from(
         games
             .iter()
@@ -381,6 +392,7 @@ async fn list_games(State(s): State<AppState>) -> ApiResult<Json<Value>> {
                 let mut v = game_json(g);
                 v["needs"] = needs.into();
                 v["candidates"] = kept.into();
+                v["used"] = used.get(&g.id).copied().unwrap_or_default().into();
                 v
             })
             .collect::<Vec<_>>(),
@@ -605,6 +617,7 @@ async fn game_detail(State(s): State<AppState>, Path(id): Path<i64>) -> ApiResul
     let mut out = game_json(&g);
     out["needs"] = Value::from(needs_json);
     out["styleWarning"] = style_warning(&s.db, id).await?.map(Value::from).unwrap_or(Value::Null);
+    out["scenes"] = super::scenes::summary(&s.db, id).await?;
     out["aiOn"] = (ai::mode(&s.db).await != ai::Mode::Off).into();
     Ok(Json(out))
 }
