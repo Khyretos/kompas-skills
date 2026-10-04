@@ -110,3 +110,7 @@ A batch job that calls a model on a machine people also use by day (kk-localize'
 ## 8. Language priority: English, Spanish, Dutch (2026-10-03, from Kees)
 
 Kees's languages, in order: English, Spanish, Dutch. Every other language is for reach. Every system he runs should offer at least English and Spanish. On the website, Spanish and Dutch are tier 1: always published, listed right after English, audited in full (natural, neutral Spanish; natural Dutch; the CV in the first person), and if they fail the automatic publish rule the last good version stays and the failure is fixed with pins.
+
+## 9. Long jobs run detached; whoever pauses a job un-pauses it (2026-10-04)
+
+A batch run started from an agent session dies when the session parks (a re-judge stopped after one language at 21:46 and nothing ran for two hours). Start long jobs fully detached, with their own log: `setsid -f script.sh … < /dev/null`, or `docker compose run -d`. Pausing a scheduled job (a `.paused` file) needs a reason, an owner and an expiry line (`expires: 2026-10-05 00:00`) so the job resumes by itself; the one who pauses removes the file as soon as the reason is gone. Don't `pkill -f` a pattern that is also in your own command line: it kills your shell.
