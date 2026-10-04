@@ -136,17 +136,18 @@ Source: kreative-kompas-vscode-theme `kate/` (themes, colour schemes, `install.s
 - Screenshot Qt apps in Xvfb (`QT_QPA_PLATFORM=xcb`, `xdotool key --window`, `import -window root`), not on the
   desktop: a Kate window opened and driven on Kees's screen got closed mid-test.
 
-## (2026-10-04) OVMS is shared: one bad request takes every model down
+## (2026-10-04) OVMS is shared: when the A770 runs out of VRAM, every model goes down
 
-The GPU OVMS on kireserver (Coder, Autocomplete, Whisper) segfaulted during a Kompanion voice test:
-a transcription request with `language=en` and a fresh 16 kHz WAV. Docker restarted it, but every
-model was gone for the reload, for every user and thread. The same request, `language` included,
-works on a separate CPU OVMS, and the GPU OVMS segfaulted again at 17:44 UTC with no voice request
-(same faulting address), so the trigger is an OVMS 2026.4 GPU bug not yet found. Until it is:
-- Never send `language` to the GPU Whisper (`/v3/audio/transcriptions`); it detects the language.
-- Build the WAV yourself (44-byte PCM header with real sizes). ffmpeg writing WAV to a pipe leaves
-  0xFFFFFFFF sizes and a LIST chunk, and Whisper answers 400.
-- Check what you forward (length cap, minimum, whole samples) and allow one request in flight per user.
-- Try risky requests on a throwaway OVMS first: same image, the model folder mounted read-only,
+The GPU OVMS on kireserver (Coder, Autocomplete, Whisper) segfaulted twice. The cause was VRAM, not a
+request: the kernel logged `xe ... VM worker error: -12` one second before each segfault, because
+Coder's dynamic KV cache with 8 parallel sequences outgrew the 16 GB card. Coder now runs with
+max_num_seqs 2 (parallel calls queue). Lessons:
+- When OVMS dies, look in the kernel log for xe/i915 memory errors before blaming the last request.
+- VRAM planning must count KV-cache growth per parallel sequence, not only the weights.
+- Try unknown requests on a throwaway OVMS first: same image, the model folder mounted read-only,
   `graph.pbtxt` overlaid with `target_device: "CPU"`, its own name on the network. Remove it after.
+  (Whisper's `language` field was tested that way and is fine: "en", "es"; "<|es|>" is refused.)
+- Build WAVs for Whisper yourself (44-byte PCM header with real sizes). ffmpeg writing WAV to a pipe
+  leaves 0xFFFFFFFF sizes and a LIST chunk, and Whisper answers 400.
+- Check what you forward (length cap, minimum, whole samples), one request in flight per user.
 - CPU Whisper large-v3 int8 needs about 11 s for a 3 s clip (4 cores): too slow for chat voice.

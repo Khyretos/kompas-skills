@@ -132,13 +132,14 @@ pub async fn transcribe(State(s): State<AppState>, axum::Extension(u): axum::Ext
         tracing::info!(error = %e, "voice: recording refused");
         ApiError::BadRequest("That recording could not be used (empty, under 0.2 s or not audio). Try again.".into())
     })?;
-    let form = reqwest::multipart::Form::new()
+    let mut form = reqwest::multipart::Form::new()
         .text("model", env("VOICE_STT_MODEL", "Whisper"))
         .part("file", reqwest::multipart::Part::bytes(wav).file_name("speech.wav").mime_str("audio/wav").map_err(|e| ApiError::Internal(e.into()))?);
-    // Never send Whisper's "language" field: OVMS 2026.4 segfaulted on a request with
-    // language=en (2026-10-04), taking every GPU model down with it. Whisper detects the
-    // language by itself; `lang` only decides whether replies are read aloud (web side).
-    let _ = q.lang;
+    // A language hint: without it Whisper heard short Spanish as Portuguese. (Checked on a
+    // separate OVMS first; the 2026-10-04 crashes were the A770 running out of VRAM.)
+    if let Some(lang) = q.lang.filter(|l| ["en", "es", "nl"].contains(&l.as_str())) {
+        form = form.text("language", lang);
+    }
     let url = format!("{}/audio/transcriptions", env("VOICE_STT_URL", "http://ovms:8000/v3"));
     let r = authed(s.http.post(url)).multipart(form).timeout(Duration::from_secs(60)).send().await.map_err(|e| ApiError::Internal(e.into()))?;
     if !r.status().is_success() {

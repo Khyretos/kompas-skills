@@ -103,7 +103,10 @@ pub async fn run(db: &SqlitePool, path: &str, user: Option<&str>) -> Result<()> 
                 bail!("task {}: unknown state {}", t.id, t.state);
             }
             sqlx::query(
-                "INSERT INTO tasks (id, project_id, title, description, state, source, updated_at, user_id, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                // New tasks go after the project's existing ones, in the order of the file;
+                // a task imported again keeps its place.
+                "INSERT INTO tasks (id, project_id, title, description, state, source, updated_at, user_id, position)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, (SELECT COALESCE(MAX(position), -1) + 1 FROM tasks WHERE project_id = ?))
                  ON CONFLICT(id) DO UPDATE SET project_id = excluded.project_id, title = excluded.title,
                  description = CASE WHEN excluded.description = '' THEN tasks.description ELSE excluded.description END,
                  state = excluded.state, source = excluded.source, updated_at = excluded.updated_at
@@ -117,7 +120,7 @@ pub async fn run(db: &SqlitePool, path: &str, user: Option<&str>) -> Result<()> 
             .bind(&t.source)
             .bind(util::now())
             .bind(&owner)
-            .bind(nt as f64) // keeps the order of the file
+            .bind(&p.id)
             .execute(&mut *tx)
             .await?;
             nt += 1;
