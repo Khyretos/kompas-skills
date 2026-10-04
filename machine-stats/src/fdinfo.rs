@@ -123,7 +123,9 @@ impl EngineReader {
             let Ok(fds) = fs::read_dir(pid.path().join("fdinfo")) else { continue };
             for fd in fds.flatten() {
                 let link = pid.path().join("fd").join(fd.file_name());
-                if !fs::read_link(&link).is_ok_and(|t| t.starts_with("/dev/dri")) {
+                // Only DRM device files carry drm-* stats; a readlink is much cheaper than reading every fdinfo.
+                // Inside a sandbox with a private /dev the link reads "/dri/renderD128", so match on "/dri/".
+                if !fs::read_link(&link).is_ok_and(|t| t.to_string_lossy().contains("/dri/")) {
                     continue;
                 }
                 let Ok(text) = fs::read_to_string(fd.path()) else { continue };
@@ -247,6 +249,20 @@ mod tests {
         let mut r = EngineReader::default();
         r.read(&root);
         assert!(!r.read(&root).contains_key("0000:03:00.0"));
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn counts_dri_links_seen_from_a_private_dev() {
+        let root = tree("dri");
+        // Simulate a sandbox where the link is "/dri/renderD128" instead of "/dev/dri/..."
+        fs::write(root.join("1234/fdinfo/8"), AMD).unwrap();
+        std::os::unix::fs::symlink("/dri/renderD128", root.join("1234/fd/8")).unwrap();
+        let mut r = EngineReader::default();
+        r.read(&root);
+        let second = r.read(&root);
+        assert!(second.contains_key("0000:03:00.0"));
+        assert_eq!(second["0000:03:00.0"].vram_used_bytes, Some(1 << 30));
         let _ = fs::remove_dir_all(&root);
     }
 }

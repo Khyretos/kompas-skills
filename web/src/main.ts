@@ -1,6 +1,6 @@
 import { showSignIn } from "./views/signin";
 import { HttpApi } from "./api/http";
-import { $, html, mount, onAction, restoreBusy } from "./core/html";
+import { $, html, html as h, mount, onAction, restoreBusy, busyWhile } from "./core/html";
 import { initResize } from "./core/resize";
 import { modal, type Modal } from "./core/modal";
 import { MockApi } from "./api/mock";
@@ -30,7 +30,6 @@ function markGrant(machineId: string, target: string, pending: "add" | "revoke",
 }
 
 let savePrefs: ReturnType<typeof setTimeout> | undefined;
-import { html as h } from "./core/html";
 import { renderSettings } from "./views/settings";
 
 
@@ -434,11 +433,11 @@ function wire(shell: HTMLElement): void {
     if (pairForm) {
       ev.preventDefault();
       const name = String(new FormData(pairForm).get("name") ?? "").trim();
-      api.pairMachine(name).then(async (pairing) => store.set({ pairing, machines: await api.listMachines() }), showError);
+      void busyWhile(pairForm, api.pairMachine(name).then(async (pairing) => store.set({ pairing, machines: await api.listMachines() }), showError));
       return;
     }
     const taskForm = (ev.target as HTMLElement).closest("#task-editor") as HTMLFormElement | null;
-    if (taskForm) { ev.preventDefault(); submitTask(taskForm); return; }
+    if (taskForm) { ev.preventDefault(); void busyWhile(taskForm, submitTask(taskForm)); return; }
     const nf = (ev.target as HTMLElement).closest("#notify-form") as HTMLFormElement | null;
     if (nf) {
       ev.preventDefault();
@@ -446,12 +445,12 @@ function wire(shell: HTMLElement): void {
       const p = { email: String(f.get("email") ?? "").trim(), onNeedsInput: f.has("onNeedsInput"), onFailed: f.has("onFailed"),
         onDone: f.has("onDone"), dailySummary: f.has("dailySummary") };
       const msg = nf.querySelector("#notify-msg");
-      api.setNotifications(p).then(() => { if (msg) msg.textContent = "Saved."; },
-        (e) => { if (msg) msg.textContent = e instanceof Error ? e.message : String(e); });
+      void busyWhile(nf, api.setNotifications(p).then(() => { if (msg) msg.textContent = "Saved."; },
+        (e) => { if (msg) msg.textContent = e instanceof Error ? e.message : String(e); }));
       return;
     }
     const admin = (ev.target as HTMLElement).closest("#admin-form") as HTMLFormElement | null;
-    if (admin) { ev.preventDefault(); saveAdmin(admin); return; }
+    if (admin) { ev.preventDefault(); void busyWhile(admin, saveAdmin(admin)); return; }
     const form = (ev.target as HTMLElement).closest("form.rename") as HTMLFormElement | null;
     if (form) { ev.preventDefault(); saveRename(form); }
   });
@@ -579,10 +578,15 @@ async function saveAdmin(form: HTMLFormElement): Promise<void> {
 }
 
 async function saveTask(id: string, change: { title?: string; description?: string; state?: TaskState }): Promise<void> {
+  const before = store.get().tasks;
+  store.set({ tasks: before.map((x) => (x.id === id ? { ...x, ...change } : x)), editingTaskId: undefined, openTaskId: id });
   try {
     const t = await api.updateTask(id, change);
-    store.set({ tasks: store.get().tasks.map((x) => (x.id === id ? { ...x, ...t } : x)), editingTaskId: undefined, openTaskId: id });
-  } catch (e) { showError(e); }
+    store.set({ tasks: store.get().tasks.map((x) => (x.id === id ? { ...x, ...t } : x)) });
+  } catch (e) {
+    store.set({ tasks: before });
+    showError(e);
+  }
 }
 
 async function submitTask(form: HTMLFormElement): Promise<void> {
@@ -613,11 +617,15 @@ async function moveTask(id: string, dir: number): Promise<void> {
   const i = ids.indexOf(id), j = i + dir;
   if (i < 0 || j < 0 || j >= ids.length) return;
   [ids[i], ids[j]] = [ids[j], ids[i]];
+  const before = s.tasks;
+  const pos = new Map(ids.map((x, k) => [x, k]));
+  store.set({ tasks: before.map((x) => (pos.has(x.id) ? { ...x, position: pos.get(x.id) } : x)) });
   try {
     await api.reorderTasks(t.projectId, ids);
-    const pos = new Map(ids.map((x, k) => [x, k]));
-    store.set({ tasks: store.get().tasks.map((x) => (pos.has(x.id) ? { ...x, position: pos.get(x.id) } : x)) });
-  } catch (e) { showError(e); }
+  } catch (e) {
+    store.set({ tasks: before });
+    showError(e);
+  }
 }
 
 /** Grants per paired machine and the access history. */

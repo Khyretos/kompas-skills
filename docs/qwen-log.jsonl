@@ -85,3 +85,6 @@
 {"name": "G5 hoststats fixes", "out": "server/src/hoststats.rs", "mode": "patch", "gpu_seconds": 4.8, "tokens": 185, "lines": 2, "attempts": 1, "model": "qwen3.5:9b-q8_0", "at": "2026-10-04T02:16:05"}
 {"name": "G6 types stale", "out": "web/src/api/types.ts", "mode": "patch", "gpu_seconds": 3.7, "tokens": 118, "lines": 1, "attempts": 1, "model": "qwen3.5:9b-q8_0", "at": "2026-10-04T02:18:11"}
 {"name": "G6 machines stale dim", "out": "web/src/views/machines.ts", "mode": "patch", "gpu_seconds": 12.0, "tokens": 200, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-04T02:18:19"}
+{"name": "F2 main.ts busy forms and instant tasks", "out": "web/src/main.ts", "mode": "patch", "gpu_seconds": 84.8, "tokens": 2110, "lines": 5, "attempts": 1, "model": "Coder", "at": "2026-10-04T02:27:38"}
+{"name": "H1 fdinfo dri link under PrivateDevices", "out": "machine-stats/src/fdinfo.rs", "mode": "patch", "gpu_seconds": 14.1, "tokens": 732, "lines": 2, "attempts": 1, "model": "qwen3.5:9b-q8_0", "at": "2026-10-04T02:28:49"}
+{"name": "H1 install.sh wait and check", "out": "gpu-helper/install.sh", "gpu_seconds": 34.1, "tokens": 720, "lines": 72, "review": "skipped", "model": "Coder", "at": "2026-10-04T02:29:09"}

@@ -41,6 +41,14 @@ As translation judge (kk-localize, 2026-10-03):
   Fast (84 tok/s on the RX 9070 XT) and good at vision and tool calls; don't use it for Dutch without a judge.
 
 - (2026-10-03) Long bash/ImageMagick scripts: wordy comments eat the 2000-token budget and the script gets cut off midway; ask for "script only, no comments" or raise `max_tokens`. Details: ~/Docker/docs/ai-capability/peertube-images-2026-10.md.
+- (2026-10-04, docs-mcp) It cannot write its own chat-template tokens: asked to copy a file containing
+  `<|im_start|>` (the Reranker prompt), generation stopped right there (542 tokens, file cut off). Keep such
+  strings out of what it must output; say "leave RR_PREFIX as a placeholder" and paste them in yourself.
+- (2026-10-04, docs-mcp) A 300-line ingest script in one prompt came back unfinished: half the file was
+  "I will assume..." comments and `pass`. Ask for 2-4 small functions with exact signatures and write the glue.
+- (2026-10-04, docs-mcp) Repeated the same bugs after a review listing them: a `while` loop with `break` that
+  drops text, code-block lines thrown away instead of kept, `Connection.fetchall()` (psycopg 3 needs
+  `c.execute(...).fetchall()`), and SQL built with f-strings around a filter. Check those four by hand.
 - About 30 tok/s generation for one request; a running job slows Open WebUI chat from about 1.7 s to 3.2 s per answer, so batch work runs at night with concurrency 1.
 - Turn thinking off with `chat_template_kwargs: { enable_thinking: false }`.
 - Good at polishing LibreTranslate drafts in nl, de, es, fr, pt (grammar, idiom, punctuation such as Japanese 。).

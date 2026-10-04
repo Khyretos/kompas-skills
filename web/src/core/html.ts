@@ -102,3 +102,21 @@ export function restoreBusy(root: HTMLElement): void {
   if (busy.size === 0) return;
   for (const el of root.querySelectorAll<HTMLElement>("[data-action]")) if (busy.has(busyKey(el))) markBusy(el, true);
 }
+
+/** While `work` runs, the form's buttons are disabled and its submit button shows
+ *  the busy spinner (worker/web lesson 11). Returns `work`. */
+export function busyWhile<T>(form: HTMLFormElement, work: Promise<T>): Promise<T> {
+  const buttons = [...form.querySelectorAll<HTMLButtonElement>("button")];
+  for (const b of buttons) {
+    b.disabled = true;
+    if (b.type === "submit") b.setAttribute("aria-busy", "true");
+  }
+  const done = () => {
+    for (const b of buttons) {
+      b.disabled = false;
+      b.removeAttribute("aria-busy");
+    }
+  };
+  work.then(done, done);
+  return work;
+}
