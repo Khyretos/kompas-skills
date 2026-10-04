@@ -174,7 +174,7 @@ function render(s: AppState, prev: AppState): void {
   if (firstRender || s.pcActions !== prev.pcActions || pcKey !== lastPcKey) {
     const box = $("#messages");
     const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
-    mount($("#pc-actions"), renderPcActions(s.pcActions, Object.fromEntries(s.machines.map((m) => [m.id, m.name]))));
+    mount($("#pc-actions"), renderPcActions(s.pcActions.filter((a) => a.state === "pending"), Object.fromEntries(s.machines.map((m) => [m.id, m.name]))));
     if (atBottom) box.scrollTop = box.scrollHeight;
   }
   lastPcKey = pcKey;
@@ -199,7 +199,7 @@ function render(s: AppState, prev: AppState): void {
     }
   }
 
-  if (changed(s, prev, ["messages", "activeChatId", "activeProjectId", "projects", "tasks"])) {
+  if (changed(s, prev, ["messages", "activeChatId", "activeProjectId", "projects", "tasks", "pcActions"])) {
     const box = $("#messages");
     const nearBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
     if (s.activeChatId !== prev.activeChatId) messageList?.clear();

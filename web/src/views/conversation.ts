@@ -1,11 +1,45 @@
+web/src/views/conversation.ts
 // Middle pane: the conversation with the project's orchestrator.
 import { html, type SafeHtml } from "../core/html";
 import { renderMarkdown } from "../core/markdown";
 import { clock } from "../core/time";
 import { activeChat, activeProject, type AppState } from "../state";
-import type { Message, Task } from "../api/types";
+import type { Message, Task, PcAction } from "../api/types";
 import { icon } from "./icons";
 import { stateLabel } from "./tasks";
+import { fromTool, renderOutput } from "../core/output";
+
+const STEP_LABEL: Record<string, string> = {
+  approved: "starting…",
+  always: "starting…",
+  granting: "waiting for the computer…",
+  running: "running…",
+  denied: "declined",
+  done: "done",
+  failed: "failed",
+  refused: "not allowed",
+};
+
+function renderStep(a: PcAction, machines: Record<string, string>): SafeHtml {
+  const busy = ["approved", "always", "granting", "running"].includes(a.state);
+  return html`
+    <details class="step ${a.state}" ${busy ? "open" : ""}>
+      <summary>
+        ${icon(busy ? "spark" : a.state === "done" ? "terminal" : "close")}
+        <span class="step-summary">${a.summary}</span>
+        <span class="chip ${a.state}">${STEP_LABEL[a.state] ?? a.state}</span>
+      </summary>
+      ${a.result ? renderOutput(fromTool(a.tool, a.result, machines[a.machineId])) : ""}
+    </details>`;
+}
+
+function renderSteps(steps: PcAction[], machines: Record<string, string>): SafeHtml {
+  if (steps.length === 0) return html``;
+  const list = html`${steps.map((a) => renderStep(a, machines))}`;
+  if (steps.length < 3) return html`<div class="steps">${list}</div>`;
+  const where = machines[steps[0].machineId] ?? "a computer";
+  return html`<details class="steps group"><summary>${steps.length} steps on ${where}</summary>${list}</details>`;
+}
 
 export function renderHeader(s: AppState): SafeHtml {
   const chat = activeChat(s);
@@ -29,22 +63,51 @@ export interface MessageView {
   id: string;
   m: Message;
   tasks: Task[];
+  steps: PcAction[];
+  machines: Record<string, string>;
 }
 
 const cache = new Map<string, MessageView>();
 
 export function messageViews(s: AppState): MessageView[] {
+  const machines = Object.fromEntries(s.machines.map((m) => [m.id, m.name]));
+  const byMsg = new Map<string, PcAction[]>();
+
+  for (const action of s.pcActions) {
+    if (action.state === "pending") continue;
+    const msg = s.messages.find((m) => m.at <= action.createdAt && (!byMsg.get(m.id) || byMsg.get(m.id)!.every((a) => a.createdAt !== action.createdAt)));
+    // Find the last message with at <= action.createdAt
+    let bestMsg: Message | undefined = undefined;
+    for (const m of s.messages) {
+      if (m.at <= action.createdAt) {
+        bestMsg = m;
+      }
+    }
+    if (bestMsg) {
+      const existing = byMsg.get(bestMsg.id);
+      if (!existing) {
+        byMsg.set(bestMsg.id, []);
+      }
+      const current = byMsg.get(bestMsg.id)!;
+      // Check if already present to avoid duplicates
+      if (!current.some((a) => a.id === action.id)) {
+        current.push(action);
+      }
+    }
+  }
+
   return s.messages.map((m) => {
     const tasks = (m.taskIds ?? []).map((id) => s.tasks.find((t) => t.id === id)).filter((t): t is Task => !!t);
+    const steps = byMsg.get(m.id) ?? [];
     const old = cache.get(m.id);
-    if (old && old.m === m && old.tasks.length === tasks.length && old.tasks.every((t, i) => t === tasks[i])) return old;
-    const view = { id: m.id, m, tasks };
+    if (old && old.m === m && old.tasks.length === tasks.length && old.tasks.every((t, i) => t === tasks[i]) && old.steps.length === steps.length && old.steps.every((s, i) => s === steps[i])) return old;
+    const view = { id: m.id, m, tasks, steps, machines };
     cache.set(m.id, view);
     return view;
   });
 }
 
-export function renderMessage({ m, tasks }: MessageView): SafeHtml {
+export function renderMessage({ m, tasks, steps, machines }: MessageView): SafeHtml {
   return html`
     <article class="msg ${m.author}">
       <header>
@@ -52,12 +115,13 @@ export function renderMessage({ m, tasks }: MessageView): SafeHtml {
         <time datetime="${m.at}">${clock(m.at)}</time>
       </header>
       <div class="body"></div>
+      ${renderSteps(steps, machines)}
       ${tasks.length ? html`
         <ul class="msg-tasks">${tasks.map((t) => html`
           <li><button class="task-ref" data-action="open-task" data-id="${t.id}">
             <span class="state-dot s-${t.state}" aria-hidden="true"></span>${t.title}
             <span class="muted">${stateLabel(t.state)}</span>
-          </button></li>`)}</ul>` : ""}
+          </button></li>`).join("")}</ul>` : ""}
     </article>`;
 }
 

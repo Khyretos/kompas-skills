@@ -163,7 +163,6 @@ export function renderOutput(o: Output): SafeHtml {
   const hasTitle = !!o.title;
   const hasMachine = !!o.machine;
 
-  const headerParts: Array<SafeHtml> = [];
 
   // Icon
   let iconHtml: SafeHtml;
@@ -234,8 +233,8 @@ export function renderOutput(o: Output): SafeHtml {
   const copyBtn = html`<button class="icon-btn output-copy" data-action="copy-text" data-text="${body}" aria-label="Copy">${icon("copy")}</button>`;
 
   const headParts = [iconHtml, labelHtml];
-  if (hasTitle) headParts.push(titleHtml);
-  if (hasMachine) headParts.push(machineHtml);
+  if (hasTitle && titleHtml) headParts.push(titleHtml);
+  if (hasMachine && machineHtml) headParts.push(machineHtml);
   if (exitHtml) headParts.push(exitHtml);
   headParts.push(copyBtn);
 

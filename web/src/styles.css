@@ -652,3 +652,18 @@ button[aria-busy="true"]::after {
 .lightbox { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: var(--scrim); padding: 1rem; }
 .lightbox img { max-width: 92vw; max-height: 88vh; border-radius: 8px; }
 .lightbox .icon-btn { position: absolute; top: 1rem; right: 1rem; }
+
+/* PC steps inline in the chat (like tool calls): one compact line each, expand for the output. */
+.steps { display: grid; gap: 0.3rem; margin-top: 0.5rem; }
+.steps.group > summary { cursor: pointer; font-size: 0.85rem; color: var(--muted); }
+.steps.group[open] > summary { margin-bottom: 0.3rem; }
+.step { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.step > summary {
+  display: flex; align-items: center; gap: 0.45rem; padding: 0.3rem 0.6rem; cursor: pointer;
+  font-size: 0.85rem; list-style: none;
+}
+.step > summary::-webkit-details-marker { display: none; }
+.step-summary { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.step > .output { margin: 0 0.5rem 0.5rem; }
+.step.failed, .step.refused, .step.denied { border-color: var(--danger, #c0392b); }
+@media (prefers-reduced-motion: no-preference) { .step { transition: border-color 0.2s; } }

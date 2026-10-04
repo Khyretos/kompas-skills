@@ -32,8 +32,8 @@ test.describe("PC Agent approval cards", () => {
     
     const card = page.locator(".pc-action").last();
     await card.locator('[data-decision="approve"]').click();
-    
-    await expect(card.locator(".chip")).toContainText("done");
+    // Finished steps leave the pinned area and show inline in the chat.
+    await expect(page.locator("#messages details.step").last().locator(".chip")).toContainText("done");
     
     await page.click('[data-action="tab"][data-tab="access"]');
     const section = page.locator("section.group", { hasText: "soucouyant" });
@@ -47,7 +47,7 @@ test.describe("PC Agent approval cards", () => {
     const card = page.locator(".pc-action").last();
     await card.locator('[data-decision="always"]').click();
     
-    await expect(card.locator(".chip")).toContainText("done");
+    await expect(page.locator("#messages details.step").last().locator(".chip")).toContainText("done");
     
     await page.click('[data-action="tab"][data-tab="access"]');
     const section = page.locator("section.group", { hasText: "soucouyant" });
@@ -61,7 +61,7 @@ test.describe("PC Agent approval cards", () => {
     const card = page.locator(".pc-action").last();
     await card.locator('[data-decision="deny"]').click();
     
-    await expect(card.locator(".chip")).toContainText("declined");
+    await expect(page.locator("#messages details.step").last().locator(".chip")).toContainText("declined");
   });
 
   test("a finished step shows its output as a terminal block with the exit code", async ({ page }) => {
@@ -69,7 +69,10 @@ test.describe("PC Agent approval cards", () => {
     await ask(page);
     const card = page.locator(".pc-action").last();
     await card.locator('[data-decision="approve"]').click();
-    const out = card.locator("figure.output.terminal");
+    const step = page.locator("#messages details.step").last();
+    await expect(step.locator(".chip")).toContainText("done");
+    await step.locator("summary").click();
+    const out = step.locator("figure.output.terminal");
     await expect(out).toBeVisible();
     await expect(out.locator(".output-title")).toContainText("paru install htop");
     await expect(out.locator(".chip.exit.ok")).toContainText("exit 0");
