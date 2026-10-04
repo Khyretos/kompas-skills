@@ -31,13 +31,10 @@ struct AccessLogRow {
     machine_name: Option<String>,
 }
 
-pub async fn list(
-    State(s): State<AppState>,
-    Extension(u): Extension<User>,
-) -> ApiResult<Json<Vec<Value>>> {
+async fn rows(db: &SqlitePool, user_id: &str) -> sqlx::Result<(Vec<StepRow>, Vec<AccessLogRow>)> {
     let pc_actions = sqlx::query_as::<_, StepRow>(
         r#"
-        SELECT a.id, a.created_at, a.decided_at, a.state, a.summary, a.machine_id, COALESCE(m.name, ''), a.chat_id, COALESCE(c.title, ''), a.tool, a.result, a.grant_note 
+        SELECT a.id, a.created_at, a.decided_at, a.state, a.summary, a.machine_id, COALESCE(m.name, '') AS machine_name, a.chat_id, COALESCE(c.title, '') AS chat_title, a.tool, a.result, a.grant_note 
         FROM pc_actions a 
         LEFT JOIN machines m ON m.id = a.machine_id 
         LEFT JOIN chats c ON c.id = a.chat_id 
@@ -46,13 +43,13 @@ pub async fn list(
         LIMIT 200
         "#,
     )
-    .bind(&u.id)
-    .fetch_all(&s.db)
+    .bind(user_id)
+    .fetch_all(db)
     .await?;
 
     let access_log = sqlx::query_as::<_, AccessLogRow>(
         r#"
-        SELECT l.at, l.kind, l.target, l.detail, l.machine_id, COALESCE(m.name, '') 
+        SELECT l.at, l.kind, l.target, l.detail, l.machine_id, COALESCE(m.name, '') AS machine_name
         FROM access_log l 
         LEFT JOIN machines m ON m.id = l.machine_id 
         WHERE l.user_id = ? 
@@ -62,9 +59,17 @@ pub async fn list(
         LIMIT 200
         "#,
     )
-    .bind(&u.id)
-    .fetch_all(&s.db)
+    .bind(user_id)
+    .fetch_all(db)
     .await?;
+    Ok((pc_actions, access_log))
+}
+
+pub async fn list(
+    State(s): State<AppState>,
+    Extension(u): Extension<User>,
+) -> ApiResult<Json<Vec<Value>>> {
+    let (pc_actions, access_log) = rows(&s.db, &u.id).await?;
 
     let mut combined: Vec<(String, Value)> = Vec::with_capacity(pc_actions.len() + access_log.len());
 
@@ -132,4 +137,28 @@ pub async fn list(
     let result: Vec<Value> = combined.into_iter().take(200).map(|(_, v)| v).collect();
 
     Ok(Json(result))
+}
+
+#[cfg(test)]
+mod tests {
+    /// The queries match their row types (an unnamed column once made every Activity load fail).
+    #[tokio::test]
+    async fn queries_fit_their_rows() {
+        let db = sqlx::sqlite::SqlitePoolOptions::new().max_connections(1).connect("sqlite::memory:").await.unwrap();
+        sqlx::migrate!().run(&db).await.unwrap();
+        for q in [
+            "INSERT INTO users (id, name, password_hash, created_at) VALUES ('u', 'kees', '-', '2026-10-04')",
+            "INSERT INTO machines (id, user_id, name, token_hash, created_at) VALUES ('m', 'u', 'soucouyant', 'h', '2026-10-04')",
+            "INSERT INTO chats (id, title, updated_at) VALUES ('c', 'Build', '2026-10-04')",
+            "INSERT INTO pc_actions (id, chat_id, user_id, machine_id, tool, summary, state, created_at)
+             VALUES ('a', 'c', 'u', 'm', '{}', 'run tests', 'done', '2026-10-04T10:00:00Z')",
+            "INSERT INTO access_log (machine_id, user_id, at, kind, detail) VALUES ('m', 'u', '2026-10-04T09:00:00Z', 'granted', 'all day')",
+        ] {
+            sqlx::query(q).execute(&db).await.unwrap();
+        }
+        let (steps, log) = super::rows(&db, "u").await.unwrap();
+        assert_eq!(steps[0].machine_name.as_deref(), Some("soucouyant"));
+        assert_eq!(steps[0].chat_title.as_deref(), Some("Build"));
+        assert_eq!(log[0].machine_name.as_deref(), Some("soucouyant"));
+    }
 }

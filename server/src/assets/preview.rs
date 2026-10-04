@@ -117,6 +117,18 @@ pub fn spawn(db: SqlitePool, bus: Bus, root: PathBuf, dir: PathBuf) {
             tracing::error!(error = %e, path = %tmp.display(), "asset previews: no folder");
             return;
         }
+        // Previews that failed only because the library mount was gone get another go.
+        match sqlx::query(
+            "UPDATE asset SET preview_state = NULL, preview_error = NULL
+             WHERE preview_state = 'error' AND (preview_error LIKE '%(os error 107)%' OR preview_error LIKE '%not connected%')",
+        )
+        .execute(&db)
+        .await
+        {
+            Ok(r) if r.rows_affected() > 0 => tracing::info!(n = r.rows_affected(), "asset previews: retrying those the offline library broke"),
+            Ok(_) => {}
+            Err(e) => tracing::warn!(error = %e, "asset previews: retry reset"),
+        }
         loop {
             if scan::PROGRESS.lock().unwrap().running {
                 tokio::time::sleep(Duration::from_secs(5)).await;
@@ -174,6 +186,7 @@ async fn batch(db: &SqlitePool, bus: &Bus, root: &Path, dir: &Path, ionice: bool
     if rows.is_empty() {
         return Ok(0);
     }
+    anyhow::ensure!(super::library_online(root), "asset library offline: {}", root.display());
     // One directory read per pack file in the batch.
     let mut entries: HashMap<String, Result<HashMap<String, zipindex::Entry>, String>> = HashMap::new();
     for c in rows.iter().map(|r| r.container.clone()).filter(|c| !c.is_empty()).collect::<HashSet<_>>() {
@@ -187,6 +200,10 @@ async fn batch(db: &SqlitePool, bus: &Bus, root: &Path, dir: &Path, ionice: bool
     for r in rows {
         let result = make(&r, root, dir, &entries, ionice).await;
         let ok = result.is_ok();
+        if !ok && !super::library_online(root) {
+            publish(bus, done);
+            bail!("asset library went offline");
+        }
         save(db, r.id, result).await?;
         {
             let mut p = PROGRESS.lock().unwrap();
