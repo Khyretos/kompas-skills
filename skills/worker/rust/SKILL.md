@@ -64,3 +64,4 @@
 29. Know the data shape before reading it. A runner job is flat: `{"tool": "edit_file", "path": ..,
     "old": .., "new": ..}`, with no nested `args`. Read `job["path"]`, never `job["args"]["path"]`,
     and write the tests with the same flat shape.
+30. The server's database pool is `s.db` (AppState has no `pool` field).

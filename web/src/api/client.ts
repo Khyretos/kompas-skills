@@ -69,6 +69,7 @@ export interface KompanionApi {
   /** With `machineId`, the answer may use that computer's tools (each step needs approval). */
   send(chatId: string, text: string, machineId?: string): Promise<void>;
   listActions(chatId: string): Promise<PcAction[]>;
+  listActivity(): Promise<import("../views/activity").ActivityItem[]>;
   decideAction(id: string, decision: "approve" | "always" | "deny"): Promise<void>;
   answer(taskId: string, optionId: string): Promise<void>;
 

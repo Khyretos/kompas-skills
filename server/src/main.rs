@@ -11,6 +11,7 @@ mod live;
 mod pairing;
 mod pcagent;
 mod cli;
+mod activity;
 mod hoststats;
 mod import;
 mod llm;
@@ -173,6 +174,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/machines/{id}/grants", get(access::list_grants).post(access::add_grant))
         .route("/machines/{id}/grants/revoke", post(access::revoke_grant))
         .route("/access", get(access::history))
+        .route("/activity", get(activity::list))
         .route("/machines/{id}/jobs", post(access::create_job).layer(axum::extract::DefaultBodyLimit::max(1200 * 1024)))
         .route("/machines/{id}/jobs/{job}", get(access::get_job))
         .route(

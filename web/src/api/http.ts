@@ -110,6 +110,7 @@ export class HttpApi implements KompanionApi {
     return this.request<void>("POST", `/chats/${encodeURIComponent(chatId)}/messages`, { text, machine_id: machineId ?? null });
   }
   listActions(chatId: string) { return this.request<import("./client").PcAction[]>("GET", `/chats/${encodeURIComponent(chatId)}/actions`); }
+  listActivity() { return this.request<import("../views/activity").ActivityItem[]>("GET", "/activity"); }
   decideAction(id: string, decision: "approve" | "always" | "deny") {
     return this.request<void>("POST", `/actions/${encodeURIComponent(id)}/decide`, { decision });
   }

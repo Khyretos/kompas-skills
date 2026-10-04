@@ -19,6 +19,7 @@ import { grantFromForm, renderAccess, type GrantView } from "./views/access";
 import { renderPcActions, renderPcPicker } from "./views/pcactions";
 import { AssetsView } from "./views/assets";
 import { HttpAssets, MockAssets } from "./api/assets";
+import { renderActivity } from "./views/activity";
 
 let settingsModal: Modal | undefined;
 let assetsView: AssetsView | undefined;
@@ -187,11 +188,15 @@ function render(s: AppState, prev: AppState): void {
   const rightKeys: (keyof AppState)[] = s.rightTab === "tasks"
     ? ["rightTab", "tasks", "projects", "openTaskId", "editingTaskId", "taskScope", "activeProjectId", "activeChatId", "chats"]
     : s.rightTab === "access" ? ["rightTab", "grants", "accessHistory", "machines"]
+    : s.rightTab === "activity" ? ["rightTab", "activity", "activityFilter"]
     : ["rightTab", "machines", "today", "machinesRefresh", "tasks", "pairing", "gpuOpen", "gpuPins"];
   // Never rebuild the task editor under the user's hands; only when it opens or closes.
   const editing = s.rightTab === "tasks" && s.editingTaskId && s.editingTaskId === prev.editingTaskId && !firstRender;
   if (!editing && changed(s, prev, rightKeys)) {
-    remount($("#right"), s.rightTab === "tasks" ? renderTasks(s) : s.rightTab === "access" ? h`
+    remount($("#right"), s.rightTab === "tasks" ? renderTasks(s) : s.rightTab === "activity" ? h`
+      <div class="pane-head">${paneTabs(s)}
+        <button class="icon-btn only-narrow" data-action="pane" data-pane="main" aria-label="Close">✕</button></div>
+      ${renderActivity(s.activity, s.activityFilter)}` : s.rightTab === "access" ? h`
       <div class="pane-head">${paneTabs(s)}
         <button class="icon-btn only-narrow" data-action="pane" data-pane="main" aria-label="Close">✕</button></div>
       ${renderAccess(s.machines.filter((m) => m.id !== "server").map((m) => ({ id: m.id, name: m.name })), s.grants, s.accessHistory)}` : h`
@@ -264,6 +269,7 @@ function refetch(what: string): void {
       else if (what === "chats") store.set({ chats: await api.listChats() });
       else if (what === "machines") store.set({ machines: await api.listMachines() });
       else if (what === "access") await loadAccess();
+      if ((what === "access" || what === "actions") && s.rightTab === "activity") store.set({ activity: await api.listActivity() });
       else if (what === "actions" && s.activeChatId) store.set({ pcActions: await api.listActions(s.activeChatId) });
       else if (what === "settings" && s.settingsOpen) {
         store.set({ notifications: await api.getNotifications(), roles: await api.listRoles() });
@@ -397,6 +403,7 @@ function wire(shell: HTMLElement): void {
     tab: (el) => {
       store.set({ rightTab: el.dataset.tab as AppState["rightTab"], openTaskId: undefined });
       if (el.dataset.tab === "access") void loadAccess();
+      if (el.dataset.tab === "activity") void api.listActivity().then((activity) => store.set({ activity }), showError);
     },
     "grant-revoke": (el) => {
       const target = el.dataset.target ?? "";
@@ -431,6 +438,12 @@ function wire(shell: HTMLElement): void {
   });
 
   shell.addEventListener("change", async (ev) => {
+    const fid = (ev.target as HTMLElement).id;
+    if (fid === "activity-machine" || fid === "activity-chat") {
+      const v = (ev.target as HTMLSelectElement).value || undefined;
+      store.set({ activityFilter: { ...store.get().activityFilter, [fid === "activity-machine" ? "machine" : "chat"]: v } });
+      return;
+    }
     if ((ev.target as HTMLElement).id === "pc-machine") {
       store.set({ pcMachineId: (ev.target as HTMLSelectElement).value || undefined });
       return;
