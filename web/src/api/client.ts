@@ -48,6 +48,12 @@ export interface KompanionApi {
   removeLogo(): Promise<void>;
 
   listProjects(): Promise<Project[]>;
+  /** A project's type, and for programming projects its repo folder and computer ("" clears). */
+  setProjectSettings(projectId: string, change: { type?: Project["type"]; repoFolder?: string; repoMachineId?: string }): Promise<void>;
+  /** Library assets attached to a game project. */
+  projectAssets(projectId: string): Promise<import("../views/projectpanel").ProjectAsset[]>;
+  attachAsset(projectId: string, assetId: number): Promise<void>;
+  detachAsset(projectId: string, assetId: number): Promise<void>;
   listChats(): Promise<Chat[]>;
   listMessages(chatId: string): Promise<Message[]>;
   listTasks(projectId?: string): Promise<Task[]>;
@@ -95,6 +101,6 @@ export type ServerEvent =
   | { type: "message-delta"; messageId: string; chatId: string; text: string; done: boolean }
   | { type: "task"; task: Task }
   | { type: "machines"; machines: MachineStats[] }
-  | { type: "changed"; what: "tasks" | "projects" | "chats" | "machines" | "access" | "settings" | "actions"; machineId?: string }
+  | { type: "changed"; what: "tasks" | "projects" | "chats" | "machines" | "access" | "settings" | "actions" | "project-assets"; machineId?: string }
   | { type: "assets"; scan?: unknown; previews?: unknown } // Assets section news (api/assets.ts)
   | { type: "resync" };

@@ -67,3 +67,11 @@
     before it opened Settings, so it skipped on every run for a day and nobody noticed. If a test
     answers dialogs itself, call `page.removeAllListeners("dialog")` first: two handlers on one
     dialog throw "already handled".
+26. (2026-10-04) In `main.ts`, `wire(shell)` gets the outer root, not `.shell`. An event for code that
+    listens on `.shell` (resize.ts) must be dispatched on `$(".shell")`: events bubble up, never down.
+    (Opening a task didn't re-open a collapsed panel; the Playwright test caught it.)
+27. A field inside a pane that re-renders while you type (a search box) needs its value in the store
+    on every keystroke, and `remount` keeps the caret (it saves selectionStart/End). Debounce only
+    the request, and drop answers for an older query.
+28. A list row that should do something is a `<button>` inside the `<li>` with a `data-action`, never
+    a bare `<li>` (the sidebar task lines were dead for that reason). Test the click in Playwright.

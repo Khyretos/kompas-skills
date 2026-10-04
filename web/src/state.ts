@@ -1,3 +1,4 @@
+import { loadVoicePrefs } from "./core/voice";
 import { Store } from "./core/store";
 import type { NotificationPrefs, AdminSettings, ThemeChoice, DaySummary, MachineStats, Chat, Message, ModelProvider, Project, RoleAssignment, Server, Task } from "./api/types";
 
@@ -39,6 +40,12 @@ export interface AppState {
   capabilities?: import("./views/capabilities").Capabilities; // loaded when the Capabilities section opens
   expandedProjects: Set<string>; // projects open in the sidebar
   allTasksShown: Set<string>; // projects whose sidebar task list shows every task ("N more" pressed)
+  voice?: { enabled: boolean; voices: { id: string; label: string }[] }; // what the server offers (W4)
+  voicePrefs: import("./core/voice").VoicePrefs; // per device
+  recording: "idle" | "recording" | "transcribing"; // the microphone button
+  speaking: boolean; // a reply is being read aloud
+  projectAssets: Record<string, import("./views/projectpanel").ProjectAsset[]>; // game projects, loaded when shown
+  assetPick: { project: string; q: string; items: import("./views/projectpanel").PickResult[]; busy: boolean }; // the picker
   activeProjectId?: string; // project picked in the sidebar (tasks pane, new chats)
   chatMenuId?: string; // chat whose options menu is open
   movingChatId?: string; // chat whose "Move to project" list is open
@@ -61,6 +68,11 @@ export const store = new Store<AppState>({
   section: "chat",
   expandedProjects: new Set(),
   allTasksShown: new Set(),
+  voicePrefs: loadVoicePrefs(),
+  recording: "idle",
+  speaking: false,
+  projectAssets: {},
+  assetPick: { project: "", q: "", items: [], busy: false },
   isAdmin: false,
   theme: "system",
   machinesRefresh: 5,

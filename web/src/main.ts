@@ -5,26 +5,28 @@ import { initResize } from "./core/resize";
 import { modal, type Modal } from "./core/modal";
 import { MockApi } from "./api/mock";
 import type { KompanionApi, ServerEvent } from "./api/client";
-import type { AdminSettings, Role, Server, TaskState, ThemeChoice } from "./api/types";
+import type { AdminSettings, Project, Role, Server, TaskState, ThemeChoice } from "./api/types";
 import { renderMarkdown } from "./core/markdown";
 import { onCodeAction } from "./core/codeblocks";
-import { store, type AppState } from "./state";
+import { activeProject, store, type AppState } from "./state";
 import { showConnect } from "./views/connect";
 import { renderSidebar } from "./views/sidebar";
 import { composer, fillMessage, messageViews, openSteps, renderEmpty, renderHeader, renderMessage, type MessageView } from "./views/conversation";
 import { KeyedList } from "./core/keyed";
-import { paneTabs, renderTasks } from "./views/tasks";
+import { paneTabs, renderTasks, setAssetThumbs } from "./views/tasks";
 import { renderMachines, REFRESH_STEPS, setGpuView } from "./views/machines";
 import { grantFromForm, renderAccess, type GrantView } from "./views/access";
 import { renderPcActions, renderPcPicker } from "./views/pcactions";
 import { AssetsView } from "./views/assets";
-import { HttpAssets } from "./api/assets";
+import { HttpAssets, type AssetsApi } from "./api/assets";
 import { MockAssets } from "./api/assets-mock";
 import { renderActivity } from "./views/activity";
 import { renderCapabilities } from "./views/capabilities";
+import { Reader, Recorder, saveVoicePrefs, type VoicePrefs } from "./core/voice";
 
 let settingsModal: Modal | undefined;
 let assetsView: AssetsView | undefined;
+let assetsApi: AssetsApi | undefined; // shared by the Assets section and game projects' asset picker
 
 /** Shows a grant change at once, marked pending until the computer confirms it. */
 function markGrant(machineId: string, target: string, pending: "add" | "revoke", g?: Partial<GrantView>): void {
@@ -122,6 +124,7 @@ async function start(server: Server): Promise<void> {
     machinesRefresh: status.machinesRefresh ?? 5, gpuPins: status.gpuPins ?? [], windshift: status.windshift, windshiftWarning: status.windshiftWarning, logoVersion: status.logoVersion,
   });
   applyTheme(status.theme ?? "system");
+  api.voiceInfo().then((voice) => store.set({ voice }), () => store.set({ voice: { enabled: false, voices: [] } }));
   wire(shellRoot);
   await openChat(chats[0]?.id);
 }
@@ -146,11 +149,18 @@ const changed = (s: AppState, prev: AppState, keys: (keyof AppState)[]) => first
 function remount(el: HTMLElement, content: ReturnType<typeof renderSidebar>): void {
   const scrollers = [el, ...el.querySelectorAll<HTMLElement>(".nav, .task-groups, .task-detail, .sheet")];
   const tops = scrollers.map((x) => x.scrollTop);
-  const focusId = el.contains(document.activeElement) ? (document.activeElement as HTMLElement).id : "";
+  const focused = el.contains(document.activeElement) ? document.activeElement as HTMLInputElement : null;
+  const focusId = focused?.id ?? "";
+  // Typing in a field that re-renders (the asset picker) must not move the caret.
+  const caret = focused && typeof focused.selectionStart === "number" ? [focused.selectionStart, focused.selectionEnd ?? focused.selectionStart] : null;
   mount(el, content);
   const after = [el, ...el.querySelectorAll<HTMLElement>(".nav, .task-groups, .task-detail, .sheet")];
   after.forEach((x, i) => { if (tops[i]) x.scrollTop = tops[i]; });
-  if (focusId) document.getElementById(focusId)?.focus();
+  if (focusId) {
+    const f = document.getElementById(focusId) as HTMLInputElement | null;
+    f?.focus();
+    if (f && caret) try { f.setSelectionRange(caret[0], caret[1]); } catch { /* not a text field */ }
+  }
 }
 
 // Each pane re-renders only when the state it shows changes, so live machine
@@ -191,12 +201,14 @@ function render(s: AppState, prev: AppState): void {
   }
   lastPcKey = pcKey;
   const rightKeys: (keyof AppState)[] = s.rightTab === "tasks"
-    ? ["rightTab", "tasks", "projects", "openTaskId", "editingTaskId", "taskScope", "activeProjectId", "activeChatId", "chats"]
+    ? ["rightTab", "tasks", "projects", "openTaskId", "editingTaskId", "taskScope", "activeProjectId", "activeChatId", "chats", "projectAssets", "assetPick"]
     : s.rightTab === "access" ? ["rightTab", "grants", "accessHistory", "machines"]
     : s.rightTab === "activity" ? ["rightTab", "activity", "activityFilter"]
     : ["rightTab", "machines", "today", "machinesRefresh", "tasks", "pairing", "gpuOpen", "gpuPins"];
   // Never rebuild the task editor under the user's hands; only when it opens or closes.
   const editing = s.rightTab === "tasks" && s.editingTaskId && s.editingTaskId === prev.editingTaskId && !firstRender;
+  const shownProject = s.rightTab === "tasks" && s.taskScope === "project" ? activeProject(s) : undefined;
+  if (shownProject?.type === "game" && !(shownProject.id in s.projectAssets)) void loadProjectAssets(shownProject.id);
   if (!editing && changed(s, prev, rightKeys)) {
     remount($("#right"), s.rightTab === "tasks" ? renderTasks(s) : s.rightTab === "activity" ? h`
       <div class="pane-head">${paneTabs(s)}
@@ -227,9 +239,23 @@ function render(s: AppState, prev: AppState): void {
     if (nearBottom || s.activeChatId !== prev.activeChatId) box.scrollTop = box.scrollHeight;
   }
 
+  if (changed(s, prev, ["voice", "voicePrefs", "recording", "speaking"])) {
+    const mic = document.getElementById("voice-mic") as HTMLButtonElement | null;
+    if (mic) {
+      mic.hidden = !(s.voice?.enabled && s.voicePrefs.input && Recorder.supported());
+      mic.setAttribute("aria-pressed", String(s.recording === "recording"));
+      mic.setAttribute("aria-busy", String(s.recording === "transcribing"));
+      mic.disabled = s.recording === "transcribing";
+      mic.setAttribute("aria-label", s.recording === "recording" ? "Stop and write it down" : "Speak");
+    }
+    const status = document.getElementById("voice-status");
+    if (status) status.textContent = s.recording === "recording" ? "Listening…" : s.recording === "transcribing" ? "Writing it down…" : "";
+    const stop = document.getElementById("voice-stop");
+    if (stop) stop.hidden = !s.speaking;
+  }
   const settings = $("#settings");
   settings.hidden = !s.settingsOpen;
-  if (s.settingsOpen && changed(s, prev, ["settingsOpen", "providers", "roles", "admin", "theme", "isAdmin", "notifications", "windshift", "logoVersion"])) {
+  if (s.settingsOpen && changed(s, prev, ["settingsOpen", "providers", "roles", "admin", "theme", "isAdmin", "notifications", "windshift", "logoVersion", "voice", "voicePrefs"])) {
     remount(settings, renderSettings(s));
   }
   firstRender = false;
@@ -259,7 +285,101 @@ function applyEvent(ev: ServerEvent): void {
       messages: s.messages.map((m) =>
         m.id === ev.messageId ? { ...m, text: m.text + ev.text, streaming: !ev.done } : m),
     });
+    if (ev.done) readAloud(store.get().messages.find((m) => m.id === ev.messageId)?.text ?? "");
   }
+}
+
+// W4 voice. Push-to-talk: a short click starts and a second click stops; holding the
+// button records until it is let go. The text lands in the message box to edit, never
+// sent by itself.
+const recorder = new Recorder();
+const reader = new Reader((text) => api.speak(text, store.get().voicePrefs.voice), (speaking) => store.set({ speaking }));
+let pressAt = 0;
+let startedByPress = false;
+
+async function startRecording(): Promise<void> {
+  if (store.get().recording !== "idle") return;
+  reader.stop(); // don't record our own voice
+  store.set({ recording: "recording" });
+  try {
+    await recorder.start();
+  } catch (e) {
+    store.set({ recording: "idle" });
+    showError(new Error(`The microphone is not available: ${e instanceof Error ? e.message : String(e)}`));
+  }
+}
+
+async function stopRecording(): Promise<void> {
+  if (store.get().recording !== "recording") return;
+  store.set({ recording: "transcribing" });
+  try {
+    const audio = await recorder.stop();
+    const text = audio.size ? await api.transcribe(audio, store.get().voicePrefs.lang) : "";
+    const box = document.getElementById("prompt") as HTMLTextAreaElement | null;
+    if (box && text) {
+      box.value = box.value.trim() ? `${box.value.trimEnd()} ${text}` : text;
+      box.dispatchEvent(new Event("input", { bubbles: true })); // grow the box
+      box.focus();
+    }
+  } catch (e) {
+    showError(e);
+  } finally {
+    store.set({ recording: "idle" });
+  }
+}
+
+function readAloud(text: string): void {
+  const s = store.get();
+  // No Dutch reading voice yet: Dutch stays text only (Settings says so).
+  if (!s.voice?.enabled || !s.voicePrefs.readAloud || s.voicePrefs.lang === "nl" || !text.trim()) return;
+  reader.read(text);
+}
+
+function setVoicePrefs(change: Partial<VoicePrefs>): void {
+  const voicePrefs = { ...store.get().voicePrefs, ...change };
+  saveVoicePrefs(voicePrefs);
+  store.set({ voicePrefs });
+  if (!voicePrefs.readAloud) reader.stop();
+}
+
+// Game projects: their attached assets load when the panel first shows, and again on
+// "project-assets" events. One load at a time per project.
+const assetLoads = new Set<string>();
+async function loadProjectAssets(projectId: string): Promise<void> {
+  if (assetLoads.has(projectId)) return;
+  assetLoads.add(projectId);
+  try {
+    const list = await api.projectAssets(projectId);
+    store.set({ projectAssets: { ...store.get().projectAssets, [projectId]: list } });
+  } catch (e) {
+    // Shown once; an empty list stops render() from asking again on every change.
+    if (!(projectId in store.get().projectAssets)) store.set({ projectAssets: { ...store.get().projectAssets, [projectId]: [] } });
+    showError(e);
+  } finally {
+    assetLoads.delete(projectId);
+  }
+}
+
+// The asset picker: search the library as you type (250 ms after the last key); an
+// answer for an older query is dropped.
+let pickTimer: number | undefined;
+let pickGen = 0;
+function pickSearch(project: string, q: string): void {
+  window.clearTimeout(pickTimer);
+  const gen = ++pickGen;
+  store.set({ assetPick: { project, q, items: q.trim() ? store.get().assetPick.items : [], busy: !!q.trim() } });
+  if (!q.trim()) return;
+  pickTimer = window.setTimeout(async () => {
+    try {
+      const r = await assetsApi!.list({ q: q.trim() }, 0, 8);
+      if (gen !== pickGen) return;
+      store.set({ assetPick: { project, q, busy: false, items: r.items.filter((a) => !a.meta).map((a) => ({
+        id: a.id, name: a.name, category: a.category, pack: a.pack, preview: a.preview, pv: a.pv })) } });
+    } catch (e) {
+      if (gen === pickGen) store.set({ assetPick: { ...store.get().assetPick, busy: false } });
+      showError(e);
+    }
+  }, 250);
 }
 
 // The Capabilities section loads when it opens, then every 30 s (model status) and on
@@ -289,6 +409,7 @@ function refetch(what: string): void {
       else if (what === "machines") store.set({ machines: await api.listMachines() });
       else if (what === "access") await loadAccess();
       if ((what === "access" || what === "machines") && store.get().section === "capabilities") loadCapabilities();
+      if (what === "project-assets") for (const id of Object.keys(store.get().projectAssets)) void loadProjectAssets(id);
       if ((what === "access" || what === "actions") && s.rightTab === "activity") store.set({ activity: await api.listActivity() });
       else if (what === "actions" && s.activeChatId) {
         // Only a real change replaces the list: equal data as new objects would
@@ -314,7 +435,10 @@ async function reload(): Promise<void> {
 
 function wire(shell: HTMLElement): void {
   initResize($(".shell"));
-  assetsView = new AssetsView($("#assets"), api instanceof MockApi ? new MockAssets() : new HttpAssets(api), () => store.get().isAdmin);
+  assetsApi = api instanceof MockApi ? new MockAssets() : new HttpAssets(api);
+  const assets = assetsApi;
+  setAssetThumbs((a) => assets.previewUrl(a, "t"));
+  assetsView = new AssetsView($("#assets"), assetsApi, () => store.get().isAdmin);
   settingsModal = modal($("#settings"), () => store.set({ settingsOpen: false }));
   store.subscribe(render);
   store.flush();
@@ -465,8 +589,39 @@ function wire(shell: HTMLElement): void {
     // section, Tasks tab, and the right panel shown even when it was collapsed.
     "open-task": (el) => {
       store.set({ openTaskId: el.dataset.id, rightTab: "tasks", pane: "right", section: "chat" });
-      shell.dispatchEvent(new CustomEvent("kk-expand", { detail: "right" }));
+      // To .shell itself (resize.ts listens there; `shell` here is the outer root).
+      $(".shell").dispatchEvent(new CustomEvent("kk-expand", { detail: "right" }));
     },
+    "attach-asset": (el) => {
+      const project = el.dataset.project ?? "", id = Number(el.dataset.id);
+      const s = store.get();
+      const hit = s.assetPick.items.find((a) => a.id === id);
+      const before = s.projectAssets[project] ?? [];
+      if (!hit || before.some((a) => a.id === id)) return;
+      store.set({ projectAssets: { ...s.projectAssets, [project]: [{ ...hit, missing: false }, ...before] } });
+      return api.attachAsset(project, id).catch((e) => {
+        store.set({ projectAssets: { ...store.get().projectAssets, [project]: before } });
+        showError(e);
+      });
+    },
+    "detach-asset": (el) => {
+      const project = el.dataset.project ?? "", id = Number(el.dataset.id);
+      const before = store.get().projectAssets[project] ?? [];
+      store.set({ projectAssets: { ...store.get().projectAssets, [project]: before.filter((a) => a.id !== id) } });
+      return api.detachAsset(project, id).catch((e) => {
+        store.set({ projectAssets: { ...store.get().projectAssets, [project]: before } });
+        showError(e);
+      });
+    },
+    "voice-mic": () => {
+      if (startedByPress) {
+        startedByPress = false;
+        if (Date.now() - pressAt > 400) void stopRecording(); // held: let go stops
+        return; // short click: keep listening until the next click
+      }
+      if (store.get().recording === "recording") void stopRecording(); else void startRecording();
+    },
+    "voice-stop": () => reader.stop(),
     "project-more": (el) => {
       const all = new Set(store.get().allTasksShown);
       const id = el.dataset.id ?? "";
@@ -510,8 +665,32 @@ function wire(shell: HTMLElement): void {
     "close-settings": () => settingsModal?.requestClose(),
   });
 
+  shell.addEventListener("pointerdown", (ev) => {
+    if ((ev.target as HTMLElement).closest("#voice-mic") && ev.button === 0 && store.get().recording === "idle") {
+      pressAt = Date.now();
+      startedByPress = true;
+      void startRecording();
+    }
+  });
   shell.addEventListener("change", async (ev) => {
     const fid = (ev.target as HTMLElement).id;
+    if (fid === "voice-input" || fid === "voice-read") {
+      setVoicePrefs({ [fid === "voice-input" ? "input" : "readAloud"]: (ev.target as HTMLInputElement).checked });
+      return;
+    }
+    if (fid === "voice-voice" || fid === "voice-lang") {
+      const v = (ev.target as HTMLSelectElement).value;
+      setVoicePrefs(fid === "voice-voice" ? { voice: v } : { lang: v as VoicePrefs["lang"] });
+      return;
+    }
+    if (fid === "project-type") {
+      const sel = ev.target as HTMLSelectElement;
+      const id = sel.dataset.id ?? "", type = sel.value as NonNullable<Project["type"]>;
+      const before = store.get().projects;
+      store.set({ projects: before.map((p) => (p.id === id ? { ...p, type } : p)) });
+      api.setProjectSettings(id, { type }).catch((e) => { store.set({ projects: before }); showError(e); });
+      return;
+    }
     if (fid === "activity-failed") {
       store.set({ activityFilter: { ...store.get().activityFilter, failedOnly: (ev.target as HTMLInputElement).checked } });
       return;
@@ -569,6 +748,19 @@ function wire(shell: HTMLElement): void {
     if (c && title && title !== c.title) changeChat(id, { title });
   };
   shell.addEventListener("submit", (ev) => {
+    const repoForm = (ev.target as HTMLElement).closest("form.project-repo") as HTMLFormElement | null;
+    if (repoForm) {
+      ev.preventDefault();
+      const id = repoForm.dataset.id ?? "";
+      const data = new FormData(repoForm);
+      const repoFolder = String(data.get("folder") ?? "").trim(), repoMachineId = String(data.get("machine") ?? "");
+      const before = store.get().projects;
+      void busyWhile(repoForm, api.setProjectSettings(id, { repoFolder, repoMachineId })).then(
+        () => store.set({ projects: store.get().projects.map((p) => (p.id === id
+          ? { ...p, repoFolder: repoFolder.replace(/\/+$/, "") || null, repoMachineId: repoMachineId || null } : p)) }),
+        (e) => { store.set({ projects: before }); showError(e); });
+      return;
+    }
     const grantForm = (ev.target as HTMLElement).closest("form.grant-add") as HTMLFormElement | null;
     if (grantForm) {
       ev.preventDefault();
@@ -672,6 +864,7 @@ function wire(shell: HTMLElement): void {
   }, 1000);
   shell.addEventListener("input", (ev) => {
     const el = ev.target as HTMLInputElement;
+    if (el.id === "asset-pick-q") { pickSearch(el.dataset.project ?? "", el.value); return; }
     if (el.id !== "machines-refresh") return;
     const seconds = REFRESH_STEPS[Number(el.value)] ?? 5;
     lastPoll = 0; lastWatch = 0; // apply at once

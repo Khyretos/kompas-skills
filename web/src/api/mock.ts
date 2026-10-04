@@ -9,6 +9,7 @@ const grants: Record<string, GrantView[]> = {
   soucouyant: [{ target: "/home/kees/projects/kompanion", rights: ["read", "write"], grantedBy: "demo", grantedAt: "2026-10-01T10:00:00Z", expires: null }],
 };
 const actions: PcAction[] = [];
+const projectAssets: Record<string, import("../views/projectpanel").ProjectAsset[]> = {};
 const history: AccessEvent[] = [];
 
 const now = Date.now();
@@ -338,6 +339,29 @@ export class MockApi implements KompanionApi {
   async testMail() { throw new Error("The demo can't send mail."); }
   async login() {}
   async listProjects() { return structuredClone(projects); }
+  async setProjectSettings(projectId: string, change: { type?: Project["type"]; repoFolder?: string; repoMachineId?: string }) {
+    const p = projects.find((x) => x.id === projectId);
+    if (!p) throw new Error("No such project.");
+    if (change.repoFolder !== undefined && change.repoFolder && !change.repoFolder.startsWith("/")) {
+      throw new Error("Use an absolute folder, like /home/you/projects/app.");
+    }
+    if (change.type) p.type = change.type;
+    if (change.repoFolder !== undefined) p.repoFolder = change.repoFolder.replace(/\/+$/, "") || null;
+    if (change.repoMachineId !== undefined) p.repoMachineId = change.repoMachineId || null;
+    setTimeout(() => this.emit({ type: "changed", what: "projects" }), 50);
+  }
+  async projectAssets(projectId: string) { return structuredClone(projectAssets[projectId] ?? []); }
+  async attachAsset(projectId: string, assetId: number) {
+    const list = (projectAssets[projectId] ??= []);
+    if (!list.some((a) => a.id === assetId)) {
+      list.unshift({ id: assetId, name: `asset-${assetId}`, category: "", pack: "", preview: null, pv: 0, missing: false });
+    }
+    // No "project-assets" event: the demo doesn't know asset names, and the app has
+    // already shown the change (the real server sends it for other open tabs).
+  }
+  async detachAsset(projectId: string, assetId: number) {
+    projectAssets[projectId] = (projectAssets[projectId] ?? []).filter((a) => a.id !== assetId);
+  }
   async listChats() {
     return structuredClone([...chats].sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned)));
   }
@@ -428,10 +452,10 @@ export class MockApi implements KompanionApi {
     await new Promise((r) => setTimeout(r, 300));
     return audio.size >= 0 ? "install htop" : "";
   }
-  /** 0.4 s of silence per sentence, so the demo "reads" without sound. */
+  /** 1.5 s of silence per sentence, so the demo "reads" without sound (long enough to stop it in a test). */
   async speak() {
     await new Promise((r) => setTimeout(r, 100));
-    const rate = 8000, n = rate * 0.4, b = new DataView(new ArrayBuffer(44 + n * 2));
+    const rate = 8000, n = rate * 1.5, b = new DataView(new ArrayBuffer(44 + n * 2));
     const put = (o: number, s: string) => { for (let i = 0; i < s.length; i++) b.setUint8(o + i, s.charCodeAt(i)); };
     put(0, "RIFF"); b.setUint32(4, 36 + n * 2, true); put(8, "WAVEfmt "); b.setUint32(16, 16, true); b.setUint16(20, 1, true);
     b.setUint16(22, 1, true); b.setUint32(24, rate, true); b.setUint32(28, rate * 2, true); b.setUint16(32, 2, true);
