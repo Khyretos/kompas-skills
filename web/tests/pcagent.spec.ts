@@ -69,9 +69,11 @@ test.describe("PC Agent approval cards", () => {
     await ask(page);
     const card = page.locator(".pc-action").last();
     await card.locator('[data-decision="approve"]').click();
-    const step = page.locator("#messages details.step").last();
-    await expect(step.locator("summary .chip")).toContainText("done");
+    // Wait for the deterministic end state, then open the step.
+    const step = page.locator('#messages details.step[data-state="done"]').last();
+    await expect(step).toBeVisible();
     await step.locator("summary").click();
+    await expect(step).toHaveAttribute("open", "");
     const out = step.locator("figure.output.terminal");
     await expect(out).toBeVisible();
     await expect(out.locator(".output-title")).toContainText("paru install htop");

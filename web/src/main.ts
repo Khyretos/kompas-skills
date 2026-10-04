@@ -11,7 +11,7 @@ import { onCodeAction } from "./core/codeblocks";
 import { store, type AppState } from "./state";
 import { showConnect } from "./views/connect";
 import { renderSidebar } from "./views/sidebar";
-import { composer, fillMessage, messageViews, renderEmpty, renderHeader, renderMessage, type MessageView } from "./views/conversation";
+import { composer, fillMessage, messageViews, openSteps, renderEmpty, renderHeader, renderMessage, type MessageView } from "./views/conversation";
 import { KeyedList } from "./core/keyed";
 import { paneTabs, renderTasks } from "./views/tasks";
 import { renderMachines, REFRESH_STEPS, setGpuView } from "./views/machines";
@@ -271,7 +271,12 @@ function refetch(what: string): void {
       else if (what === "machines") store.set({ machines: await api.listMachines() });
       else if (what === "access") await loadAccess();
       if ((what === "access" || what === "actions") && s.rightTab === "activity") store.set({ activity: await api.listActivity() });
-      else if (what === "actions" && s.activeChatId) store.set({ pcActions: await api.listActions(s.activeChatId) });
+      else if (what === "actions" && s.activeChatId) {
+        // Only a real change replaces the list: equal data as new objects would
+        // re-render the chat and close a step the user just opened.
+        const pcActions = await api.listActions(s.activeChatId);
+        if (JSON.stringify(pcActions) !== JSON.stringify(store.get().pcActions)) store.set({ pcActions });
+      }
       else if (what === "settings" && s.settingsOpen) {
         store.set({ notifications: await api.getNotifications(), roles: await api.listRoles() });
         if (s.isAdmin) store.set({ admin: await api.getAdmin() });
@@ -349,6 +354,15 @@ function wire(shell: HTMLElement): void {
       document.addEventListener("keydown", esc);
       close.addEventListener("click", () => m.requestClose());
       m.open(el);
+    },
+    // Steps open and close through this action (not the native toggle), so the
+    // choice is recorded before any re-render can replace the element.
+    "step-toggle": (el) => {
+      const id = el.dataset.id ?? "";
+      const d = el.closest("details");
+      const open = !(d ? d.open : openSteps.has(id));
+      if (open) openSteps.add(id); else openSteps.delete(id);
+      if (d) d.open = open;
     },
     "pc-decide": (el) => {
       const id = el.dataset.id ?? "";
