@@ -263,8 +263,7 @@ mod tests {
         let mut r = EngineReader::default();
         r.read(&root);
 
-        fs::remove_dir_all(root.join("1234/fdinfo")).unwrap();
-        fs::create_dir_all(root.join("1234/fdinfo")).unwrap();
+        // A non-GPU file that appears now is not read until the next full scan.
         fs::write(root.join("1234/fdinfo/10"), "pos:\t0\nflags:\t02\n").unwrap();
 
         let second = r.read(&root);
