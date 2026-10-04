@@ -17,9 +17,12 @@ import { paneTabs, renderTasks } from "./views/tasks";
 import { renderMachines, REFRESH_STEPS, setGpuView } from "./views/machines";
 import { grantFromForm, renderAccess, type GrantView } from "./views/access";
 import { renderPcActions, renderPcPicker } from "./views/pcactions";
+import { AssetsView } from "./views/assets";
+import { HttpAssets, MockAssets } from "./api/assets";
 import { renderActivity } from "./views/activity";
 
 let settingsModal: Modal | undefined;
+let assetsView: AssetsView | undefined;
 
 /** Shows a grant change at once, marked pending until the computer confirms it. */
 function markGrant(machineId: string, target: string, pending: "add" | "revoke", g?: Partial<GrantView>): void {
@@ -100,6 +103,7 @@ async function start(server: Server): Promise<void> {
         </div>
         <div class="composer-wrap"><div id="pc-actions"></div><div id="pc-slot"></div>${composer()}</div>
       </main>
+      <section class="pane assets-pane" id="assets" aria-label="Assets"></section>
       <aside class="pane right" id="right" aria-label="Tasks"></aside>
       <div class="scrim" data-action="pane" data-pane="main"></div>
       <div id="settings" hidden></div>
@@ -121,7 +125,7 @@ async function start(server: Server): Promise<void> {
 
 async function openChat(chatId?: string): Promise<void> {
   const messages = chatId ? await api.listMessages(chatId) : [];
-  store.set({ activeChatId: chatId, messages, openTaskId: undefined, pane: "main" });
+  store.set({ activeChatId: chatId, messages, openTaskId: undefined, pane: "main", section: "chat" });
   const prompt = document.getElementById("prompt") as HTMLTextAreaElement | null;
   if (prompt && window.matchMedia("(pointer: fine)").matches) prompt.focus();
   store.set({ pcActions: chatId ? await api.listActions(chatId).catch(() => []) : [] });
@@ -152,9 +156,11 @@ function remount(el: HTMLElement, content: ReturnType<typeof renderSidebar>): vo
 function render(s: AppState, prev: AppState): void {
   const shell = $(".shell");
   shell.dataset.pane = s.pane;
+  shell.dataset.section = s.section;
+  if (s.section === "assets" && (s.section !== prev.section || firstRender)) assetsView?.show();
 
   if (changed(s, prev, ["chats", "projects", "tasks", "activeChatId", "activeProjectId", "expandedProjects",
-    "chatMenuId", "movingChatId", "renamingChatId", "server", "userName", "logoVersion"])) {
+    "chatMenuId", "movingChatId", "renamingChatId", "server", "userName", "logoVersion", "section"])) {
     remount($("#left"), renderSidebar(s));
   }
   if (s.renamingChatId && s.renamingChatId !== prev.renamingChatId) {
@@ -283,6 +289,7 @@ async function reload(): Promise<void> {
 
 function wire(shell: HTMLElement): void {
   initResize($(".shell"));
+  assetsView = new AssetsView($("#assets"), api instanceof MockApi ? new MockAssets() : new HttpAssets(api), () => store.get().isAdmin);
   settingsModal = modal($("#settings"), () => store.set({ settingsOpen: false }));
   store.subscribe(render);
   store.flush();
@@ -292,8 +299,9 @@ function wire(shell: HTMLElement): void {
     "code-copy": (el) => onCodeAction(el),
     "code-wrap": (el) => onCodeAction(el),
     "open-chat": (el) => openChat(el.dataset.id),
+    assets: () => store.set({ section: "assets", pane: "main", chatMenuId: undefined }),
     "new-chat": (el) => store.set({
-      activeChatId: undefined, messages: [], pane: "main", chatMenuId: undefined,
+      activeChatId: undefined, messages: [], pane: "main", chatMenuId: undefined, section: "chat",
       activeProjectId: el.dataset.project ?? store.get().activeProjectId,
     }),
     project: (el) => {

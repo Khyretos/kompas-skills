@@ -21,6 +21,10 @@ pub enum Event {
     Machines {
         machines: Vec<serde_json::Value>,
     },
+    /// Asset library scan progress (Assets section), sent to everyone signed in.
+    Assets {
+        scan: serde_json::Value,
+    },
     /// Something the user can see changed (by another tab, a runner or the server):
     /// the web app reloads that list. `what` is one of tasks, projects, chats,
     /// machines, access, settings.
@@ -32,6 +36,9 @@ pub enum Event {
     },
 }
 
+/// User id that reaches every listener.
+pub const ALL: &str = "*";
+
 /// One channel for everyone; each listener only passes on its own user's events.
 #[derive(Clone)]
 pub struct Bus(broadcast::Sender<(String, Event)>);
@@ -42,6 +49,10 @@ impl Bus {
     }
     pub fn send(&self, user_id: &str, e: Event) {
         let _ = self.0.send((user_id.to_string(), e)); // no listeners is fine
+    }
+    /// To every signed-in user (library-wide news such as the asset scan).
+    pub fn send_all(&self, e: Event) {
+        self.send(ALL, e);
     }
     pub fn subscribe(&self) -> broadcast::Receiver<(String, Event)> {
         self.0.subscribe()

@@ -690,7 +690,7 @@ pub async fn events(State(s): State<AppState>, Extension(u): Extension<User>) ->
         let me = me.clone();
         async move {
             match e {
-                Ok((user_id, _)) if user_id != me => None,
+                Ok((user_id, _)) if user_id != me && user_id != crate::events::ALL => None,
                 Ok((_, event)) => Some(Ok::<_, Infallible>(
                     SseEvent::default().json_data(event).unwrap_or_default(),
                 )),

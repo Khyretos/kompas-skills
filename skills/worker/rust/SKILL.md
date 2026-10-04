@@ -65,3 +65,10 @@
     "old": .., "new": ..}`, with no nested `args`. Read `job["path"]`, never `job["args"]["path"]`,
     and write the tests with the same flat shape.
 30. The server's database pool is `s.db` (AppState has no `pool` field).
+31. Migrations of a feature built next to other work get their own number range (`0100_assets.sql`):
+    sqlx applies every unapplied version in order and never checks for gaps, while two branches that
+    both add `0015_*.sql` break the second deploy (checksum mismatch).
+32. The `regex` crate has no lookahead or lookbehind. When the regex only answers yes or no, turn
+    `(?=X)` into a plain group `(X)`; when the match text is used, match more and trim it in code.
+33. Broadcast to every signed-in user with `s.bus.send_all(Event::…)` (user id `"*"`); per-user
+    events keep using `s.bus.send(&user_id, …)`.

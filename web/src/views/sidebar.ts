@@ -102,6 +102,8 @@ export function renderSidebar(s: AppState): SafeHtml {
       <ul class="loose">${loose.map((c) => chatRow(c, true))}</ul>
     </nav>
     <div class="account">
+      <button class="nav-item ${s.section === "assets" ? "active" : ""}" data-action="assets"
+        ${s.section === "assets" ? html`aria-current="page"` : ""}>${icon("box")} Assets</button>
       <button class="nav-item settings-link" data-action="settings">${icon("gear")} Settings</button>
       <div class="user-row">
         <span class="avatar" aria-hidden="true">${(s.userName ?? "?").slice(0, 1).toUpperCase()}</span>
