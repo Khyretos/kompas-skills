@@ -141,7 +141,8 @@ Source: kreative-kompas-vscode-theme `kate/` (themes, colour schemes, `install.s
 The GPU OVMS on kireserver (Coder, Autocomplete, Whisper) segfaulted during a Kompanion voice test:
 a transcription request with `language=en` and a fresh 16 kHz WAV. Docker restarted it, but every
 model was gone for the reload, for every user and thread. The same request, `language` included,
-works on a separate CPU OVMS, so the exact trigger is unknown; until it is found:
+works on a separate CPU OVMS, and the GPU OVMS segfaulted again at 17:44 UTC with no voice request
+(same faulting address), so the trigger is an OVMS 2026.4 GPU bug not yet found. Until it is:
 - Never send `language` to the GPU Whisper (`/v3/audio/transcriptions`); it detects the language.
 - Build the WAV yourself (44-byte PCM header with real sizes). ffmpeg writing WAV to a pipe leaves
   0xFFFFFFFF sizes and a LIST chunk, and Whisper answers 400.
