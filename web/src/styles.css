@@ -338,6 +338,8 @@ li.task.dragging { opacity: 0.5; }
 .composer textarea { border: 0; background: none; resize: none; max-height: 12.5rem; padding: 0.45rem 0.5rem; }
 .composer textarea:focus { border: 0; }
 .send { width: 2.5rem; padding: 0; flex: none; }
+/* .btn sets display, which beats the hidden attribute; keep hidden buttons hidden. */
+.btn[hidden] { display: none; }
 .composer .mic { width: 2.5rem; padding: 0; flex: none; }
 .composer .mic[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
 .composer .mic[aria-busy="true"] { opacity: 0.6; }
