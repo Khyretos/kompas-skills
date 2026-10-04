@@ -75,3 +75,7 @@
     the request, and drop answers for an older query.
 28. A list row that should do something is a `<button>` inside the `<li>` with a `data-action`, never
     a bare `<li>` (the sidebar task lines were dead for that reason). Test the click in Playwright.
+29. (2026-10-04) A class that sets `display` (`.btn` is inline-flex) beats the `hidden` attribute, so
+    `el.hidden = true` showed nothing. `.btn[hidden] { display: none; }` is in styles.css; for any
+    other displayed class you toggle with `hidden`, add the same `[hidden]` rule. Test hidden state
+    with `toBeHidden()`.
