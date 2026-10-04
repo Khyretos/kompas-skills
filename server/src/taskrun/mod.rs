@@ -1,3 +1,9 @@
+//! W2: a task runs by itself on a computer, in a folder: the orchestrator plans,
+//! the worker does each step with the computer's tools (steps under a standing
+//! grant run without asking, others wait for an approval card), the check
+//! command runs, and a reviewer reads the result. Up to 3 fix rounds, then the
+//! task needs the user. Everything shows in the task's own chat.
+//! (Claude rewrote the loop after two failed model drafts; parse.rs is the model's.)
 pub mod parse;
 
 use axum::{Extension, Json, extract::{Path, State}, http::StatusCode};
@@ -5,6 +11,8 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::{AppState, api::{self, RoleAssignment}, auth::User, error::{ApiError, ApiResult}, events::Event, llm, pcagent, util};
+
+const ROUNDS: usize = 3;
 
 #[derive(Deserialize)]
 pub struct StartBody {
@@ -14,149 +22,12 @@ pub struct StartBody {
     pub check: String,
 }
 
-pub async fn start(
-    State(s): State<AppState>,
-    Extension(u): Extension<User>,
-    Path(id): Path<String>,
-    Json(b): Json<StartBody>,
-) -> ApiResult<StatusCode> {
-    // Fetch task details
-    let task_result = sqlx::query_as::<_, (String, String, i64, String)>(
-        "SELECT title, description, project_id, state FROM tasks WHERE id = ? AND user_id = ?"
-    )
-    .bind(&id)
-    .bind(&u.id)
-    .fetch_optional(&s.db)
-    .await;
-
-    let task_result = match task_result {
-        Ok(Some(row)) => row,
-        Ok(None) => return Err(ApiError::new(StatusCode::NOT_FOUND, "Task not found").into()),
-        Err(e) => return Err(ApiError::from_sqlx(e).into()),
-    };
-
-    let (title, description, project_id, state) = task_result;
-
-    if state == "running" {
-        return Err(ApiError::new(StatusCode::BAD_REQUEST, "This task is already running.").into());
-    }
-
-    if description.trim().is_empty() {
-        return Err(ApiError::new(StatusCode::BAD_REQUEST, "Write what the task should do first (goal, steps, done when).").into());
-    }
-
-    // Fetch machine details
-    let machine_result = sqlx::query_as::<_, (String,)>(
-        "SELECT name FROM machines WHERE id = ? AND user_id = ?"
-    )
-    .bind(&b.machine_id)
-    .bind(&u.id)
-    .fetch_optional(&s.db)
-    .await;
-
-    let machine_result = match machine_result {
-        Ok(Some(name)) => name,
-        Ok(None) => return Err(ApiError::new(StatusCode::NOT_FOUND, "Machine not found or not yours.").into()),
-        Err(e) => return Err(ApiError::from_sqlx(e).into()),
-    };
-
-    let machine_name = machine_result;
-
-    // Validate folder
-    if !b.folder.starts_with('/') || b.folder.contains("..") {
-        return Err(ApiError::new(StatusCode::BAD_REQUEST, "Use an absolute folder.").into());
-    }
-
-    // Fetch roles
-    let orchestrator = s.config.get_role_assignment(&u.id, "orchestrator", &s.http).await.ok();
-    let worker = s.config.get_role_assignment(&u.id, "worker", &s.http).await.ok();
-    let reviewer = s.config.get_role_assignment(&u.id, "reviewer", &s.http).await.ok();
-
-    if orchestrator.is_none() {
-        return Err(ApiError::new(StatusCode::BAD_REQUEST, "Set the orchestrator model first.").into());
-    }
-
-    let orchestrator = orchestrator.unwrap_or_else(|| worker.clone());
-    let worker = worker.unwrap_or_else(|| orchestrator.clone());
-    let reviewer = reviewer.unwrap_or_else(|| orchestrator.clone());
-
-    // Ensure chat exists
-    let chat_result = sqlx::query_as::<_, (i64,)> (
-        "SELECT id FROM chats WHERE project_id = ? AND user_id = ? AND title = ?"
-    )
-    .bind(project_id)
-    .bind(&u.id)
-    .bind(&format!("Task: {}", title))
-    .fetch_optional(&s.db)
-    .await;
-
-    let chat_id = match chat_result {
-        Ok(Some(row)) => row.0,
-        Ok(None) => {
-            let now = util::now();
-            let insert = sqlx::query(
-                "INSERT INTO chats (id, project_id, title, updated_at, user_id) VALUES (?, ?, ?, ?, ?)"
-            )
-            .bind(util::uuid())
-            .bind(project_id)
-            .bind(&format!("Task: {}", title))
-            .bind(now)
-            .bind(&u.id)
-            .execute(&s.db)
-            .await
-            .expect("Failed to create chat");
-            insert.get_ref::<i64, _>(0)
-        },
-        Err(e) => return Err(ApiError::from_sqlx(e).into()),
-    };
-
-    // Update task
-    let now = util::now();
-    let update = sqlx::query(
-        "UPDATE tasks SET machine_id = ?, folder = ?, check_cmd = ?, chat_id = ?, state = ?, progress = ?, step = ?, updated_at = ? WHERE id = ?"
-    )
-    .bind(&b.machine_id)
-    .bind(&b.folder)
-    .bind(if b.check.trim().is_empty() { None } else { Some(b.check.trim().to_string()) })
-    .bind(chat_id)
-    .bind("running")
-    .bind(0.0)
-    .bind("planning")
-    .bind(now)
-    .bind(id)
-    .execute(&s.db)
-    .await
-    .expect("Failed to update task");
-
-    // Send events
-    s.bus.send(&u.id, Event::Changed { what: "tasks", machine_id: None });
-    s.bus.send(&u.id, Event::Changed { what: "chats", machine_id: None });
-
-    // Spawn runner
-    tokio::spawn(run(s.clone(), Run {
-        user_id: u.id.clone(),
-        task_id: id,
-        title,
-        description,
-        chat_id,
-        machine_id: b.machine_id.clone(),
-        machine_name,
-        folder: b.folder.clone(),
-        check: if b.check.trim().is_empty() { None } else { Some(b.check.trim().to_string()) },
-        orchestrator: orchestrator.unwrap(),
-        worker: worker.unwrap(),
-        reviewer: reviewer.unwrap(),
-    }));
-
-    Ok(StatusCode::ACCEPTED)
-}
-
 struct Run {
     user_id: String,
-    task_id: i64,
+    task_id: String,
     title: String,
     description: String,
-    chat_id: i64,
+    chat_id: String,
     machine_id: String,
     machine_name: String,
     folder: String,
@@ -166,54 +37,159 @@ struct Run {
     reviewer: RoleAssignment,
 }
 
-async fn note(s: &AppState, r: &Run, text: &str) -> ApiResult<()> {
-    let msg = api::insert_message(s, &r.chat_id.to_string(), "orchestrator", text).await?;
-    s.bus.send(&r.user_id, Event::Message { message: msg });
-    Ok(())
+async fn role(s: &AppState, user_id: &str, name: &str) -> ApiResult<Option<RoleAssignment>> {
+    Ok(sqlx::query_as::<_, RoleAssignment>("SELECT role, provider_id, model_id FROM user_roles WHERE user_id = ? AND role = ?")
+        .bind(user_id)
+        .bind(name)
+        .fetch_optional(&s.db)
+        .await?)
 }
 
-async fn progress(s: &AppState, r: &Run, progress: f64, step: &str) -> ApiResult<()> {
-    let now = util::now();
+/// Starts a task on a computer, in a folder.
+pub async fn start(
+    State(s): State<AppState>,
+    Extension(u): Extension<User>,
+    Path(id): Path<String>,
+    Json(b): Json<StartBody>,
+) -> ApiResult<StatusCode> {
+    let task: Option<(String, String, String, String)> =
+        sqlx::query_as("SELECT title, description, project_id, state FROM tasks WHERE id = ? AND user_id = ?")
+            .bind(&id)
+            .bind(&u.id)
+            .fetch_optional(&s.db)
+            .await?;
+    let Some((title, description, project_id, state)) = task else { return Err(ApiError::NotFound) };
+    if state == "running" {
+        return Err(ApiError::BadRequest("This task is already running.".into()));
+    }
+    if description.trim().is_empty() {
+        return Err(ApiError::BadRequest("Write what the task should do first (goal, steps, done when).".into()));
+    }
+    let machine: Option<(String,)> = sqlx::query_as("SELECT name FROM machines WHERE id = ? AND user_id = ?")
+        .bind(&b.machine_id)
+        .bind(&u.id)
+        .fetch_optional(&s.db)
+        .await?;
+    let Some((machine_name,)) = machine else { return Err(ApiError::NotFound) };
+    let folder = b.folder.trim().trim_end_matches('/').to_string();
+    if !folder.starts_with('/') || folder.split('/').any(|c| c == "..") {
+        return Err(ApiError::BadRequest("Use an absolute folder.".into()));
+    }
+    let Some(orchestrator) = role(&s, &u.id, "orchestrator").await? else {
+        return Err(ApiError::BadRequest("Set the orchestrator model first.".into()));
+    };
+    let worker = role(&s, &u.id, "worker").await?.unwrap_or_else(|| orchestrator.clone());
+    let reviewer = role(&s, &u.id, "reviewer").await?.unwrap_or_else(|| orchestrator.clone());
+
+    // The task's own chat, in its project.
+    let chat_title = format!("Task: {title}");
+    let chat: Option<(String,)> = sqlx::query_as("SELECT id FROM chats WHERE user_id = ? AND project_id = ? AND title = ? LIMIT 1")
+        .bind(&u.id)
+        .bind(&project_id)
+        .bind(&chat_title)
+        .fetch_optional(&s.db)
+        .await?;
+    let chat_id = match chat {
+        Some((c,)) => c,
+        None => {
+            let c = util::new_id();
+            sqlx::query("INSERT INTO chats (id, project_id, title, updated_at, user_id) VALUES (?, ?, ?, ?, ?)")
+                .bind(&c)
+                .bind(&project_id)
+                .bind(&chat_title)
+                .bind(util::now())
+                .bind(&u.id)
+                .execute(&s.db)
+                .await?;
+            c
+        }
+    };
+    let check = Some(b.check.trim().to_string()).filter(|c| !c.is_empty());
     sqlx::query(
-        "UPDATE tasks SET progress = ?, step = ?, updated_at = ? WHERE id = ?"
+        "UPDATE tasks SET machine_id = ?, folder = ?, check_cmd = ?, chat_id = ?, state = 'running', progress = 0,
+         step = 'planning', updated_at = ? WHERE id = ? AND user_id = ?",
     )
-    .bind(progress)
-    .bind(step)
-    .bind(now)
-    .bind(r.task_id)
+    .bind(&b.machine_id)
+    .bind(&folder)
+    .bind(&check)
+    .bind(&chat_id)
+    .bind(util::now())
+    .bind(&id)
+    .bind(&u.id)
     .execute(&s.db)
     .await?;
+    s.bus.send(&u.id, Event::Changed { what: "tasks", machine_id: None });
+    s.bus.send(&u.id, Event::Changed { what: "chats", machine_id: None });
 
-    s.bus.send(&r.user_id, Event::Changed { what: "tasks", machine_id: None });
-    Ok(())
+    let r = Run {
+        user_id: u.id.clone(), task_id: id, title, description, chat_id, machine_id: b.machine_id,
+        machine_name, folder, check, orchestrator, worker, reviewer,
+    };
+    tokio::spawn(run(s.clone(), r));
+    Ok(StatusCode::ACCEPTED)
 }
 
-async fn finish(s: &AppState, r: &Run, state: &str, step: &str) -> ApiResult<()> {
-    let now = util::now();
-    sqlx::query(
-        "UPDATE tasks SET state = ?, progress = 1.0, step = ?, updated_at = ? WHERE id = ?"
+async fn note(s: &AppState, r: &Run, text: &str) {
+    match api::insert_message(s, &r.chat_id, "orchestrator", text).await {
+        Ok(message) => s.bus.send(&r.user_id, Event::Message { message }),
+        Err(e) => tracing::warn!("task note: {e}"),
+    }
+}
+
+async fn progress(s: &AppState, r: &Run, progress: f64, step: &str) {
+    let _ = sqlx::query("UPDATE tasks SET progress = ?, step = ?, updated_at = ? WHERE id = ?")
+        .bind(progress)
+        .bind(step)
+        .bind(util::now())
+        .bind(&r.task_id)
+        .execute(&s.db)
+        .await;
+    s.bus.send(&r.user_id, Event::Changed { what: "tasks", machine_id: None });
+}
+
+async fn finish(s: &AppState, r: &Run, state: &str, step: &str) {
+    let _ = sqlx::query(
+        "UPDATE tasks SET state = ?, step = ?, progress = CASE WHEN ? = 'done' THEN 1.0 ELSE progress END,
+         updated_at = ? WHERE id = ?",
     )
     .bind(state)
     .bind(step)
-    .bind(now)
-    .bind(r.task_id)
+    .bind(state)
+    .bind(util::now())
+    .bind(&r.task_id)
     .execute(&s.db)
-    .await?;
-
+    .await;
     s.bus.send(&r.user_id, Event::Changed { what: "tasks", machine_id: None });
     crate::notify::task_changed(s.db.clone(), r.user_id.clone(), r.title.clone(), "running".into(), state.into());
-    Ok(())
+}
+
+/// One answer from a model, without tools (plans and reviews).
+async fn ask_model(s: &AppState, role: &RoleAssignment, system: &str, user: &str) -> Result<String, String> {
+    let Some(p) = s.config.provider(&role.provider_id) else {
+        return Err(format!("The provider {} is not configured.", role.provider_id));
+    };
+    let messages = [json!({ "role": "system", "content": system }), json!({ "role": "user", "content": user })];
+    let msg = llm::chat_with_tools(&s.http, p, &role.model_id, &messages, &json!([]))
+        .await
+        .map_err(|e| format!("{e:#}"))?;
+    Ok(msg["content"].as_str().unwrap_or("").to_string())
 }
 
 fn worker_prompt(r: &Run) -> String {
-    format!("You are Kreative Kompanion's worker on {}. Work only inside {}. Use the tools; steps outside your grants wait for the user's approval. Make the smallest change that does the step, look before you change, and never create files the task doesn't need. When the step is done, answer with one short line saying what you did.", r.machine_name, r.folder)
+    format!(
+        "You are Kreative Kompanion's worker on {}. Work only inside {}. Use the tools; steps outside your \
+         grants wait for the user's approval. Make the smallest change that does the step, look before you \
+         change, and never create files the task doesn't need. When the step is done, answer with one short \
+         line saying what you did.",
+        r.machine_name, r.folder
+    )
 }
 
 fn agent(s: &AppState, r: &Run, max_steps: usize) -> pcagent::Agent {
     pcagent::Agent {
         s: s.clone(),
         user_id: r.user_id.clone(),
-        chat_id: r.chat_id.to_string(),
+        chat_id: r.chat_id.clone(),
         machine_id: r.machine_id.clone(),
         role: r.worker.clone(),
         auto: true,
@@ -221,133 +197,109 @@ fn agent(s: &AppState, r: &Run, max_steps: usize) -> pcagent::Agent {
     }
 }
 
-async fn run(s: AppState, mut r: Run) {
-    // Plan
-    let plan_system = "You plan coding and admin tasks on the user's computer. Answer only with a JSON array of 3 to 8 short, concrete steps.";
+/// Runs the worker on one instruction: Ok(its last line) or Err(why it stopped).
+async fn work(s: &AppState, r: &Run, max_steps: usize, instruction: String) -> Result<String, String> {
+    agent(s, r, max_steps)
+        .run(vec![json!({ "role": "system", "content": worker_prompt(r) }), json!({ "role": "user", "content": instruction })])
+        .await
+}
+
+fn cut(text: &str, max: usize) -> String {
+    text.chars().take(max).collect()
+}
+
+async fn run(s: AppState, r: Run) {
+    // 1. Plan.
     let plan_user = format!("Task: {}\n\n{}\n\nWork in the folder {} on {}.", r.title, r.description, r.folder, r.machine_name);
-    
-    let steps = match parse::plan(&plan_user) {
-        Ok(steps) => steps,
-        Err(_) => {
-            note(&s, &r, "I couldn't make a plan; the task description may need more detail.").await.ok();
-            finish(&s, &r, "needs_input", "planning failed").await.ok();
-            return;
+    let plan_text = match ask_model(
+        &s,
+        &r.orchestrator,
+        "You plan coding and admin tasks on the user's computer. Answer only with a JSON array of 3 to 8 short, concrete steps.",
+        &plan_user,
+    )
+    .await
+    {
+        Ok(t) => t,
+        Err(e) => {
+            note(&s, &r, &format!("Planning failed: {e}")).await;
+            return finish(&s, &r, "needs_input", "planning failed").await;
         }
     };
+    let steps = parse::plan(&plan_text);
+    if steps.is_empty() {
+        note(&s, &r, "I couldn't make a plan; the task description may need more detail.").await;
+        return finish(&s, &r, "needs_input", "no plan").await;
+    }
+    let plan_list = steps.iter().enumerate().map(|(i, x)| format!("{}. {x}", i + 1)).collect::<Vec<_>>().join("\n");
+    note(&s, &r, &format!("Plan:\n{plan_list}")).await;
 
-    note(&s, &r, &format!("Plan created:\n{}", steps.iter().enumerate().map(|(i, x)| format!("{}. {x}", i + 1)).collect::<Vec<_>>().join("\n"))).await.ok();
-
-    let n_steps = steps.len();
+    // 2. The steps.
+    let n = steps.len();
     for (i, step) in steps.iter().enumerate() {
-        progress(&s, &r, (i as f64) / (n_steps as f64), &format!("Step {}/{}: {}", i+1, n_steps, step)).await.ok();
-
-        let worker_prompt_text = worker_prompt(&r);
-        
-        let agent_messages = vec![
-            json!({ "role": "system", "content": worker_prompt_text }),
-            json!({ "role": "user", "content": format!("Step {} of {}: {}\n\nThe whole plan:\n{}", i+1, n_steps, step, steps.iter().enumerate().map(|(j, x)| format!("{}. {x}", j + 1)).collect::<Vec<_>>().join("\n")) }),
-        ];
-
-        let agent = agent(&s, &r, 12);
-
-        match agent.run(agent_messages).await {
-            Ok(line) => {
-                note(&s, &r, &format!("Step {}: {}", i+1, line)).await.ok();
-            },
-            Err(text) => {
-                note(&s, &r, &format!("Step {} failed: {}", i+1, text)).await.ok();
-                finish(&s, &r, "needs_input", &format!("Step {} failed", i+1)).await.ok();
-                return;
+        progress(&s, &r, i as f64 / n as f64 * 0.8, &format!("Step {}/{n}: {step}", i + 1)).await;
+        match work(&s, &r, 12, format!("Step {} of {n}: {step}\n\nThe whole plan:\n{plan_list}", i + 1)).await {
+            Ok(line) => note(&s, &r, &format!("Step {}: {line}", i + 1)).await,
+            Err(why) => {
+                note(&s, &r, &format!("Step {} stopped: {why}", i + 1)).await;
+                return finish(&s, &r, "needs_input", &format!("step {} needs you", i + 1)).await;
             }
         }
     }
 
-    // Check and review
-    let mut round = 1;
-    loop {
-        let check_text = if let Some(ref cmd) = r.check {
-            let check_agent = agent(&s, &r, 3);
-            
-            let check_messages = vec![
-                json!({ "role": "system", "content": "You are a checker. Run exactly this check in the folder with the shell tool and report the full result." }),
-                json!({ "role": "user", "content": format!("Run exactly this check in {} with the shell tool and report the full result: {}", r.folder, cmd) }),
-            ];
-            
-            match check_agent.run(check_messages).await {
-                Ok(text) => text,
-                Err(e) => {
-                    note(&s, &r, &format!("Check command failed: {}", e)).await.ok();
-                    finish(&s, &r, "needs_input", "review failed").await.ok();
-                    return;
-                }
-            }
-        } else {
-            "(no check command)".to_string()
+    // 3. Check and review, with fix rounds.
+    for round in 1..=ROUNDS {
+        progress(&s, &r, 0.85, &format!("review, round {round}")).await;
+        let check_text = match &r.check {
+            Some(cmd) => work(&s, &r, 3, format!("Run exactly this check in {} with the shell tool and report the full result: `{cmd}`", r.folder))
+                .await
+                .unwrap_or_else(|e| format!("The check could not run: {e}")),
+            None => "(no check command)".to_string(),
         };
-
-        let diff_text = {
-            let diff_agent = agent(&s, &r, 3);
-            
-            let diff_messages = vec![
-                json!({ "role": "system", "content": "You are a diff viewer. Show the changes by running git commands and reporting them." }),
-                json!({ "role": "user", "content": format!("Show the changes: run `git -C {} diff --stat` and `git -C {} diff` with the shell tool and report them.", r.folder, r.folder) }),
-            ];
-            
-            match diff_agent.run(diff_messages).await {
-                Ok(text) => text,
-                Err(_) => "(no git diff)".to_string(),
-            }
-        };
-
-        let safe_task = r.description.chars().take(6000).collect::<String>();
-        let safe_check = check_text.chars().take(6000).collect::<String>();
-        let safe_diff = diff_text.chars().take(6000).collect::<String>();
-
-        let review_system = "You review a finished task. Answer only with JSON: {\"ok\": true|false, \"findings\": [\"...\"]}. ok only when the check passed and the changes do what the task asks, nothing more.";
-        let review_user = format!("Task: {}\n\nCheck result:\n{}\n\nDiff:\n{}", safe_task, safe_check, safe_diff);
-
-        match ask_model(&s, &r.reviewer, review_system, &review_user).await {
-            Ok(review_text) => {
-                let review = parse::review(&review_text);
-
-                if review.ok {
-                    note(&s, &r, "Review: looks good.").await.ok();
-                    finish(&s, &r, "done", &format!("done after {} round(s)", round)).await.ok();
-                    return;
-                } else {
-                    let findings = review.findings.join("\n- ");
-                    note(&s, &r, &format!("Review findings:\n- {}", findings)).await.ok();
-                    
-                    if round >= 3 {
-                        note(&s, &r, "Still not right after 3 rounds; it needs you.").await.ok();
-                        finish(&s, &r, "needs_input", "review failed 3 times").await.ok();
-                        return;
-                    } else {
-                        let fix_system = "You are a fixer. Fix these review findings, then answer with one short line.";
-                        let fix_user = format!("Fix these review findings, then answer with one short line:\n- {}", findings);
-                        
-                        let fix_agent = agent(&s, &r, 12);
-                        
-                        match fix_agent.run(vec![
-                            json!({ "role": "system", "content": fix_system }),
-                            json!({ "role": "user", "content": fix_user }),
-                        ]).await {
-                            Ok(fix_line) => {
-                                note(&s, &r, &format!("Fix attempt {}: {}", round, fix_line)).await.ok();
-                            },
-                            Err(e) => {
-                                note(&s, &r, &format!("Fix attempt {} failed: {}", round, e)).await.ok();
-                            }
-                        }
-                        round += 1;
-                        continue;
-                    }
-                }
-            },
+        let diff_text = work(
+            &s,
+            &r,
+            3,
+            format!("Show the changes: run `git -C {0} diff --stat` and `git -C {0} diff` with the shell tool and report them.", r.folder),
+        )
+        .await
+        .unwrap_or_else(|_| "(no git diff)".to_string());
+        let review_user = format!(
+            "Task: {}\n\n{}\n\nCheck result:\n{}\n\nChanges:\n{}",
+            r.title,
+            cut(&r.description, 6000),
+            cut(&check_text, 6000),
+            cut(&diff_text, 6000)
+        );
+        let review = match ask_model(
+            &s,
+            &r.reviewer,
+            "You review a finished task. Answer only with JSON: {\"ok\": true|false, \"findings\": [\"...\"]}. \
+             ok only when the check passed and the changes do what the task asks, nothing more.",
+            &review_user,
+        )
+        .await
+        {
+            Ok(t) => parse::review(&t),
             Err(e) => {
-                note(&s, &r, &format!("Review failed: {}", e)).await.ok();
-                finish(&s, &r, "needs_input", "review failed").await.ok();
-                return;
+                note(&s, &r, &format!("The review failed: {e}")).await;
+                return finish(&s, &r, "needs_input", "review failed").await;
+            }
+        };
+        if review.ok {
+            note(&s, &r, "Review: looks good.").await;
+            return finish(&s, &r, "done", &format!("done after {round} round(s)")).await;
+        }
+        let findings = review.findings.iter().map(|f| format!("- {f}")).collect::<Vec<_>>().join("\n");
+        note(&s, &r, &format!("Review, round {round}:\n{findings}")).await;
+        if round == ROUNDS {
+            note(&s, &r, "Still not right after 3 rounds; it needs you.").await;
+            return finish(&s, &r, "needs_input", "review failed 3 times").await;
+        }
+        match work(&s, &r, 12, format!("Fix these review findings, then answer with one short line:\n{findings}")).await {
+            Ok(line) => note(&s, &r, &format!("Fix {round}: {line}")).await,
+            Err(why) => {
+                note(&s, &r, &format!("The fix stopped: {why}")).await;
+                return finish(&s, &r, "needs_input", "fix needs you").await;
             }
         }
     }
@@ -356,30 +308,19 @@ async fn run(s: AppState, mut r: Run) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::env;
 
-    fn dummy_run() -> Run {
-        Run {
-            user_id: "test-user".to_string(),
-            task_id: 1,
-            title: "Test Task".to_string(),
-            description: "Test Description".to_string(),
-            chat_id: 1,
-            machine_id: "test-machine".to_string(),
-            machine_name: "test-machine".to_string(),
-            folder: "/tmp/test".to_string(),
-            check: None,
-            orchestrator: RoleAssignment { provider_id: "ollama".to_string(), model_id: "qwen3:14b".to_string() },
-            worker: RoleAssignment { provider_id: "ollama".to_string(), model_id: "qwen3.5:9b-q8_0".to_string() },
-            reviewer: RoleAssignment { provider_id: "ollama".to_string(), model_id: "qwen3.5:9b-q8_0".to_string() },
-        }
+    fn role() -> RoleAssignment {
+        RoleAssignment { role: "worker".into(), provider_id: "p".into(), model_id: "m".into() }
     }
 
     #[test]
-    fn test_worker_prompt_contains_folder_and_machine() {
-        let r = dummy_run();
-        let prompt = worker_prompt(&r);
-        assert!(prompt.contains("test-machine"));
-        assert!(prompt.contains("/tmp/test"));
+    fn worker_prompt_names_the_folder_and_machine() {
+        let r = Run {
+            user_id: "u".into(), task_id: "t".into(), title: "T".into(), description: "D".into(), chat_id: "c".into(),
+            machine_id: "m".into(), machine_name: "soucouyant".into(), folder: "/home/k/app".into(), check: None,
+            orchestrator: role(), worker: role(), reviewer: role(),
+        };
+        let p = worker_prompt(&r);
+        assert!(p.contains("/home/k/app") && p.contains("soucouyant"));
     }
 }
