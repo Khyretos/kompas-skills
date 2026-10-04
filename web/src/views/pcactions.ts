@@ -51,7 +51,7 @@ export function renderPcActions(actions: PcAction[], machineNames: Record<string
     <section class="pc-actions" aria-label="Steps on your computer">
       ${recent.map((a) => {
         const label = stateLabels[a.state] ?? a.state;
-        const hasResult = a.result !== undefined;
+        const hasResult = !!a.result;
         const buttons = html`
           <button class="btn small primary" data-action="pc-decide" data-id="${a.id}" data-decision="approve">Approve</button>
           <button class="btn small" data-action="pc-decide" data-id="${a.id}" data-decision="always">Always allow (24 h)</button>
@@ -64,7 +64,7 @@ export function renderPcActions(actions: PcAction[], machineNames: Record<string
             <span class="muted small">on ${machineNames[a.machineId] ?? "a computer"}</span>
             ${a.needs && a.state === "pending" ? html`<span class="small">Needs: ${a.needs}</span>` : ""}
             <span class="chip ${a.state}">${label}</span>
-            ${hasResult ? renderOutput(fromTool(a.tool, a.result, machineNames[a.machineId])) : null}
+            ${hasResult ? renderOutput(fromTool(a.tool, a.result ?? "", machineNames[a.machineId])) : ""}
             ${a.state === "pending" ? buttons : null}
           </article>
         `;

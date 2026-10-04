@@ -34,3 +34,6 @@
     selection out doesn't close it), a visible × button top-right, and Escape. If a form inside
     has unsaved edits, ask before closing. Return focus to the element that opened it. Use the
     shared helper `core/modal.ts`; never write a one-off.
+16. `null` is not `undefined`. A field typed `string | null` needs a truthiness check (`!!a.result`)
+    or `?? ""`, never `!== undefined`; otherwise a string function gets `null` and the whole
+    render throws, so nothing shows.

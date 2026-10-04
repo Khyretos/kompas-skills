@@ -71,9 +71,10 @@ export function fromTool(
   result: string,
   machine?: string
 ): Output {
+  tool = tool ?? {};
   const toolName = tool?.tool as string | undefined;
   if (toolName === "shell") {
-    const command = result.trim();
+    const command = String(tool.command ?? "");
     return {
       kind: "terminal",
       text: result,
