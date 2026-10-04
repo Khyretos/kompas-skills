@@ -41,35 +41,29 @@ pub struct CodeBody {
     pub name: String,
 }
 
-/// Creates a new pairing code for the authenticated user.
-pub async fn create_code(State(s): State<AppState>, Extension(u): Extension<User>, Json(b): Json<CodeBody>) -> ApiResult<Json<Value>> {
-    let now = util::now();
-    
-    // Delete expired codes for this user
+/// A new one-time pairing code for `user_id` (15 minutes): (code, expires at).
+pub async fn new_pair_code(db: &sqlx::SqlitePool, user_id: &str, name: &str) -> Result<(String, String), sqlx::Error> {
     sqlx::query("DELETE FROM pair_codes WHERE user_id = ? AND expires_at < ?")
-        .bind(&u.id)
-        .bind(&now)
-        .execute(&s.db)
+        .bind(user_id)
+        .bind(util::now())
+        .execute(db)
         .await?;
-
     let code = new_code();
-    let normalized = normalize(&code);
-    let hash = util::sha256_hex(&normalized);
-    
-    // Insert the new code
     let expires = in_minutes(15);
     sqlx::query("INSERT INTO pair_codes (code_hash, user_id, name, expires_at) VALUES (?, ?, ?, ?)")
-        .bind(&hash)
-        .bind(&u.id)
-        .bind(b.name.trim().chars().take(60).collect::<String>())
+        .bind(util::sha256_hex(&normalize(&code)))
+        .bind(user_id)
+        .bind(name.trim().chars().take(60).collect::<String>())
         .bind(&expires)
-        .execute(&s.db)
+        .execute(db)
         .await?;
+    Ok((code, expires))
+}
 
-    Ok(Json(json!({
-        "code": code,
-        "expiresAt": expires
-    })))
+/// Creates a new pairing code for the authenticated user.
+pub async fn create_code(State(s): State<AppState>, Extension(u): Extension<User>, Json(b): Json<CodeBody>) -> ApiResult<Json<Value>> {
+    let (code, expires) = new_pair_code(&s.db, &u.id, &b.name).await?;
+    Ok(Json(json!({ "code": code, "expiresAt": expires })))
 }
 
 #[derive(Deserialize)]

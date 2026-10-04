@@ -145,16 +145,30 @@ function editor(t: Task | undefined, projectId: string, s: AppState): SafeHtml {
 }
 
 /** W2: run the task by itself on a paired computer, in a folder, checked by a command. */
+/** Every known computer for the Run form; one that can't run steps now is shown disabled with
+ *  the reason (never hidden). This server's own entry has no runner unless one is paired. */
+export function runTargets(s: AppState): { id: string; name: string; why: string }[] {
+  const paired = s.machines.filter((m) => m.id !== "server");
+  return [
+    ...paired.map((m) => ({ id: m.id, name: m.name, why: m.online ? "" : "offline" })),
+    ...s.machines.filter((m) => m.id === "server" && !paired.some((p) => p.name === m.name))
+      .map((m) => ({ id: m.id, name: m.name, why: "no runner: pair it in Machines" })),
+  ];
+}
+
 function runForm(t: Task, s: AppState): SafeHtml {
-  const machines = s.machines.filter((m) => m.id !== "server");
-  if (t.state === "running" || t.state === "done" || machines.length === 0 || !t.description) return html``;
+  const targets = runTargets(s);
+  const machines = targets.filter((m) => !m.why);
+  if (t.state === "running" || t.state === "done" || targets.length === 0 || !t.description) return html``;
   // A programming project's repo is the default computer and folder.
   const project = s.projects.find((p) => p.id === t.projectId);
   const repo = project?.type === "programming" ? project : undefined;
   return html`
     <form class="task-run" data-id="${t.id}">
       <h4 class="label">Run it on a computer</h4>
-      <label>Computer <select name="machine">${machines.map((m) => html`<option value="${m.id}" ${m.id === repo?.repoMachineId ? "selected" : ""}>${m.name}</option>`)}</select></label>
+      <label>Computer <select name="machine">${targets.map((m) => html`<option value="${m.id}" ${m.why ? "disabled" : ""}
+        ${!m.why && m.id === repo?.repoMachineId ? "selected" : ""}>${m.name}${m.why ? ` (${m.why})` : ""}</option>`)}</select></label>
+      ${machines.length === 0 ? html`<p class="warn small">No computer can run steps right now: pair one in the Machines tab, or wait until it is online.</p>` : ""}
       <label>Folder <input name="folder" value="${repo?.repoFolder ?? ""}" placeholder="/home/you/projects/app" required></label>
       <label>Check <input name="check" placeholder="cargo test (optional)"></label>
       <p class="muted small">Kompanion plans, works step by step and reviews the result (up to 3 rounds). Steps your grants allow run by themselves; anything else asks you first. Progress shows in the task's own chat.</p>

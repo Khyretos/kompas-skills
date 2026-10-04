@@ -108,6 +108,16 @@ async fn main() -> anyhow::Result<()> {
     sqlx::migrate!().run(&db).await?;
 
     let args: Vec<String> = std::env::args().collect();
+    // `kompanion-server pair-code <account> [name]`: a one-time pairing code from the server's
+    // own shell (docker exec), for pairing a runner on the server's host without the web app.
+    if args.get(1).map(String::as_str) == Some("pair-code") {
+        let Some(account) = args.get(2) else { anyhow::bail!("usage: kompanion-server pair-code <account> [computer name]") };
+        let user: Option<(String,)> = sqlx::query_as("SELECT id FROM users WHERE name = ?").bind(account).fetch_optional(&db).await?;
+        let Some((user_id,)) = user else { anyhow::bail!("no account named {account}") };
+        let (code, expires) = pairing::new_pair_code(&db, &user_id, args.get(3).map(String::as_str).unwrap_or("")).await?;
+        println!("{code} (valid until {expires})");
+        return Ok(());
+    }
     if args.get(1).map(String::as_str) == Some("import") {
         let path = args
             .get(2)
