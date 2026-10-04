@@ -1,4 +1,18 @@
-use std::{env, fs, os::unix::fs::PermissionsExt, path::PathBuf, process::Command};
+use std::{env, fs, os::unix::fs::{OpenOptionsExt, PermissionsExt}, path::PathBuf, process::Command};
+
+/// The systemd user unit the installer writes.
+const UNIT: &str = r#"[Unit]
+Description=Kreative Kompanion runner (stats and granted tools, outbound only)
+After=network-online.target
+
+[Service]
+ExecStart=%h/.local/bin/kompanion-runner
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target
+"#;
 
 /// Returns the path to the Kompanion runner config directory.
 fn config_dir() -> Result<PathBuf, String> {
@@ -128,18 +142,6 @@ pub fn install_service() -> Result<(), String> {
         .map_err(|e| format!("failed to write service file: {}", e))?;
 
     let service_path = service_dir.join("kompanion-runner.service");
-    const UNIT: &str = r#"[Unit]
-Description=Kreative Kompanion runner (stats and granted tools, outbound only)
-After=network-online.target
-
-[Service]
-ExecStart=%h/.local/bin/kompanion-runner
-Restart=on-failure
-RestartSec=10
-
-[Install]
-WantedBy=default.target
-"#;
 
     fs::write(&service_path, UNIT)
         .map_err(|e| format!("failed to write service file: {}", e))?;

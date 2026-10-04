@@ -48,7 +48,7 @@ pub async fn create_code(State(s): State<AppState>, Extension(u): Extension<User
     // Delete expired codes for this user
     sqlx::query("DELETE FROM pair_codes WHERE user_id = ? AND expires_at < ?")
         .bind(&u.id)
-        .bind(now)
+        .bind(&now)
         .execute(&s.db)
         .await?;
 
@@ -62,7 +62,7 @@ pub async fn create_code(State(s): State<AppState>, Extension(u): Extension<User
         .bind(&hash)
         .bind(&u.id)
         .bind(b.name.trim().chars().take(60).collect::<String>())
-        .bind(expires)
+        .bind(&expires)
         .execute(&s.db)
         .await?;
 
@@ -90,7 +90,7 @@ pub async fn pair(State(s): State<AppState>, Json(b): Json<PairBody>) -> ApiResu
         "SELECT user_id, name FROM pair_codes WHERE code_hash = ? AND expires_at > ?"
     )
     .bind(&hash)
-    .bind(now)
+    .bind(&now)
     .fetch_optional(&s.db)
     .await?;
 
@@ -123,7 +123,7 @@ pub async fn pair(State(s): State<AppState>, Json(b): Json<PairBody>) -> ApiResu
         .bind(&user_id)
         .bind(&name)
         .bind(token_hash)
-        .bind(now)
+        .bind(&now)
         .execute(&s.db)
         .await?;
 
