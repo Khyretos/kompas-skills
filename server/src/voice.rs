@@ -6,7 +6,21 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use std::{process::Stdio, time::Duration};
 use tokio::io::AsyncWriteExt;
-use crate::{AppState, error::{ApiError, ApiResult}};
+use crate::{AppState, auth::User, error::{ApiError, ApiResult}};
+
+/// Longest recording sent to Whisper; ffmpeg cuts the rest.
+const MAX_SECONDS: u32 = 60;
+
+/// Users with a transcription in flight: one at a time each, so nobody can pile requests
+/// onto the shared GPU server (a bad request once crashed it for everyone).
+static BUSY: std::sync::LazyLock<std::sync::Mutex<std::collections::HashSet<String>>> = std::sync::LazyLock::new(Default::default);
+
+struct Slot(String);
+impl Drop for Slot {
+    fn drop(&mut self) {
+        BUSY.lock().unwrap().remove(&self.0);
+    }
+}
 
 fn env(k: &str, d: &str) -> String {
     std::env::var(k).ok().filter(|v| !v.is_empty()).unwrap_or_else(|| d.to_string())
@@ -51,9 +65,11 @@ pub struct SttQuery {
 }
 
 /// Any recording the browser makes (webm/opus, ogg, mp4/aac, wav) as 16 kHz mono PCM WAV.
+/// ffmpeg writes raw samples and the header is built here: a WAV written to a pipe has
+/// 0xFFFFFFFF sizes (ffmpeg can't seek back) and a LIST chunk, and Whisper refuses both.
 async fn to_wav16k(audio: Bytes) -> anyhow::Result<Vec<u8>> {
     let mut child = tokio::process::Command::new("ffmpeg")
-        .args(["-v", "error", "-nostdin", "-i", "pipe:0", "-ac", "1", "-ar", "16000", "-c:a", "pcm_s16le", "-f", "wav", "pipe:1"])
+        .args(["-v", "error", "-nostdin", "-i", "pipe:0", "-t", &MAX_SECONDS.to_string(), "-ac", "1", "-ar", "16000", "-f", "s16le", "pipe:1"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -73,23 +89,56 @@ async fn to_wav16k(audio: Bytes) -> anyhow::Result<Vec<u8>> {
         let err: String = String::from_utf8_lossy(&out.stderr).chars().take(200).collect();
         anyhow::bail!("{}", err.trim());
     }
-    Ok(out.stdout)
+    let samples = out.stdout;
+    // Whole 16-bit samples, at least 0.2 s, at most MAX_SECONDS: anything else is not sent.
+    if samples.len() % 2 != 0 || samples.len() < 16000 * 2 / 5 || samples.len() > (16000 * 2 * MAX_SECONDS) as usize {
+        anyhow::bail!("it is empty, too short or too long");
+    }
+    Ok(pcm16_wav(&samples, 16000, 1))
 }
 
-pub async fn transcribe(State(s): State<AppState>, Query(q): Query<SttQuery>, body: Bytes) -> ApiResult<Json<Value>> {
+/// A 44-byte PCM header with the real sizes, then the 16-bit samples.
+fn pcm16_wav(samples: &[u8], rate: u32, channels: u16) -> Vec<u8> {
+    let len = samples.len() as u32;
+    let mut out = Vec::with_capacity(44 + samples.len());
+    out.extend_from_slice(b"RIFF");
+    out.extend_from_slice(&(36 + len).to_le_bytes());
+    out.extend_from_slice(b"WAVEfmt ");
+    out.extend_from_slice(&16u32.to_le_bytes());
+    out.extend_from_slice(&1u16.to_le_bytes());
+    out.extend_from_slice(&channels.to_le_bytes());
+    out.extend_from_slice(&rate.to_le_bytes());
+    out.extend_from_slice(&(rate * channels as u32 * 2).to_le_bytes());
+    out.extend_from_slice(&(channels * 2).to_le_bytes());
+    out.extend_from_slice(&16u16.to_le_bytes());
+    out.extend_from_slice(b"data");
+    out.extend_from_slice(&len.to_le_bytes());
+    out.extend_from_slice(samples);
+    out
+}
+
+pub async fn transcribe(State(s): State<AppState>, axum::Extension(u): axum::Extension<User>, Query(q): Query<SttQuery>, body: Bytes) -> ApiResult<Json<Value>> {
     if !enabled() {
         return Err(ApiError::BadRequest("Voice is off on this server.".into()));
     }
     if body.is_empty() {
         return Err(ApiError::BadRequest("No audio.".into()));
     }
-    let wav = to_wav16k(body).await.map_err(|e| ApiError::BadRequest(format!("That recording could not be read: {e}")))?;
-    let mut form = reqwest::multipart::Form::new()
+    if !BUSY.lock().unwrap().insert(u.id.clone()) {
+        return Err(ApiError::TooMany);
+    }
+    let _slot = Slot(u.id.clone());
+    let wav = to_wav16k(body).await.map_err(|e| {
+        tracing::info!(error = %e, "voice: recording refused");
+        ApiError::BadRequest("That recording could not be used (empty, under 0.2 s or not audio). Try again.".into())
+    })?;
+    let form = reqwest::multipart::Form::new()
         .text("model", env("VOICE_STT_MODEL", "Whisper"))
         .part("file", reqwest::multipart::Part::bytes(wav).file_name("speech.wav").mime_str("audio/wav").map_err(|e| ApiError::Internal(e.into()))?);
-    if let Some(lang) = q.lang.filter(|l| ["en", "es", "nl"].contains(&l.as_str())) {
-        form = form.text("language", lang);
-    }
+    // Never send Whisper's "language" field: OVMS 2026.4 segfaulted on a request with
+    // language=en (2026-10-04), taking every GPU model down with it. Whisper detects the
+    // language by itself; `lang` only decides whether replies are read aloud (web side).
+    let _ = q.lang;
     let url = format!("{}/audio/transcriptions", env("VOICE_STT_URL", "http://ovms:8000/v3"));
     let r = authed(s.http.post(url)).multipart(form).timeout(Duration::from_secs(60)).send().await.map_err(|e| ApiError::Internal(e.into()))?;
     if !r.status().is_success() {
@@ -168,22 +217,7 @@ pub fn to_pcm16(wav: &[u8]) -> Option<Vec<u8>> {
         .chunks_exact(4)
         .flat_map(|c| ((f32::from_le_bytes([c[0], c[1], c[2], c[3]]).clamp(-1.0, 1.0) * 32767.0).round() as i16).to_le_bytes())
         .collect();
-    let len = samples.len() as u32;
-    let mut out = Vec::with_capacity(44 + samples.len());
-    out.extend_from_slice(b"RIFF");
-    out.extend_from_slice(&(36 + len).to_le_bytes());
-    out.extend_from_slice(b"WAVEfmt ");
-    out.extend_from_slice(&16u32.to_le_bytes());
-    out.extend_from_slice(&1u16.to_le_bytes());
-    out.extend_from_slice(&channels.to_le_bytes());
-    out.extend_from_slice(&rate.to_le_bytes());
-    out.extend_from_slice(&(rate * channels as u32 * 2).to_le_bytes());
-    out.extend_from_slice(&(channels * 2).to_le_bytes());
-    out.extend_from_slice(&16u16.to_le_bytes());
-    out.extend_from_slice(b"data");
-    out.extend_from_slice(&len.to_le_bytes());
-    out.extend_from_slice(&samples);
-    Some(out)
+    Some(pcm16_wav(&samples, rate, channels))
 }
 
 #[cfg(test)]
@@ -240,6 +274,16 @@ mod tests {
         assert_eq!(to_pcm16(&wav(1, 16, 8000, &[1, 0, 2, 0])), None);
         assert_eq!(to_pcm16(b"not a wav"), None);
         assert_eq!(to_pcm16(b""), None);
+    }
+
+    #[test]
+    fn pcm_header_has_the_real_sizes() {
+        let w = pcm16_wav(&[1, 0, 2, 0, 3, 0], 16000, 1);
+        assert_eq!(u32_at(&w, 4), Some(36 + 6));
+        assert_eq!(u32_at(&w, 40), Some(6));
+        assert_eq!(&w[12..16], b"fmt ");
+        assert_eq!(&w[36..40], b"data");
+        assert_eq!(u32_at(&w, 28), Some(32000));
     }
 
     #[test]
