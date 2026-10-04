@@ -108,6 +108,28 @@ pub struct Agent {
     pub folder: Option<String>,
 }
 
+/// Why an edit_file job would break the file, if it would: reads the file through the
+/// runner (no card; the runner still enforces the grants) and checks the whole-lines rule.
+/// Without a read grant the check is skipped and the runner's exact match decides.
+async fn edit_problem(s: &AppState, user_id: &str, machine_id: &str, job: &Value) -> Option<String> {
+    let (path, old) = (job["path"].as_str()?, job["old"].as_str().unwrap_or(""));
+    if old.trim().is_empty() {
+        return tools::whole_lines("", old).err();
+    }
+    let id = crate::access::queue_job(&s.db, machine_id, user_id, &json!({ "tool": "read_file", "path": path }), None).await.ok()?;
+    for _ in 0..120 {
+        tokio::time::sleep(Duration::from_millis(500)).await;
+        let row: Option<(String, Option<String>)> =
+            sqlx::query_as("SELECT state, result FROM machine_jobs WHERE id = ?").bind(&id).fetch_optional(&s.db).await.ok()?;
+        match row {
+            Some((st, out)) if st == "done" => return tools::whole_lines(&out.unwrap_or_default(), old).err(),
+            Some((st, _)) if st == "failed" || st == "refused" => return None,
+            _ => {}
+        }
+    }
+    None
+}
+
 /// The paths a runner job touches (path, or the working folder of a command).
 fn job_paths(job: &Value) -> Vec<&str> {
     ["path", "cwd"].iter().filter_map(|k| job[*k].as_str()).collect()
@@ -150,7 +172,14 @@ impl Agent {
                     .as_str()
                     .and_then(|a| serde_json::from_str(a).ok())
                     .unwrap_or_else(|| json!({}));
-                let result = match tools::to_job(name, &args) {
+                let job = tools::to_job(name, &args);
+                // Guardrail: an edit must replace whole lines of the file as it is now
+                // (checked on the computer before the edit; a broken file is never written).
+                let edit_err = match &job {
+                    Some(j) if j["tool"] == "edit_file" => edit_problem(s, &self.user_id, &self.machine_id, j).await,
+                    _ => None,
+                };
+                let result = match job {
                     // Answered here, not by a computer.
                     None if name == "capabilities" => crate::capabilities::summary(s, &self.user_id).await,
                     None => "Unknown tool or wrong arguments.".to_string(),
@@ -162,6 +191,7 @@ impl Agent {
                             self.folder.as_deref().unwrap_or("")
                         )
                     }
+                    Some(_) if edit_err.is_some() => format!("Refused, nothing changed: {}", edit_err.as_deref().unwrap_or("")),
                     Some(job) if job["tool"] == "write_file" && job["path"].as_str().is_some_and(|p| missing.contains(p)) => {
                         "Blocked: that file did not exist when you looked. Ask the user before creating a new file.".to_string()
                     }

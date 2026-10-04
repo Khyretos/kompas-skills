@@ -50,7 +50,7 @@ pub fn schema() -> Value {
             "type": "function",
             "function": {
                 "name": "edit_file",
-                "description": "Replace one exact, unique piece of text in a file; returns a diff.",
+                "description": "Replace whole lines in a file; returns a diff. Read the file first. `old` must be one or more COMPLETE lines copied exactly from the file (never part of a line) and unique in it; `new` replaces them. To add code, put the line next to where it goes in `old` and repeat it in `new` with the new lines. Never empty.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -147,6 +147,34 @@ pub fn schema() -> Value {
             }
         }
     ])
+}
+
+/// An edit's `old` text must be complete lines of the file and found exactly once, else the
+/// edit is refused with a reason the model can act on. (2026-10-04: `old` = "def full_name"
+/// replaced half a line and left "(first: str, last: str) -> str:" behind, a broken file.)
+pub fn whole_lines(content: &str, old: &str) -> Result<(), String> {
+    if old.trim().is_empty() {
+        return Err("`old` is empty. Copy the complete line(s) you want to change; to add code, put the line next to it in `old` and repeat it in `new`.".into());
+    }
+    let hits: Vec<usize> = content.match_indices(old).map(|(i, _)| i).collect();
+    match hits.len() {
+        0 => return Err("`old` was not found in the file. Read the file again and copy the complete lines exactly.".into()),
+        1 => {}
+        n => return Err(format!("`old` is in the file {n} times. Include more lines so it is unique.")),
+    }
+    let start = hits[0];
+    let end = start + old.len();
+    let starts_line = start == 0 || content[..start].ends_with('\n');
+    let ends_line = end == content.len() || old.ends_with('\n') || content[end..].starts_with('\n') || content[end..].starts_with("\r\n");
+    if !starts_line || !ends_line {
+        let line_start = content[..start].rfind('\n').map_or(0, |i| i + 1);
+        let line_end = content[end..].find('\n').map_or(content.len(), |i| end + i);
+        return Err(format!(
+            "`old` is only part of a line. Replace whole lines: use the full line(s), for example:\n{}",
+            &content[line_start..line_end]
+        ));
+    }
+    Ok(())
 }
 
 /// Convert a tool call JSON into a runner job JSON.
@@ -266,6 +294,23 @@ fn safe(path: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const NAMES: &str = "\"\"\"Helpers for people's names.\"\"\"\n\n\ndef full_name(first: str, last: str) -> str:\n    \"\"\"First and last name with one space between them.\"\"\"\n    return f\"{first.strip()} {last.strip()}\"\n";
+
+    #[test]
+    fn edits_must_replace_whole_lines() {
+        // The case that broke names.py on 2026-10-04: half a line.
+        let err = whole_lines(NAMES, "def full_name").unwrap_err();
+        assert!(err.contains("part of a line") && err.contains("def full_name(first: str, last: str) -> str:"), "{err}");
+        // An empty old text, as the worker first tried.
+        assert!(whole_lines(NAMES, "").unwrap_err().contains("empty"));
+        // Whole lines, with or without the newline, at the end of the file too.
+        assert!(whole_lines(NAMES, "def full_name(first: str, last: str) -> str:").is_ok());
+        assert!(whole_lines(NAMES, "def full_name(first: str, last: str) -> str:\n").is_ok());
+        assert!(whole_lines(NAMES, "    return f\"{first.strip()} {last.strip()}\"\n").is_ok());
+        assert!(whole_lines(NAMES, "def initials").unwrap_err().contains("not found"));
+        assert!(whole_lines("a\nb\na\n", "a").unwrap_err().contains("2 times"));
+    }
 
     #[test]
     fn test_schema_has_10_tools() {

@@ -220,7 +220,32 @@ fn cut(text: &str, max: usize) -> String {
     text.chars().take(max).collect()
 }
 
+/// The file changes the steps of this run made, from the edit/write results themselves
+/// (the reviewer once said "no changes" because git diff ran in another folder).
+async fn edits_since(s: &AppState, r: &Run, since: &str) -> String {
+    let rows: Vec<(String, Option<String>)> = sqlx::query_as(
+        "SELECT tool, result FROM pc_actions WHERE chat_id = ? AND created_at >= ? AND state = 'done'
+         AND json_extract(tool, '$.tool') IN ('edit_file', 'write_file') ORDER BY created_at",
+    )
+    .bind(&r.chat_id)
+    .bind(since)
+    .fetch_all(&s.db)
+    .await
+    .unwrap_or_default();
+    if rows.is_empty() {
+        return "(no file was edited or written)".into();
+    }
+    rows.into_iter()
+        .map(|(tool, result)| {
+            let t: serde_json::Value = serde_json::from_str(&tool).unwrap_or_default();
+            format!("{} {}:\n{}", t["tool"].as_str().unwrap_or(""), t["path"].as_str().unwrap_or(""), result.unwrap_or_default())
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n")
+}
+
 async fn run(s: AppState, r: Run) {
+    let started = util::now();
     // 0. The folder must exist on that computer: otherwise stop at once and say so (a wrong
     // folder once cost three empty review rounds).
     progress(&s, &r, 0.0, "checking the folder").await;
@@ -311,10 +336,12 @@ async fn run(s: AppState, r: Run) {
         .await
         .unwrap_or_else(|_| "(no git diff)".to_string());
         let review_user = format!(
-            "Task: {}\n\n{}\n\nCheck result:\n{}\n\nChanges:\n{}",
+            "Task: {}\n\n{}\n\nCheck result:\n{}\n\nEdits the steps made (from the tools themselves):\n{}\n\ngit diff in {}:\n{}",
             r.title,
             cut(&r.description, 6000),
             cut(&check_text, 6000),
+            cut(&edits_since(&s, &r, &started).await, 6000),
+            r.folder,
             cut(&diff_text, 6000)
         );
         let review = match ask_model(
