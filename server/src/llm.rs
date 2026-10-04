@@ -324,7 +324,11 @@ pub async fn chat_with_tools(
     tools: &Value,
 ) -> Result<Value> {
     anyhow::ensure!(matches!(p.kind, ProviderKind::OpenaiCompatible), "this provider can't use tools");
-    let mut body = json!({ "model": model, "messages": messages, "tools": tools, "max_tokens": 2048 });
+    let mut body = json!({ "model": model, "messages": messages, "max_tokens": 2048 });
+    // No tools (plans, reviews): leave the key out; some servers reject an empty list.
+    if tools.as_array().is_some_and(|t| !t.is_empty()) {
+        body["tools"] = tools.clone();
+    }
     if let (Some(extra), Some(obj)) = (&p.extra_body, body.as_object_mut()) {
         for (k, v) in serde_json::to_value(extra)?.as_object().into_iter().flatten() {
             obj.insert(k.clone(), v.clone());

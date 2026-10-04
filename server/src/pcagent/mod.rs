@@ -62,9 +62,6 @@ fn changed(s: &AppState, user_id: &str) {
 }
 
 pub async fn run(s: AppState, user_id: String, chat_id: String, machine_id: String, machine_name: String, role: RoleAssignment) {
-    let Some(p) = s.config.provider(&role.provider_id) else {
-        return say(&s, &user_id, &chat_id, "The orchestrator's provider is not configured.").await;
-    };
     let mut messages = vec![json!({ "role": "system", "content": system_prompt(&machine_name) })];
     let history: Vec<(String, String)> = sqlx::query_as(
         "SELECT author, text FROM (SELECT author, text, at, rowid FROM messages WHERE chat_id = ?
@@ -78,50 +75,101 @@ pub async fn run(s: AppState, user_id: String, chat_id: String, machine_id: Stri
         let role = if author == "user" { "user" } else { "assistant" };
         messages.push(json!({ "role": role, "content": text }));
     }
-    let tools = tools::schema();
-    // Paths a read found missing during this answer (see the write_file guardrail).
-    let mut missing = std::collections::HashSet::<String>::new();
+    let agent = Agent { s: s.clone(), user_id: user_id.clone(), chat_id: chat_id.clone(), machine_id, role, auto: false, max_steps: MAX_STEPS };
+    let text = match agent.run(messages).await {
+        Ok(t) => t,
+        Err(e) => e,
+    };
+    say(&s, &user_id, &chat_id, &text).await;
+}
 
-    for _ in 0..MAX_STEPS {
-        let msg = match llm::chat_with_tools(&s.http, p, &role.model_id, &messages, &tools).await {
-            Ok(m) => m,
-            Err(e) => return say(&s, &user_id, &chat_id, &format!("The model failed: {e:#}")).await,
+/// One agent working on one computer for one chat: the model calls the runner's
+/// tools until it answers in text (or runs out of steps).
+pub struct Agent {
+    pub s: AppState,
+    pub user_id: String,
+    pub chat_id: String,
+    pub machine_id: String,
+    pub role: RoleAssignment,
+    /// Steps already covered by a grant run without a card (tasks under standing
+    /// grants); anything else still waits for the user's decision.
+    pub auto: bool,
+    pub max_steps: usize,
+}
+
+impl Agent {
+    /// Runs the tool loop on `messages` (system prompt first). Ok(final text), or
+    /// Err(text to tell the user) when the model failed or ran out of steps.
+    pub async fn run(&self, mut messages: Vec<Value>) -> Result<String, String> {
+        let s = &self.s;
+        let Some(p) = s.config.provider(&self.role.provider_id) else {
+            return Err(format!("The provider {} is not configured.", self.role.provider_id));
         };
-        let calls = msg["tool_calls"].as_array().cloned().unwrap_or_default();
-        if calls.is_empty() {
-            let text = msg["content"].as_str().unwrap_or("").trim();
-            return say(&s, &user_id, &chat_id, if text.is_empty() { "Done." } else { text }).await;
-        }
-        // A short "what I'll do" sentence before the tools, when the model wrote one.
-        if let Some(text) = msg["content"].as_str().map(str::trim).filter(|t| !t.is_empty()) {
-            say(&s, &user_id, &chat_id, text).await;
-        }
-        messages.push(msg.clone());
-        for call in &calls {
-            let name = call["function"]["name"].as_str().unwrap_or("");
-            let args: Value = call["function"]["arguments"]
-                .as_str()
-                .and_then(|a| serde_json::from_str(a).ok())
-                .unwrap_or_else(|| json!({}));
-            let result = match tools::to_job(name, &args) {
-                None => "Unknown tool or wrong arguments.".to_string(),
-                // Guardrail: a file found missing earlier in this answer is not created
-                // behind the user's back.
-                Some(job) if job["tool"] == "write_file" && job["path"].as_str().is_some_and(|p| missing.contains(p)) => {
-                    "Blocked: that file did not exist when you looked. Ask the user before creating a new file.".to_string()
-                }
-                Some(job) => {
-                    let r = step(&s, &user_id, &chat_id, &machine_id, &job).await;
-                    if r.contains("no such file") && let Some(p) = job["path"].as_str() {
-                        missing.insert(p.to_string());
+        let tools = tools::schema();
+        // Paths a read found missing during this answer (see the write_file guardrail).
+        let mut missing = std::collections::HashSet::<String>::new();
+        for _ in 0..self.max_steps {
+            let msg = llm::chat_with_tools(&s.http, p, &self.role.model_id, &messages, &tools)
+                .await
+                .map_err(|e| format!("The model failed: {e:#}"))?;
+            let calls = msg["tool_calls"].as_array().cloned().unwrap_or_default();
+            if calls.is_empty() {
+                let text = msg["content"].as_str().unwrap_or("").trim();
+                return Ok(if text.is_empty() { "Done.".into() } else { text.to_string() });
+            }
+            // A short "what I'll do" sentence before the tools, when the model wrote one.
+            if let Some(text) = msg["content"].as_str().map(str::trim).filter(|t| !t.is_empty()) {
+                say(s, &self.user_id, &self.chat_id, text).await;
+            }
+            messages.push(msg.clone());
+            for call in &calls {
+                let name = call["function"]["name"].as_str().unwrap_or("");
+                let args: Value = call["function"]["arguments"]
+                    .as_str()
+                    .and_then(|a| serde_json::from_str(a).ok())
+                    .unwrap_or_else(|| json!({}));
+                let result = match tools::to_job(name, &args) {
+                    None => "Unknown tool or wrong arguments.".to_string(),
+                    // Guardrail: a file found missing earlier in this answer is not created
+                    // behind the user's back.
+                    Some(job) if job["tool"] == "write_file" && job["path"].as_str().is_some_and(|p| missing.contains(p)) => {
+                        "Blocked: that file did not exist when you looked. Ask the user before creating a new file.".to_string()
                     }
-                    r
-                }
-            };
-            messages.push(json!({ "role": "tool", "tool_call_id": call["id"], "content": result }));
+                    Some(job) => {
+                        let r = step(s, &self.user_id, &self.chat_id, &self.machine_id, &job, self.auto).await;
+                        if r.contains("no such file") && let Some(p) = job["path"].as_str() {
+                            missing.insert(p.to_string());
+                        }
+                        r
+                    }
+                };
+                messages.push(json!({ "role": "tool", "tool_call_id": call["id"], "content": result }));
+            }
         }
+        Err(format!("I stopped after {} steps. Tell me how to go on.", self.max_steps))
     }
-    say(&s, &user_id, &chat_id, "I stopped after 8 steps. Tell me how to go on.").await;
+}
+
+/// Whether the computer's current grants (the server's mirror) already allow this
+/// job, so it can run without asking.
+pub async fn covered(s: &AppState, machine_id: &str, job: &Value) -> bool {
+    let Some((target, rights)) = tools::grant_for(job) else { return job["tool"] == "system_info" };
+    let rows: Vec<(String, String, Option<String>)> =
+        sqlx::query_as("SELECT target, rights, expires FROM machine_grants WHERE machine_id = ?")
+            .bind(machine_id)
+            .fetch_all(&s.db)
+            .await
+            .unwrap_or_default();
+    let now = util::now();
+    rows.iter().any(|(t, r, expires)| {
+        let target_ok = if target == "system" {
+            t == "system"
+        } else {
+            t != "system" && std::path::Path::new(&target).starts_with(t)
+        };
+        let have: Vec<String> = serde_json::from_str(r).unwrap_or_default();
+        target_ok && rights.iter().all(|x| have.iter().any(|h| h == x)) && expires.as_deref().is_none_or(|e| now.as_str() < e)
+    })
 }
 
 async fn set_action(s: &AppState, id: &str, state: &str, result: &str) {
@@ -135,11 +183,13 @@ async fn set_action(s: &AppState, id: &str, state: &str, result: &str) {
 
 /// One tool call: an approval card, then (if approved) a runner job. Returns the
 /// text the model gets back.
-async fn step(s: &AppState, user_id: &str, chat_id: &str, machine_id: &str, job: &Value) -> String {
+async fn step(s: &AppState, user_id: &str, chat_id: &str, machine_id: &str, job: &Value, auto: bool) -> String {
     let id = util::new_id();
+    // Under a standing grant (tasks): no card, the step runs right away.
+    let preapproved = auto && covered(s, machine_id, job).await;
     let stored = sqlx::query(
         "INSERT INTO pc_actions (id, chat_id, user_id, machine_id, tool, summary, state, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)",
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(&id)
     .bind(chat_id)
@@ -147,6 +197,7 @@ async fn step(s: &AppState, user_id: &str, chat_id: &str, machine_id: &str, job:
     .bind(machine_id)
     .bind(job.to_string())
     .bind(tools::summary(job))
+    .bind(if preapproved { "running" } else { "pending" })
     .bind(util::now())
     .execute(&s.db)
     .await;
@@ -155,8 +206,8 @@ async fn step(s: &AppState, user_id: &str, chat_id: &str, machine_id: &str, job:
     }
     changed(s, user_id);
 
-    let mut state = "pending".to_string();
-    for _ in 0..WAIT_SECS {
+    let mut state = if preapproved { "covered".to_string() } else { "pending".to_string() };
+    for _ in 0..if preapproved { 0 } else { WAIT_SECS } {
         tokio::time::sleep(Duration::from_secs(1)).await;
         let row: Option<(String,)> = sqlx::query_as("SELECT state FROM pc_actions WHERE id = ?")
             .bind(&id)
@@ -182,7 +233,8 @@ async fn step(s: &AppState, user_id: &str, chat_id: &str, machine_id: &str, job:
     // The computer only runs what is granted. Approve adds a grant for this one
     // step (10 minutes, removed again afterwards, the earlier grant on that target
     // restored); Always allow adds one for 24 hours.
-    let needed = tools::grant_for(job);
+    // Already covered by a standing grant: nothing to add or remove.
+    let needed = if preapproved { None } else { tools::grant_for(job) };
     let mut restore: Option<Option<Value>> = None;
     if let Some((target, rights)) = &needed {
         set_action(s, &id, "granting", "").await;

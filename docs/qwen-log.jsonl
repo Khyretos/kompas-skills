@@ -124,3 +124,6 @@
 {"name": "C8 inline steps in conversation.ts", "out": "web/src/views/conversation.ts", "gpu_seconds": 67.9, "tokens": 1837, "lines": 157, "review": "skipped", "model": "Coder", "at": "2026-10-04T05:44:45"}
 {"name": "V1 server activity.rs", "out": "server/src/activity.rs", "gpu_seconds": 39.0, "tokens": 934, "lines": 102, "review": "skipped", "model": "Coder", "at": "2026-10-04T06:00:18"}
 {"name": "V1 web activity view", "out": "web/src/views/activity.ts", "gpu_seconds": 63.8, "tokens": 1653, "lines": 84, "model": "Coder", "at": "2026-10-04T06:00:43"}
+{"name": "W2b taskrun loop", "out": "server/src/taskrun/mod.rs", "gpu_seconds": 156.5, "tokens": 3980, "lines": 395, "review": "skipped", "model": "Coder", "at": "2026-10-04T06:13:34"}
+{"name": "W2a taskrun plan and review parsing", "out": "server/src/taskrun/parse.rs", "gpu_seconds": 78.8, "tokens": 2307, "lines": 293, "review": "skipped", "model": "Coder", "at": "2026-10-04T06:14:59"}
+{"name": "W2c taskrun loop fixes", "out": "server/src/taskrun/mod.rs", "gpu_seconds": 222.0, "tokens": 3993, "lines": 390, "review": "skipped", "model": "Coder", "at": "2026-10-04T06:19:15"}
