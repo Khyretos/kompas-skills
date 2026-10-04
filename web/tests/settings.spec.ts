@@ -61,37 +61,21 @@ test.describe("Settings window closes", () => {
   });
 
   test("unsaved edits ask first", async ({ page }) => {
-    const emailInput = page.locator("#notify-form input[type=\"email\"]");
-    const exists = await emailInput.count() > 0;
-    
-    if (!exists) {
-      test.skip("Email input field not found");
-      return;
-    }
-    
+    // The beforeEach handler accepts every dialog; this test answers them itself.
+    page.removeAllListeners("dialog");
     await page.click('[data-action="settings"]');
     await expect(page.locator("#settings")).toBeVisible();
-    
-    await emailInput.fill("x@example.com");
-    
-    let dialogShown = false;
-    page.once("dialog", (d) => {
-      dialogShown = true;
-      d.dismiss();
-    });
-    
+    await page.locator("#notify-email").fill("x@example.com");
+
+    const asked: string[] = [];
+    page.once("dialog", (d) => { asked.push(d.message()); void d.dismiss(); });
     await page.keyboard.press("Escape");
+    await expect.poll(() => asked.length).toBe(1);
     await expect(page.locator("#settings")).toBeVisible();
-    expect(dialogShown).toBeTruthy();
-    
-    let secondDialogShown = false;
-    page.once("dialog", (d) => {
-      secondDialogShown = true;
-      d.accept();
-    });
-    
+
+    page.once("dialog", (d) => { asked.push(d.message()); void d.accept(); });
     await page.keyboard.press("Escape");
     await expect(page.locator("#settings")).toBeHidden();
-    expect(secondDialogShown).toBeTruthy();
+    expect(asked).toEqual(["Close without saving your changes?", "Close without saving your changes?"]);
   });
 });

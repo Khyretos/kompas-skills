@@ -48,8 +48,6 @@ jobs:
         run: |
           npm ci
           npx playwright test
-          # Temporary: prove the pcagent tests are stable (flake fix, 2026-10-04).
-          npx playwright test tests/pcagent.spec.ts --repeat-each=30 --reporter=dot
 
   runner:
     runs-on: soucouyant

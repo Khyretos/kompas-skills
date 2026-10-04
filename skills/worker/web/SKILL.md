@@ -58,3 +58,12 @@
     (play) next to the card button in the same `li`, positioned over it.
 23. Media served to `<audio>` needs HTTP Range support (Safari will not play without it):
     tower-http `ServeFile` gives it; check with a `Range: bytes=0-99` request expecting 206.
+24. (2026-10-04) Never keep UI state ("this step is open") from the native `toggle` event: it fires
+    as a later task, so a re-render that lands between the click and the event replaces the
+    `<details>` and the choice is lost (pcagent flake, 1 in ~30 runs). Toggle through an
+    `onAction` handler on the `<summary>` that records the state first and then sets `d.open`.
+    Prove a flake fix with `npx playwright test <file> --repeat-each=30`, never with retries or skips.
+25. (2026-10-04) No `test.skip` inside a test. "Unsaved edits ask first" checked for the e-mail field
+    before it opened Settings, so it skipped on every run for a day and nobody noticed. If a test
+    answers dialogs itself, call `page.removeAllListeners("dialog")` first: two handlers on one
+    dialog throw "already handled".
