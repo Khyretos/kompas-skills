@@ -19,7 +19,7 @@ test.describe("Activity tab demo", () => {
     const card = page.locator("details.act-card").filter({ hasText: "Edit hyprland.lua" }).first();
     await expect(card).toBeVisible();
     await expect(card.locator("summary")).toContainText("Edit hyprland.lua");
-    await expect(card.locator(".act-grant-note")).toContainText("allowed once · 10 min · removed after");
+    await expect(card.locator(".act-grant")).toContainText("allowed once · 10 min · removed after");
 
     // There is no separate card whose text is just the one-step grant
     await expect(page.locator(".act-grant-card", { hasText: "one step" })).toHaveCount(0);
@@ -37,7 +37,7 @@ test.describe("Activity tab demo", () => {
   test("failed only hides the done step", async ({ page }) => {
     await page.click('[data-action="tab"][data-tab="activity"]');
     
-    // Check #activity-failed; the "Edit hyprland.lua" card is gone (count 0)
+    await page.check("#activity-failed");
     await expect(page.locator("details.act-card", { hasText: "Edit hyprland.lua" })).toHaveCount(0);
     
     // "Read /etc/shadow" is visible
