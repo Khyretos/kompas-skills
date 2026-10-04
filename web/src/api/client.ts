@@ -65,5 +65,5 @@ export type ServerEvent =
   | { type: "message-delta"; messageId: string; chatId: string; text: string; done: boolean }
   | { type: "task"; task: Task }
   | { type: "machines"; machines: MachineStats[] }
-  | { type: "changed"; what: "tasks" | "projects" | "chats" | "machines" | "access" | "settings"; machineId?: string }
+  | { type: "changed"; what: "tasks" | "projects" | "chats" | "machines" | "access" | "settings" | "actions"; machineId?: string }
   | { type: "resync" };

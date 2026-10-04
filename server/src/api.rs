@@ -165,6 +165,9 @@ pub async fn messages(
 #[derive(Deserialize)]
 pub struct SendBody {
     text: String,
+    /// A paired computer picked in the chat: the answer may use its tools (F6).
+    #[serde(default)]
+    machine_id: Option<String>,
 }
 
 /// Stores the user's message, then streams the orchestrator's answer as
@@ -204,11 +207,21 @@ pub async fn send(
         return Ok(StatusCode::ACCEPTED);
     };
 
+    if let Some(machine_id) = b.machine_id.filter(|m| !m.is_empty()) {
+        let machine: Option<(String,)> = sqlx::query_as("SELECT name FROM machines WHERE id = ? AND user_id = ?")
+            .bind(&machine_id)
+            .bind(&u.id)
+            .fetch_optional(&s.db)
+            .await?;
+        let Some((machine_name,)) = machine else { return Err(ApiError::NotFound) };
+        tokio::spawn(crate::pcagent::run(s.clone(), u.id.clone(), chat_id, machine_id, machine_name, role));
+        return Ok(StatusCode::ACCEPTED);
+    }
     tokio::spawn(answer(s.clone(), u.id.clone(), chat_id, role));
     Ok(StatusCode::ACCEPTED)
 }
 
-async fn insert_message(
+pub(crate) async fn insert_message(
     s: &AppState,
     chat_id: &str,
     author: &str,

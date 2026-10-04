@@ -8,6 +8,7 @@ mod error;
 mod events;
 mod live;
 mod pairing;
+mod pcagent;
 mod hoststats;
 mod import;
 mod llm;
@@ -160,6 +161,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/machines/live", post(hoststats::live))
         .route("/machines/pair-code", post(pairing::create_code))
         .route("/pair", post(pairing::pair))
+        .route("/chats/{id}/actions", get(pcagent::list))
+        .route("/actions/{id}/decide", post(pcagent::decide))
         .route("/machines/{id}", axum::routing::delete(hoststats::delete))
         .route("/machines/{id}/results", post(access::results).layer(axum::extract::DefaultBodyLimit::max(128 * 1024)))
         .route("/machines/{id}/grants", get(access::list_grants).post(access::add_grant))

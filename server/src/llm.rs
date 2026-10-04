@@ -313,6 +313,37 @@ mod tests {
     }
 }
 
+use serde_json::Value;
+
+/// One chat completion with tools (OpenAI function calling), not streamed. Returns
+/// the assistant message object: `content` and/or `tool_calls`. Used by the PC
+/// agent (pcagent.rs).
+pub async fn chat_with_tools(
+    http: &reqwest::Client,
+    p: &ProviderConfig,
+    model: &str,
+    messages: &[Value],
+    tools: &Value,
+) -> Result<Value> {
+    anyhow::ensure!(matches!(p.kind, ProviderKind::OpenaiCompatible), "this provider can't use tools");
+    let mut body = json!({ "model": model, "messages": messages, "tools": tools, "max_tokens": 2048 });
+    if let (Some(extra), Some(obj)) = (&p.extra_body, body.as_object_mut()) {
+        for (k, v) in serde_json::to_value(extra)?.as_object().into_iter().flatten() {
+            obj.insert(k.clone(), v.clone());
+        }
+    }
+    let resp = authorize(http.post(join(&p.base_url, "chat/completions")), p)
+        .json(&body)
+        .send()
+        .await
+        .context("model request failed")?;
+    let status = resp.status();
+    let text = resp.text().await.unwrap_or_default();
+    anyhow::ensure!(status.is_success(), "{}", readable_error(&text));
+    let v: Value = serde_json::from_str(&text).context("the model's answer is not JSON")?;
+    Ok(v["choices"][0]["message"].clone())
+}
+
 /// A short, readable reason from an error body: never raw HTML, never more
 /// than 200 characters, and a plain word for known OVMS GPU failures.
 pub fn readable_error(body: &str) -> String {
