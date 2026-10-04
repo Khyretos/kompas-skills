@@ -23,6 +23,7 @@ mod oidc;
 mod project_ctx;
 mod tasks;
 mod util;
+mod voice;
 mod windshift;
 
 use std::{
@@ -78,7 +79,7 @@ impl AppState {
 }
 
 const CSP: &str = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; \
-connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; \
+media-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; \
 require-trusted-types-for 'script'; trusted-types app dompurify";
 
 #[tokio::main]
@@ -182,6 +183,9 @@ async fn main() -> anyhow::Result<()> {
         .route("/activity", get(activity::list))
         .route("/capabilities", get(capabilities::list))
         .route("/capabilities/skill", get(capabilities::skill))
+        .route("/voice", get(voice::info))
+        .route("/voice/transcribe", post(voice::transcribe).layer(axum::extract::DefaultBodyLimit::max(10 * 1024 * 1024)))
+        .route("/voice/speak", post(voice::speak))
         .route("/machines/{id}/jobs", post(access::create_job).layer(axum::extract::DefaultBodyLimit::max(1200 * 1024)))
         .route("/machines/{id}/jobs/{job}", get(access::get_job))
         .route(

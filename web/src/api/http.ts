@@ -115,6 +115,24 @@ export class HttpApi implements KompanionApi {
   }
   listActivity() { return this.request<import("../views/activity").ActivityItem[]>("GET", "/activity"); }
   getCapabilities() { return this.request<import("../views/capabilities").Capabilities>("GET", "/capabilities"); }
+  voiceInfo() { return this.request<{ enabled: boolean; voices: { id: string; label: string }[] }>("GET", "/voice"); }
+  async transcribe(audio: Blob, lang: string) {
+    return (await this.request<{ text: string }>("POST", `/voice/transcribe${lang ? `?lang=${lang}` : ""}`, audio)).text;
+  }
+  async speak(text: string, voice: string) {
+    const res = await fetch(`${this.base}/api/voice/speak`, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json", "X-Kompanion": "1" },
+      body: JSON.stringify({ text, voice }),
+    });
+    if (!res.ok) {
+      let message = `The server answered ${res.status}.`;
+      try { message = (await res.json()).error ?? message; } catch { /* not JSON */ }
+      throw new ApiError(message, res.status);
+    }
+    return res.blob();
+  }
   getSkill(id: string) { return this.request<{ id: string; text: string }>("GET", `/capabilities/skill?id=${encodeURIComponent(id)}`); }
   decideAction(id: string, decision: "approve" | "always" | "deny") {
     return this.request<void>("POST", `/actions/${encodeURIComponent(id)}/decide`, { decision });

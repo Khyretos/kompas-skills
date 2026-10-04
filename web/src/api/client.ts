@@ -76,6 +76,12 @@ export interface KompanionApi {
   getCapabilities(): Promise<import("../views/capabilities").Capabilities>;
   /** One skill's SKILL.md, read-only. */
   getSkill(id: string): Promise<{ id: string; text: string }>;
+  /** W4: whether the server offers voice, and its voices. */
+  voiceInfo(): Promise<{ enabled: boolean; voices: { id: string; label: string }[] }>;
+  /** Speech to text: a recording from the microphone; lang "" lets Whisper detect it. */
+  transcribe(audio: Blob, lang: string): Promise<string>;
+  /** Text to speech: one or a few sentences as WAV audio. */
+  speak(text: string, voice: string): Promise<Blob>;
   decideAction(id: string, decision: "approve" | "always" | "deny"): Promise<void>;
   answer(taskId: string, optionId: string): Promise<void>;
 

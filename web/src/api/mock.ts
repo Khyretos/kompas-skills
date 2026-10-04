@@ -417,6 +417,23 @@ export class MockApi implements KompanionApi {
       ],
     };
   }
+  async voiceInfo() {
+    return { enabled: true, voices: [{ id: "af_heart", label: "English (US), Heart" }, { id: "ef_dora", label: "Spanish, Dora" }] };
+  }
+  async transcribe(audio: Blob) {
+    await new Promise((r) => setTimeout(r, 300));
+    return audio.size >= 0 ? "install htop" : "";
+  }
+  /** 0.4 s of silence per sentence, so the demo "reads" without sound. */
+  async speak() {
+    await new Promise((r) => setTimeout(r, 100));
+    const rate = 8000, n = rate * 0.4, b = new DataView(new ArrayBuffer(44 + n * 2));
+    const put = (o: number, s: string) => { for (let i = 0; i < s.length; i++) b.setUint8(o + i, s.charCodeAt(i)); };
+    put(0, "RIFF"); b.setUint32(4, 36 + n * 2, true); put(8, "WAVEfmt "); b.setUint32(16, 16, true); b.setUint16(20, 1, true);
+    b.setUint16(22, 1, true); b.setUint32(24, rate, true); b.setUint32(28, rate * 2, true); b.setUint16(32, 2, true);
+    b.setUint16(34, 16, true); put(36, "data"); b.setUint32(40, n * 2, true);
+    return new Blob([b.buffer], { type: "audio/wav" });
+  }
   async getSkill(id: string) {
     return { id, text: `# ${id}\n\nLessons for this role, newest last.\n\n1. (2026-10-04) Plan steps are changes, each with a **done when**.\n2. Never \`test.skip\` inside a test.\n` };
   }

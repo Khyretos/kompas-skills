@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#1c1329">
   <!-- Strict CSP: no inline scripts, no third-party hosts, Trusted Types on.
        The server sends the same policy as a header (plus frame-ancestors). -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; require-trusted-types-for 'script'; trusted-types app dompurify">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; require-trusted-types-for 'script'; trusted-types app dompurify">
   <title>Kreative Kompanion</title>
   <link rel="stylesheet" href="styles.css">
   <!-- Admin-set colours; missing in demo mode, which keeps the defaults. -->
