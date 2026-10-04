@@ -11,10 +11,16 @@ env:
 
 jobs:
   server:
+    # Same musl image as the Dockerfile, so C dependencies that break on musl fail here
+    # (2026-10-04: sqlite-vec built on glibc in CI but not in the deploy).
     runs-on: soucouyant
     container:
-      image: rust:1
+      image: rust:1-alpine
+    env:
+      CFLAGS: "-Du_int8_t=uint8_t -Du_int16_t=uint16_t -Du_int64_t=uint64_t"
     steps:
+      - name: Tools
+        run: apk add --no-cache git musl-dev
       - name: Check out (plain git; this image has no Node for actions/checkout)
         run: |
           git init -q . && git -c http.extraHeader="Authorization: token ${{ github.token }}" fetch -q --depth 1 "${{ github.server_url }}/${{ github.repository }}" "${{ github.sha }}" && git checkout -q FETCH_HEAD

@@ -9,6 +9,9 @@ RUN npm run typecheck && npm run build
 
 FROM rust:1-alpine AS server
 RUN apk add --no-cache musl-dev
+# sqlite-vec's C source uses the BSD names u_int8_t/u_int16_t/u_int64_t, which musl lacks
+# (CI builds on glibc and never sees it). Map them to the standard types.
+ENV CFLAGS="-Du_int8_t=uint8_t -Du_int16_t=uint16_t -Du_int64_t=uint64_t"
 WORKDIR /src/server
 COPY machine-stats/ /src/machine-stats/
 COPY server/ ./
