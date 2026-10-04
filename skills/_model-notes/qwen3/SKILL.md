@@ -51,6 +51,11 @@ As translation judge (kk-localize, 2026-10-03):
   `c.execute(...).fetchall()`), and SQL built with f-strings around a filter. Check those four by hand.
 - About 30 tok/s generation for one request; a running job slows Open WebUI chat from about 1.7 s to 3.2 s per answer, so batch work runs at night with concurrency 1.
 - Turn thinking off with `chat_template_kwargs: { enable_thinking: false }`.
+- (2026-10-04, kk-localize) Since the GPU studio switch-back, the A770's OVMS model is served as "Coder" again.
+  Every OpenAI-style call must send `"chat_template_kwargs": {"enable_thinking": false}`, the one-token health
+  ping included; without it Qwen3.5 spends `max_tokens` on thinking and returns an empty answer. Before a long
+  batch, smoke-test about 5 real strings and check the text is non-empty (it took 0.3-1.3 s each for hu, el, ar
+  UI strings). The model name lives in the caller's config (kk-localize `config.yaml` › `llm.model`), not in `.env`.
 - Good at polishing LibreTranslate drafts in nl, de, es, fr, pt (grammar, idiom, punctuation such as Japanese 。).
 - Grades its own work too kindly and follows a wrong reviewer comment (repaired "Our fork" to "Onze vork", a kitchen fork, then scored it 5). Never let it judge its own output.
 - Adds things to very short strings ("Powered by" → "Powered by Kreative Kompas") and sometimes wraps labels in `**…**`; check for names and markup not in the source.

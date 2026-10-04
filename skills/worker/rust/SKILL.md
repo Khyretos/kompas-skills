@@ -72,3 +72,8 @@
     `(?=X)` into a plain group `(X)`; when the match text is used, match more and trim it in code.
 33. Broadcast to every signed-in user with `s.bus.send_all(Event::…)` (user id `"*"`); per-user
     events keep using `s.bus.send(&user_id, …)`.
+34. (2026-10-04) The deploy image builds on musl (`rust:1-alpine`). A crate with C code can build
+    on glibc and fail on musl: sqlite-vec 0.1.9 uses `u_int8_t`, so the deploy broke while CI was
+    green. CI's server job now uses the same image; `CFLAGS` in the Dockerfile and in build.yml map
+    the BSD names to `uint8_t`/`uint16_t`/`uint64_t`. Before adding a `-sys` or C crate, build the
+    Docker image (or watch the server job) once.

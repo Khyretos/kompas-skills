@@ -65,7 +65,6 @@ test.describe("PC Agent approval cards", () => {
   });
 
   test("a finished step shows its output as a terminal block with the exit code", async ({ page }) => {
-    await openDemo(page);
     await ask(page);
     const card = page.locator(".pc-action").last();
     await card.locator('[data-decision="approve"]').click();
@@ -82,7 +81,6 @@ test.describe("PC Agent approval cards", () => {
   });
 
   test("the chat keeps its scroll position while cards wait and stats tick", async ({ page }) => {
-    await openDemo(page);
     await ask(page);
     await expect(page.locator(".pc-action").last()).toBeVisible();
     const box = page.locator("#messages");
