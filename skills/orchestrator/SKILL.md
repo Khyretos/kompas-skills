@@ -18,3 +18,7 @@ Lessons for the orchestrator role. Numbered and dated, newest last.
   another), and to claim success only when a result says "done" with "exit: 0", quoting the key
   output line. Give tool results outcome-first ("The step ran. State: done. Output: ..."), and
   the end of long output, where the exit code is.
+- Deploy only with `tools/deploy.sh`. It fetches and refuses to build unless origin/main is an
+  ancestor of HEAD: other threads merge too (2026-10-04, a deploy without their 0100 migration
+  crash-looped production). Before adding a migration, check the numbers on origin/main
+  (`git ls-tree origin/main server/migrations/`); the asset thread uses 0100 and up.
