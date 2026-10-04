@@ -682,3 +682,27 @@ button[aria-busy="true"]::after {
 .task-run label { display: grid; gap: 0.2rem; font-size: 0.85rem; color: var(--muted); }
 .task-run input, .task-run select { font-size: 0.9rem; padding: 0.3rem 0.45rem; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); }
 .task-run button { justify-self: start; }
+
+/* Activity tab, card style like Tasks (redesign 2026-10-04). */
+.act-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; padding: 0.5rem 0.75rem; }
+.small-select { font-size: 0.8rem; padding: 0.15rem 0.35rem; max-width: 10rem; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--fg); }
+.act-toggle { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; color: var(--muted); }
+.act-day { padding: 0 0.75rem 0.5rem; }
+.act-day-head { position: sticky; top: 0; z-index: 1; margin: 0; padding: 0.4rem 0; background: var(--surface); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.act-chat { margin: 0.3rem 0 0.5rem; }
+.act-chat > summary { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.85rem; padding: 0.2rem 0; }
+.act-card { display: block; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); margin: 0.3rem 0; }
+.act-card > summary, .act-grant-card {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; padding: 0.4rem 0.6rem; font-size: 0.85rem; cursor: pointer; list-style: none;
+}
+.act-card > summary::-webkit-details-marker { display: none; }
+.act-card:hover, .act-card:focus-within { border-color: var(--accent); }
+.act-text { flex: 1 1 8rem; min-width: 0; overflow-wrap: anywhere; }
+.act-card time, .act-grant-card time { font-size: 0.75rem; color: var(--muted); }
+.act-grant { margin: 0 0.6rem 0.4rem; }
+.act-card > .output { margin: 0 0.5rem 0.5rem; }
+.act-grant-card { cursor: default; }
+.act-card.failed, .act-card.refused, .act-grant-card.refused { border-left: 3px solid var(--danger, #c0392b); }
+.act-card.denied { opacity: 0.75; }
+.chip.done { background: #d9f2e3; color: #14532d; }
+.chip.failed, .chip.refused { background: #fde2e1; color: #8b1a14; }

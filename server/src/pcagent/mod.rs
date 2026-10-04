@@ -260,6 +260,16 @@ async fn step(s: &AppState, user_id: &str, chat_id: &str, machine_id: &str, job:
         }
     }
 
+    let grant_note = if preapproved {
+        "standing grant"
+    } else if needed.is_none() {
+        "no grant needed"
+    } else if always {
+        "always allowed · 24 h"
+    } else {
+        "allowed once · 10 min · removed after"
+    };
+    let _ = sqlx::query("UPDATE pc_actions SET grant_note = ? WHERE id = ?").bind(grant_note).bind(&id).execute(&s.db).await;
     set_action(s, &id, "running", "").await;
     changed(s, user_id);
     let (state, result) = match access::queue_job(&s.db, machine_id, user_id, job, None).await {

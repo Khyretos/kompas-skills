@@ -46,3 +46,6 @@
     visible rows plus two above and below in the DOM, positioned with `transform`; fetch pages of
     200 by offset and drop answers from an older filter (a generation counter). See
     `src/views/assets.ts` (47,000 assets, 20 cards in the DOM).
+17. A test must do what its name says. Don't leave the action as a comment ("// check the box");
+    write the call (`await page.check("#activity-failed")`). Use the class names the view
+    really renders.

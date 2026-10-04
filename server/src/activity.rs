@@ -5,13 +5,39 @@ use serde_json::{Value, json};
 use sqlx::SqlitePool;
 use crate::{AppState, auth::User, error::ApiResult};
 
+#[derive(sqlx::FromRow)]
+struct StepRow {
+    id: String,
+    created_at: String,
+    decided_at: Option<String>,
+    state: String,
+    summary: String,
+    machine_id: String,
+    machine_name: Option<String>,
+    chat_id: String,
+    chat_title: Option<String>,
+    tool: Option<String>,
+    result: Option<String>,
+    grant_note: Option<String>,
+}
+
+#[derive(sqlx::FromRow)]
+struct AccessLogRow {
+    at: String,
+    kind: String,
+    target: Option<String>,
+    detail: Option<String>,
+    machine_id: String,
+    machine_name: Option<String>,
+}
+
 pub async fn list(
     State(s): State<AppState>,
     Extension(u): Extension<User>,
 ) -> ApiResult<Json<Vec<Value>>> {
-    let pc_actions = sqlx::query_as::<_, (String, Option<String>, String, String, String, String, String, String)>(
+    let pc_actions = sqlx::query_as::<_, StepRow>(
         r#"
-        SELECT a.created_at, a.decided_at, a.state, a.summary, a.machine_id, COALESCE(m.name, ''), a.chat_id, COALESCE(c.title, '') 
+        SELECT a.id, a.created_at, a.decided_at, a.state, a.summary, a.machine_id, COALESCE(m.name, ''), a.chat_id, COALESCE(c.title, ''), a.tool, a.result, a.grant_note 
         FROM pc_actions a 
         LEFT JOIN machines m ON m.id = a.machine_id 
         LEFT JOIN chats c ON c.id = a.chat_id 
@@ -24,13 +50,14 @@ pub async fn list(
     .fetch_all(&s.db)
     .await?;
 
-    let access_log = sqlx::query_as::<_, (String, String, Option<String>, Option<String>, String, String)>(
+    let access_log = sqlx::query_as::<_, AccessLogRow>(
         r#"
         SELECT l.at, l.kind, l.target, l.detail, l.machine_id, COALESCE(m.name, '') 
         FROM access_log l 
         LEFT JOIN machines m ON m.id = l.machine_id 
         WHERE l.user_id = ? 
         AND l.kind != 'used'
+        AND l.detail NOT IN ('one step, 10 min', 'one step done')
         ORDER BY l.id DESC 
         LIMIT 200
         "#,
@@ -42,16 +69,19 @@ pub async fn list(
     let mut combined: Vec<(String, Value)> = Vec::with_capacity(pc_actions.len() + access_log.len());
 
     for row in pc_actions {
-        let at = &row.0;
-        let decided_at = row.1.as_ref().map(|s| s.as_str()).unwrap_or(at);
-        let state = &row.2;
-        let summary = &row.3;
-        let machine_id = &row.4;
-        let machine_name = &row.5;
-        let chat_id = &row.6;
-        let chat_title = &row.7;
+        let at = &row.created_at;
+        let decided_at = row.decided_at.as_ref().map(|s| s.as_str()).unwrap_or(at);
+        let state = &row.state;
+        let summary = &row.summary;
+        let machine_id = &row.machine_id;
+        let machine_name = row.machine_name.as_deref().unwrap_or("");
+        let chat_id = &row.chat_id;
+        let chat_title = row.chat_title.as_deref().unwrap_or("");
+
+        let tool_value = row.tool.as_deref().and_then(|t| serde_json::from_str::<Value>(t).ok()).unwrap_or(Value::Null);
 
         let mut item = json!({
+            "id": row.id,
             "at": at,
             "kind": "step",
             "state": state,
@@ -60,19 +90,20 @@ pub async fn list(
             "machine": machine_name,
             "chatId": chat_id,
             "chat": chat_title,
-            "decidedAt": decided_at
+            "decidedAt": decided_at,
+            "tool": tool_value,
+            "result": row.result,
+            "grant": row.grant_note
         });
 
         combined.push((at.to_string(), item));
     }
 
     for row in access_log {
-        let at = &row.0;
-        let kind = &row.1;
-        let target = row.2.as_ref().map(|s| s.as_str()).unwrap_or("");
-        let detail = row.3.as_ref().map(|s| s.as_str()).unwrap_or("");
-        let machine_id = &row.4;
-        let machine_name = &row.5;
+        let at = &row.at;
+        let kind = &row.kind;
+        let target = row.target.as_deref().unwrap_or("");
+        let detail = row.detail.as_deref().unwrap_or("");
 
         let text = if !target.is_empty() && !detail.is_empty() {
             format!("{} · {}", target, detail)
@@ -88,8 +119,10 @@ pub async fn list(
             "at": at,
             "kind": kind,
             "text": text,
-            "machineId": machine_id,
-            "machine": machine_name,
+            "machineId": row.machine_id,
+            "machine": row.machine_name.as_deref().unwrap_or(""),
+            "target": target,
+            "detail": detail,
         });
 
         combined.push((at.to_string(), item));
