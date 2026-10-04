@@ -36,8 +36,14 @@ test.describe("Games", () => {
     const searchBtn = footstepsNeed.locator("[data-action='need-pick']");
     await searchBtn.click();
     
-    await expect(footstepsNeed.locator(".need-state")).toContainText("Searching and picking…");
+    // The busy state shows at once (set before the server answers), so it's always there to
+    // see. "Waiting…" turns into "Searching and picking…" only while the server works, which
+    // in demo mode can be over before a re-render: asserting that label raced (CI flake).
+    await expect(footstepsNeed.locator(".need-state")).toHaveText(/Waiting…|Searching and picking…/);
+    await expect(searchBtn).toBeDisabled();
     await expect(footstepsNeed.locator("ul.picks li.pick").first()).toBeVisible();
+    await expect(footstepsNeed.locator(".need-state")).toHaveText("");
+    await expect(searchBtn).toHaveText("Pick again");
     await expect(footstepsNeed.locator(".pick-reason").first()).toContainText(/Matches "(footsteps|grass)"/);
   });
 
