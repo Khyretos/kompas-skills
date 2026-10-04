@@ -355,6 +355,15 @@ function wire(shell: HTMLElement): void {
       close.addEventListener("click", () => m.requestClose());
       m.open(el);
     },
+    // Steps open and close through this action (not the native toggle), so the
+    // choice is recorded before any re-render can replace the element.
+    "step-toggle": (el) => {
+      const id = el.dataset.id ?? "";
+      const d = el.closest("details");
+      const open = !(d ? d.open : openSteps.has(id));
+      if (open) openSteps.add(id); else openSteps.delete(id);
+      if (d) d.open = open;
+    },
     "pc-decide": (el) => {
       const id = el.dataset.id ?? "";
       const decision = el.dataset.decision as "approve" | "always" | "deny";
@@ -443,13 +452,6 @@ function wire(shell: HTMLElement): void {
     "close-settings": () => settingsModal?.requestClose(),
   });
 
-  // Remember which steps are open, so a re-render keeps them open.
-  shell.addEventListener("toggle", (ev) => {
-    const d = ev.target as HTMLDetailsElement;
-    const id = d.dataset?.step;
-    if (!id) return;
-    if (d.open) openSteps.add(id); else openSteps.delete(id);
-  }, true);
   shell.addEventListener("change", async (ev) => {
     const fid = (ev.target as HTMLElement).id;
     if (fid === "activity-failed") {
