@@ -12,7 +12,7 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct GpuStats {
     /// e.g. "Intel Arc A770"
@@ -39,6 +39,9 @@ pub struct GpuStats {
     /// Busy share per engine (from DRM fdinfo), only engines we could read.
     #[serde(default)]
     pub engines: Vec<Engine>,
+    /// The engine and VRAM numbers are the last known ones, older than a few seconds.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub stale: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -170,6 +173,7 @@ impl GpuReader {
             core_max_mhz: None,
             power_cap_w: None,
             engines: Vec::new(),
+            stale: false,
         };
 
         let (energy_uj, idle_ms) = match driver.as_str() {

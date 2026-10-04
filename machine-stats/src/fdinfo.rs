@@ -122,6 +122,10 @@ impl EngineReader {
             }
             let Ok(fds) = fs::read_dir(pid.path().join("fdinfo")) else { continue };
             for fd in fds.flatten() {
+                let link = pid.path().join("fd").join(fd.file_name());
+                if !fs::read_link(&link).is_ok_and(|t| t.starts_with("/dev/dri")) {
+                    continue;
+                }
                 let Ok(text) = fs::read_to_string(fd.path()) else { continue };
                 let Some(c) = parse(&text) else { continue };
                 // Several fds (even in other processes) can share one client.
@@ -193,6 +197,7 @@ mod tests {
     fn tree(name: &str) -> std::path::PathBuf {
         let root = std::env::temp_dir().join(format!("kk-fdinfo-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("1234/fd")).unwrap();
         fs::create_dir_all(root.join("1234/fdinfo")).unwrap();
         fs::create_dir_all(root.join("self")).unwrap(); // not numeric: ignored
         root
@@ -207,6 +212,8 @@ mod tests {
             fs::write(fdinfo.join("5"), &t).unwrap();
             fs::write(fdinfo.join("6"), &t).unwrap(); // same client again
         };
+        std::os::unix::fs::symlink("/dev/dri/renderD128", root.join("1234/fd/5")).unwrap();
+        std::os::unix::fs::symlink("/dev/dri/renderD128", root.join("1234/fd/6")).unwrap();
         let mut r = EngineReader::default();
         write(1_000_000_000);
         assert!(r.read(&root).values().all(|u| u.engines.is_empty()));
@@ -221,6 +228,7 @@ mod tests {
     fn xe_cycles_and_vram() {
         let root = tree("xe");
         let f = root.join("1234/fdinfo/7");
+        std::os::unix::fs::symlink("/dev/dri/renderD129", root.join("1234/fd/7")).unwrap();
         let mut r = EngineReader::default();
         fs::write(&f, XE).unwrap();
         let first = r.read(&root);
@@ -228,6 +236,17 @@ mod tests {
         fs::write(&f, XE.replace("cycles-rcs:\t1000", "cycles-rcs:\t3000").replace("total-cycles-rcs:\t5000", "total-cycles-rcs:\t9000")).unwrap();
         let second = r.read(&root);
         assert_eq!(second["0000:10:00.0"].engines, vec![("render".to_string(), 0.5)]);
+        let _ = fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn skips_non_drm_fds() {
+        let root = tree("skip");
+        fs::write(root.join("1234/fdinfo/8"), AMD).unwrap();
+        std::os::unix::fs::symlink("/tmp/not-a-gpu", root.join("1234/fd/8")).unwrap();
+        let mut r = EngineReader::default();
+        r.read(&root);
+        assert!(!r.read(&root).contains_key("0000:03:00.0"));
         let _ = fs::remove_dir_all(&root);
     }
 }

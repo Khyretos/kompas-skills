@@ -4,13 +4,16 @@
 //! socket with per-GPU aggregates: engine busy shares and VRAM in use. No
 //! process names, no input is read, no network.
 //!
+//! Samples once a second in the background; every connection gets the latest sample at once.
+//!
 //! Usage: kompanion-gpu-helper [/run/kompanion-gpu/stats.sock]
 
 use std::{
     io::Write,
     os::unix::{fs::PermissionsExt, net::UnixListener},
     path::Path,
-    time::{Duration, Instant},
+    sync::{Arc, Mutex},
+    time::Duration,
 };
 
 use machine_stats::fdinfo::EngineReader;
@@ -42,18 +45,27 @@ fn main() {
     };
     // Owner root, group set by the service (the readers' group), no access for others.
     let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o660));
-    let mut reader = EngineReader::default();
-    let mut last = snapshot(&mut reader);
-    let mut at = Instant::now();
+
+    let last = Arc::new(Mutex::new(snapshot(&mut EngineReader::default())));
+
     eprintln!("kompanion-gpu-helper: serving {path}");
+
+    let mut reader = EngineReader::default();
+    let last_clone = Arc::clone(&last);
+
+    // Spawn a thread that owns the EngineReader and samples once a second.
+    std::thread::spawn(move || {
+        loop {
+            let s = snapshot(&mut reader);
+            *last_clone.lock().unwrap() = s;
+            std::thread::sleep(Duration::from_secs(1));
+        }
+    });
+
     for conn in listener.incoming() {
         let Ok(mut conn) = conn else { continue };
-        // Sample at most once a second, however often we're asked.
-        if at.elapsed() >= Duration::from_secs(1) {
-            last = snapshot(&mut reader);
-            at = Instant::now();
-        }
+        let body = last.lock().unwrap().clone();
         let _ = conn.set_write_timeout(Some(Duration::from_secs(2)));
-        let _ = conn.write_all(last.as_bytes());
+        let _ = conn.write_all(body.as_bytes());
     }
 }

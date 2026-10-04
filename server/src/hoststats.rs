@@ -65,6 +65,7 @@ struct Local {
     at: Option<Instant>,
     at_iso: Option<String>,
     history: History,
+    helper: HelperCache,
 }
 
 struct Remote {
@@ -98,6 +99,7 @@ impl Default for HostStats {
                 at: None,
                 at_iso: None,
                 history: History::default(),
+                helper: HelperCache::default(),
             }),
             remote: Mutex::default(),
             watchers: Mutex::default(),
@@ -106,31 +108,54 @@ impl Default for HostStats {
     }
 }
 
-/// Adds per-engine busy shares and VRAM in use from kompanion-gpu-helper (a
-/// tiny root service on the host, see gpu-helper/), when its socket is
-/// mounted. Without it, the container only sees its own processes.
-fn merge_helper(snap: &mut Snapshot) {
+/// Per-GPU numbers from kompanion-gpu-helper (a tiny service on the host, see
+/// gpu-helper/), when its socket is mounted. Without it, the container only sees
+/// its own processes.
+fn read_helper() -> Option<Vec<Value>> {
     use std::io::Read;
-    let Ok(mut s) = std::os::unix::net::UnixStream::connect("/host-gpu/stats.sock") else { return };
-    let _ = s.set_read_timeout(Some(Duration::from_millis(500)));
+    let s = std::os::unix::net::UnixStream::connect("/host-gpu/stats.sock").ok()?;
+    let _ = s.set_read_timeout(Some(Duration::from_millis(300)));
     let mut text = String::new();
-    if s.take(256 * 1024).read_to_string(&mut text).is_err() {
-        return;
-    }
-    let Ok(list) = serde_json::from_str::<Vec<Value>>(&text) else { return };
-    for g in &mut snap.gpus {
-        let Some(u) = list.iter().find(|u| u["pciSlot"].as_str() == Some(g.pci_slot.as_str())) else { continue };
-        if let Some(engines) = u["engines"].as_array() {
-            g.engines = engines
-                .iter()
-                .filter_map(|e| {
-                    Some(machine_stats::gpu::Engine { name: e["name"].as_str()?.chars().take(40).collect(), busy: e["busy"].as_f64()?.clamp(0.0, 1.0) })
+    s.take(256 * 1024).read_to_string(&mut text).ok()?;
+    serde_json::from_str(&text).ok()
+}
+
+/// The last good helper numbers per PCI slot, so a slow or missed read never
+/// drops a bar: up to 5 s old they count as current, up to 60 s they are shown
+/// as stale, older ones are dropped.
+#[derive(Default)]
+struct HelperCache {
+    by_slot: HashMap<String, (Instant, Vec<machine_stats::gpu::Engine>, Option<f64>)>,
+}
+
+impl HelperCache {
+    fn apply(&mut self, snap: &mut Snapshot, fresh: Option<&[Value]>, now: Instant) {
+        for u in fresh.unwrap_or_default() {
+            let Some(slot) = u["pciSlot"].as_str() else { continue };
+            let engines = u["engines"]
+                .as_array()
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|e| {
+                            Some(machine_stats::gpu::Engine { name: e["name"].as_str()?.chars().take(40).collect(), busy: e["busy"].as_f64()?.clamp(0.0, 1.0) })
+                        })
+                        .take(16)
+                        .collect()
                 })
-                .take(16)
-                .collect();
+                .unwrap_or_default();
+            let vram = u["vramUsedBytes"].as_u64().map(|b| (b as f64 / 1024f64.powi(3) * 10.0).round() / 10.0);
+            self.by_slot.insert(slot.to_string(), (now, engines, vram));
         }
-        if let Some(b) = u["vramUsedBytes"].as_u64() {
-            g.vram_used_gb = Some((b as f64 / 1024f64.powi(3) * 10.0).round() / 10.0);
+        self.by_slot.retain(|_, (at, _, _)| now.duration_since(*at) <= Duration::from_secs(60));
+        for g in &mut snap.gpus {
+            let Some((at, engines, vram)) = self.by_slot.get(&g.pci_slot) else { continue };
+            if !engines.is_empty() {
+                g.engines = engines.clone();
+            }
+            if vram.is_some() {
+                g.vram_used_gb = *vram;
+            }
+            g.stale = now.duration_since(*at) > Duration::from_secs(5);
         }
     }
 }
@@ -169,7 +194,8 @@ impl HostStats {
         let mut l = self.local.lock().unwrap();
         if l.at.is_none_or(|t| t.elapsed() >= MIN_INTERVAL) {
             let mut snap = l.sampler.sample();
-            merge_helper(&mut snap);
+            let fresh = read_helper();
+            l.helper.apply(&mut snap, fresh.as_deref(), Instant::now());
             l.history.push(&snap);
             l.snap = Some(snap);
             l.at = Some(Instant::now());
@@ -400,5 +426,56 @@ mod tests {
         s.cpu = Some(0.5);
         s.os = "x".repeat(500);
         assert!(!valid(&s));
+    }
+
+    #[test]
+    fn helper_cache_keeps_bars_between_samples() {
+        let mut gpu = machine_stats::gpu::GpuStats::default();
+        gpu.pci_slot = "0000:10:00.0".to_string();
+        let snap = Snapshot { gpus: vec![gpu], ..Default::default() };
+
+        let t0 = Instant::now();
+        let full_sample: Vec<Value> = serde_json::from_value(serde_json::json!([{
+            "pciSlot": "0000:10:00.0",
+            "engines": [{"name": "render", "busy": 0.5}],
+            "vramUsedBytes": 2147483648u64
+        }])).unwrap();
+
+        let mut cache = HelperCache::default();
+
+        // t0: full sample -> Some(2.0), !stale
+        let mut s = snap.clone();
+        cache.apply(&mut s, Some(full_sample.as_slice()), t0);
+        assert_eq!(s.gpus[0].vram_used_gb, Some(2.0));
+        assert!(!s.gpus[0].stale);
+
+        // t0+1s: None -> keep
+        let mut s = snap.clone();
+        cache.apply(&mut s, None, t0 + Duration::from_secs(1));
+        assert_eq!(s.gpus[0].vram_used_gb, Some(2.0));
+        assert!(!s.gpus[0].stale);
+
+        // t0+2s: full -> update
+        let mut s = snap.clone();
+        cache.apply(&mut s, Some(full_sample.as_slice()), t0 + Duration::from_secs(2));
+        assert_eq!(s.gpus[0].vram_used_gb, Some(2.0));
+        assert!(!s.gpus[0].stale);
+
+        // t0+3s: None -> keep
+        let mut s = snap.clone();
+        cache.apply(&mut s, None, t0 + Duration::from_secs(3));
+        assert_eq!(s.gpus[0].vram_used_gb, Some(2.0));
+        assert!(!s.gpus[0].stale);
+
+        // t0+9s: None -> stale but still Some(2.0)
+        let mut s = snap.clone();
+        cache.apply(&mut s, None, t0 + Duration::from_secs(9));
+        assert_eq!(s.gpus[0].vram_used_gb, Some(2.0));
+        assert!(s.gpus[0].stale);
+
+        // t0+70s: None -> dropped (vram_used_gb == None)
+        let mut s = snap.clone();
+        cache.apply(&mut s, None, t0 + Duration::from_secs(70));
+        assert_eq!(s.gpus[0].vram_used_gb, None);
     }
 }

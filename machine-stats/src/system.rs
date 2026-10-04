@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::gpu::{GpuReader, GpuStats};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Snapshot {
     /// Busy share since the previous sample, 0..1 (None on the first sample).

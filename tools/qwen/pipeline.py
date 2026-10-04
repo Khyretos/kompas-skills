@@ -18,16 +18,41 @@ OVMS = os.environ.get("OVMS_URL", "http://172.16.1.25:8000/v3/chat/completions")
 OVMS_MODEL = "Coder"  # Qwen3.5-9B int8 on the A770, same family
 NOTES = "qwen3"  # skills/_model-notes/<NOTES>
 
-def backend():
-    """soucouyant's Qwen3.5 when Ollama has it loaded or nothing loaded (no
-    swap); otherwise OVMS on kireserver, so another job's model stays put."""
+import threading, datetime
+LANE = threading.local()  # .prefer: "soucouyant" or "ovms"; .model: last model used
+
+def soucouyant_free():
+    """True when soucouyant's Ollama can take a qwen3.5 job without disturbing
+    another job: qwen3.5 already loaded, nothing loaded, or the loaded model has
+    been idle for 2+ minutes (Ollama's keep-alive is 5 min, so the last use was
+    expires_at - 300 s). A model used in the last 2 minutes (the kk-localize
+    gemma judge) is left alone."""
+    # kk-localize's gemma judge owns soucouyant from 03:00 to 08:00 local: no swaps then.
+    if 3 <= time.localtime().tm_hour < 8:
+        return False
     try:
         with urllib.request.urlopen(OLLAMA + "/api/ps", timeout=5) as r:
-            loaded = [m["name"] for m in json.load(r).get("models", [])]
-        if not loaded or SOUCOUYANT_MODEL in loaded:
-            return (OLLAMA + "/v1/chat/completions", SOUCOUYANT_MODEL, {"reasoning_effort": "none"}, None)
+            models = json.load(r).get("models", [])
     except Exception:
-        pass
+        return False
+    now = datetime.datetime.now(datetime.timezone.utc)
+    for m in models:
+        if m["name"] == SOUCOUYANT_MODEL:
+            continue
+        try:
+            exp = datetime.datetime.fromisoformat(re.sub(r"(\.\d{6})\d+", r"\1", m["expires_at"]))
+            idle = 300 - (exp - now).total_seconds()
+        except Exception:
+            idle = 0
+        if idle < 120:
+            return False
+    return True
+
+def backend():
+    """Drafting goes to soucouyant's Qwen3.5 (RX 9070 XT) whenever it is free;
+    OVMS Coder (A770) is the fallback and the second lane."""
+    if getattr(LANE, "prefer", "soucouyant") == "soucouyant" and soucouyant_free():
+        return (OLLAMA + "/v1/chat/completions", SOUCOUYANT_MODEL, {"reasoning_effort": "none"}, None)
     env = os.popen("docker inspect ovms --format '{{range .Config.Env}}{{println .}}{{end}}'").read()
     key = next((l[len("API_KEY="):] for l in env.splitlines() if l.startswith("API_KEY=")), "")
     return (OVMS, OVMS_MODEL, {"chat_template_kwargs": {"enable_thinking": False}}, key)
@@ -45,6 +70,7 @@ def skills(role):
 
 def ask(system, user, max_tokens):
     url, model, extra, key = backend()
+    LANE.model = model
     body = json.dumps({"model": model, "max_tokens": max_tokens, "temperature": 0.2,
                        "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}], **extra}).encode()
     headers = {"Content-Type": "application/json"}
@@ -146,43 +172,63 @@ def patch_job(job, log):
         raise RuntimeError(f"patch failed twice: {err[:300]}")
     open(out, "w").write(new)
     rec = {"name": job["name"], "out": job["out"], "mode": "patch", "gpu_seconds": round(secs, 1), "tokens": toks,
-           "lines": len(BLOCK.findall(answer)), "attempts": attempt + 1, "at": time.strftime("%Y-%m-%dT%H:%M:%S")}
+           "lines": len(BLOCK.findall(answer)), "attempts": attempt + 1, "model": getattr(LANE, "model", ""), "at": time.strftime("%Y-%m-%dT%H:%M:%S")}
     log.write(json.dumps(rec) + "\n"); log.flush(); print(json.dumps(rec), flush=True)
 
+def run_job(job, log):
+    try:
+      if job.get("mode") == "patch":
+          patch_job(job, log)
+          return
+      rules = skills(job["role"])
+      ctx = "".join(f"\n--- {c} ---\n{open(os.path.join(REPO, c)).read()}" for c in job.get("context", []))
+      system = "You write exact, compiling code for this repository. Follow these rules strictly:\n\n" + rules
+      draft, s1, t1 = ask(system, job["prompt"] + ("\n\nRelevant files:" + ctx if ctx else ""), job.get("max_tokens", 4000))
+      # The self-review needs the draft in the prompt; skip it when that
+      # wouldn't leave room for a full answer in the 16k context (~4 chars/token).
+      if (len(system) + len(job["prompt"]) + 2 * len(draft)) / 4 > 13000 or not job.get("review", True):
+          out = os.path.join(REPO, job["out"])
+          os.makedirs(os.path.dirname(out), exist_ok=True)
+          open(out, "w").write(strip(draft))
+          rec = {"name": job["name"], "out": job["out"], "gpu_seconds": round(s1, 1), "tokens": t1,
+                 "lines": strip(draft).count("\n"), "review": "skipped", "model": getattr(LANE, "model", ""), "at": time.strftime("%Y-%m-%dT%H:%M:%S")}
+          log.write(json.dumps(rec) + "\n"); log.flush(); print(json.dumps(rec), flush=True)
+          return
+      review_prompt = ("Review the code below against every rule above and the task. Fix every problem you find. "
+                       "Output ONLY the corrected complete file, nothing else.\n\nTask:\n" + job["prompt"] + "\n\nCode:\n" + strip(draft))
+      final, s2, t2 = ask(system, review_prompt, job.get("max_tokens", 4000))
+      out = os.path.join(REPO, job["out"])
+      os.makedirs(os.path.dirname(out), exist_ok=True)
+      open(out, "w").write(strip(final))
+      rec = {"name": job["name"], "out": job["out"], "gpu_seconds": round(s1 + s2, 1), "tokens": t1 + t2,
+             "lines": strip(final).count("\n"), "model": getattr(LANE, "model", ""), "at": time.strftime("%Y-%m-%dT%H:%M:%S")}
+      log.write(json.dumps(rec) + "\n"); log.flush()
+      print(json.dumps(rec), flush=True)
+    except RuntimeError as e:
+      print(json.dumps({"name": job["name"], "error": str(e)}), flush=True)
+
 def main():
+    """Two lanes: soucouyant drafts while OVMS takes other files. Jobs for the
+    same file stay in order on one lane (later edits build on earlier ones)."""
     jobs = json.load(open(sys.argv[1]))
     log = open(sys.argv[2] if len(sys.argv) > 2 else os.devnull, "a")
+    groups = {}
     for job in jobs:
-      try:
-        if job.get("mode") == "patch":
-            patch_job(job, log)
-            continue
-        rules = skills(job["role"])
-        ctx = "".join(f"\n--- {c} ---\n{open(os.path.join(REPO, c)).read()}" for c in job.get("context", []))
-        system = "You write exact, compiling code for this repository. Follow these rules strictly:\n\n" + rules
-        draft, s1, t1 = ask(system, job["prompt"] + ("\n\nRelevant files:" + ctx if ctx else ""), job.get("max_tokens", 4000))
-        # The self-review needs the draft in the prompt; skip it when that
-        # wouldn't leave room for a full answer in the 16k context (~4 chars/token).
-        if (len(system) + len(job["prompt"]) + 2 * len(draft)) / 4 > 13000 or not job.get("review", True):
-            out = os.path.join(REPO, job["out"])
-            os.makedirs(os.path.dirname(out), exist_ok=True)
-            open(out, "w").write(strip(draft))
-            rec = {"name": job["name"], "out": job["out"], "gpu_seconds": round(s1, 1), "tokens": t1,
-                   "lines": strip(draft).count("\n"), "review": "skipped", "at": time.strftime("%Y-%m-%dT%H:%M:%S")}
-            log.write(json.dumps(rec) + "\n"); log.flush(); print(json.dumps(rec), flush=True)
-            continue
-        review_prompt = ("Review the code below against every rule above and the task. Fix every problem you find. "
-                         "Output ONLY the corrected complete file, nothing else.\n\nTask:\n" + job["prompt"] + "\n\nCode:\n" + strip(draft))
-        final, s2, t2 = ask(system, review_prompt, job.get("max_tokens", 4000))
-        out = os.path.join(REPO, job["out"])
-        os.makedirs(os.path.dirname(out), exist_ok=True)
-        open(out, "w").write(strip(final))
-        rec = {"name": job["name"], "out": job["out"], "gpu_seconds": round(s1 + s2, 1), "tokens": t1 + t2,
-               "lines": strip(final).count("\n"), "at": time.strftime("%Y-%m-%dT%H:%M:%S")}
-        log.write(json.dumps(rec) + "\n"); log.flush()
-        print(json.dumps(rec), flush=True)
-      except RuntimeError as e:
-        print(json.dumps({"name": job["name"], "error": str(e)}), flush=True)
+        groups.setdefault(job["out"], []).append(job)
+    queue = list(groups.values())
+    lock = threading.Lock()
+    def lane(prefer):
+        LANE.prefer = prefer
+        while True:
+            with lock:
+                if not queue:
+                    return
+                group = queue.pop(0)
+            for job in group:
+                run_job(job, log)
+    lanes = [threading.Thread(target=lane, args=(p,)) for p in (["soucouyant", "ovms"] if len(queue) > 1 else ["soucouyant"])]
+    for t in lanes: t.start()
+    for t in lanes: t.join()
 
 if __name__ == "__main__":
     main()
