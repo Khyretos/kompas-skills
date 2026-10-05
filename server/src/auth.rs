@@ -146,15 +146,15 @@ pub async fn status(
 ) -> ApiResult<Json<serde_json::Value>> {
     let user = current_user(&state, &headers).await?;
     let settings = crate::admin::load(&state.db).await?;
-    let (admin, theme, refresh, pins) = match &user {
-        Some(u) => sqlx::query_as::<_, (bool, String, i64, String)>(
-            "SELECT is_admin, theme, machines_refresh, gpu_pins FROM users WHERE id = ?",
+    let (admin, theme, refresh, pins, cards) = match &user {
+        Some(u) => sqlx::query_as::<_, (bool, String, i64, String, String)>(
+            "SELECT is_admin, theme, machines_refresh, gpu_pins, card_style FROM users WHERE id = ?",
         )
         .bind(&u.id)
         .fetch_optional(&state.db)
         .await?
-        .unwrap_or((false, "system".into(), 5, "[]".into())),
-        None => (false, "system".into(), 5, "[]".into()),
+        .unwrap_or((false, "system".into(), 5, "[]".into(), "{}".into())),
+        None => (false, "system".into(), 5, "[]".into(), "{}".into()),
     };
     Ok(Json(json!({
         "name": settings.app_name,
@@ -162,6 +162,7 @@ pub async fn status(
         "theme": theme,
         "machinesRefresh": refresh,
         "gpuPins": serde_json::from_str::<serde_json::Value>(&pins).unwrap_or(serde_json::json!([])),
+        "cardStyle": serde_json::from_str::<serde_json::Value>(&cards).unwrap_or(serde_json::json!({})),
         "version": env!("CARGO_PKG_VERSION"),
         "setupNeeded": !users_exist(&state).await?,
         "user": user.map(|u| u.name),

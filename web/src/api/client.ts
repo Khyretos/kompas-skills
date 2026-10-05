@@ -30,6 +30,8 @@ export interface KompanionApi {
   setTheme(theme: ThemeChoice): Promise<void>;
   setMachinesRefresh(seconds: number): Promise<void>;
   setGpuPins(pins: string[]): Promise<void>;
+  /** Card colours and labels per action type (item 7), saved for this user. */
+  setCardStyle(style: import("../core/cardtypes").CardStyle): Promise<void>;
   getNotifications(): Promise<NotificationPrefs>;
   setNotifications(p: NotificationPrefs): Promise<void>;
   /** Keeps the live machine feed on for about 15 s. */

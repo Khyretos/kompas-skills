@@ -58,6 +58,7 @@ export class HttpApi implements KompanionApi {
   getNotifications() { return this.request<NotificationPrefs>("GET", "/me/notifications"); }
   setNotifications(p: NotificationPrefs) { return this.request<void>("PUT", "/me/notifications", p); }
   setGpuPins(pins: string[]) { return this.request<void>("PUT", "/me/prefs", { gpuPins: pins }); }
+  setCardStyle(style: import("../core/cardtypes").CardStyle) { return this.request<void>("PUT", "/me/prefs", { cardStyle: style }); }
   setMachinesRefresh(seconds: number) { return this.request<void>("PUT", "/me/prefs", { machinesRefresh: seconds }); }
   pairMachine(name: string) { return this.request<{ id: string; name: string; token: string }>("POST", "/machines", { name }); }
   listGrants(machineId: string) { return this.request<import("../views/access").GrantView[]>("GET", `/machines/${encodeURIComponent(machineId)}/grants`); }

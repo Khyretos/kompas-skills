@@ -1,5 +1,6 @@
 @import "./views/assets.css";
 @import "./views/capabilities.css";
+@import "./views/cards.css";
 /* Kreative Kompanion, Kompas Night (dark, default) and Kompas Day (light).
    Layout: three panes. Projects | orchestrator chat | tasks. On narrow screens
    the side panes slide over the chat. Colours from the Kreative Kompas palette v1.2. */

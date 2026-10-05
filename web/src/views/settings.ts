@@ -5,6 +5,7 @@ import type { AppState } from "../state";
 import type { AdminSettings, Role } from "../api/types";
 import { icon } from "./icons";
 import { renderAdmin } from "./admin";
+import { DEFAULT_STYLE, KINDS, styleOf, textOn } from "../core/cardtypes";
 
 const roleInfo: Record<Role, { name: string; text: string }> = {
   orchestrator: { name: "Orchestrator", text: "Talks with you, plans and splits the work." },
@@ -18,6 +19,25 @@ const DEFAULTS: AdminSettings = {
 };
 
 const LANGS: [string, string][] = [["", "Detect"], ["en", "English"], ["es", "Spanish"], ["nl", "Dutch"]];
+
+/** Item 7: the colour and label of each action type on step and approval cards, saved for this user. */
+function cardSection(s: AppState): SafeHtml {
+  return html`<section class="card-settings">
+    <h3 class="label">Card colours</h3>
+    <p class="muted small">Steps and approval cards get a coloured header by what they do. Text colour is picked for contrast.</p>
+    <ul class="card-kinds">${KINDS.map((k) => {
+      const st = styleOf(k, s.cardStyle);
+      return html`<li>
+        <span class="kind-tag" style="background:${st.color};color:${textOn(st.color)}">${st.label}</span>
+        <label class="sr-only" for="card-label-${k}">Label for ${DEFAULT_STYLE[k].label}</label>
+        <input id="card-label-${k}" data-kind="${k}" class="card-label" value="${st.label}" maxlength="30">
+        <label class="sr-only" for="card-color-${k}">Colour for ${DEFAULT_STYLE[k].label}</label>
+        <input id="card-color-${k}" data-kind="${k}" class="card-color" type="color" value="${st.color}">
+      </li>`;
+    })}</ul>
+    <button class="btn small" type="button" data-action="card-reset">Back to the brand colours</button>
+  </section>`;
+}
 
 /** W4: optional voice, per device. Off until switched on here. */
 function voiceSection(s: AppState): SafeHtml {
@@ -89,6 +109,7 @@ export function renderSettings(s: AppState): SafeHtml {
         })}</div>
       </section>
       ${voiceSection(s)}
+      ${cardSection(s)}
       <section>
         <h3 class="label">Connected models</h3>
         <ul class="providers">${s.providers.map((p) => html`

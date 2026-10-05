@@ -282,6 +282,24 @@ pub struct Prefs {
     machines_refresh: Option<u32>,
     /// GPU panel bars pinned by this user ("<pci slot>/<metric>").
     gpu_pins: Option<Vec<String>>,
+    /// Card colours and labels per action type (item 7): {"read": {"label": "Read", "color": "#5c398e"}, ...}.
+    card_style: Option<serde_json::Value>,
+}
+
+/// A valid card style: an object whose keys are action kinds, each {label: 1-30 chars, color: "#rrggbb"}.
+fn check_card_style(v: &serde_json::Value) -> bool {
+    const KINDS: [&str; 6] = ["read", "edit", "run", "network", "system", "git"];
+    let Some(map) = v.as_object() else { return false };
+    map.iter().all(|(k, c)| {
+        let label = c["label"].as_str().unwrap_or("");
+        let color = c["color"].as_str().unwrap_or("");
+        KINDS.contains(&k.as_str())
+            && !label.trim().is_empty()
+            && label.chars().count() <= 30
+            && color.len() == 7
+            && color.starts_with('#')
+            && color[1..].chars().all(|ch| ch.is_ascii_hexdigit())
+    })
 }
 
 /// Per-user preferences that follow the user across devices.
@@ -305,6 +323,12 @@ pub async fn set_prefs(
             .bind(&u.id)
             .execute(&s.db)
             .await?;
+    }
+    if let Some(style) = b.card_style {
+        if !check_card_style(&style) {
+            return Err(ApiError::BadRequest("Card colours need a label (up to 30 characters) and a colour like #5c398e per kind.".into()));
+        }
+        sqlx::query("UPDATE users SET card_style = ? WHERE id = ?").bind(style.to_string()).bind(&u.id).execute(&s.db).await?;
     }
     Ok(StatusCode::NO_CONTENT)
 }

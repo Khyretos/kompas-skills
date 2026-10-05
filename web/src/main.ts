@@ -11,7 +11,7 @@ import { onCodeAction } from "./core/codeblocks";
 import { activeProject, store, type AppState } from "./state";
 import { showConnect } from "./views/connect";
 import { renderSidebar } from "./views/sidebar";
-import { composer, elapsedText, fillMessage, groupChoice, messageViews, openSteps, renderEmpty, renderHeader, renderMessage, type MessageView } from "./views/conversation";
+import { composer, elapsedText, fillMessage, groupChoice, messageViews, openSteps, renderEmpty, renderHeader, renderMessage, setCardStyle as setStepCardStyle, type MessageView } from "./views/conversation";
 import { KeyedList } from "./core/keyed";
 import { paneTabs, renderTasks, setAssetThumbs } from "./views/tasks";
 import { renderMachines, REFRESH_STEPS, setGpuView } from "./views/machines";
@@ -121,8 +121,9 @@ async function start(server: Server): Promise<void> {
   store.set({
     server: { ...server, name: status.name || server.name }, projects, chats, tasks, providers, roles, machines, today,
     userName: status.user ?? undefined, isAdmin: !!status.admin, theme: status.theme ?? "system",
-    machinesRefresh: status.machinesRefresh ?? 5, gpuPins: status.gpuPins ?? [], windshift: status.windshift, windshiftWarning: status.windshiftWarning, logoVersion: status.logoVersion,
+    machinesRefresh: status.machinesRefresh ?? 5, gpuPins: status.gpuPins ?? [], cardStyle: status.cardStyle ?? {}, windshift: status.windshift, windshiftWarning: status.windshiftWarning, logoVersion: status.logoVersion,
   });
+  setStepCardStyle(status.cardStyle ?? {});
   applyTheme(status.theme ?? "system");
   api.voiceInfo().then((voice) => store.set({ voice }), () => store.set({ voice: { enabled: false, voices: [] } }));
   wire(shellRoot);
@@ -203,7 +204,7 @@ function render(s: AppState, prev: AppState): void {
   if (firstRender || s.pcActions !== prev.pcActions || pcKey !== lastPcKey) {
     const box = $("#messages");
     const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
-    mount($("#pc-actions"), renderPcActions(s.pcActions.filter((a) => a.state === "pending"), Object.fromEntries(s.machines.map((m) => [m.id, m.name]))));
+    mount($("#pc-actions"), renderPcActions(s.pcActions.filter((a) => a.state === "pending"), Object.fromEntries(s.machines.map((m) => [m.id, m.name])), s.cardStyle));
     if (atBottom) box.scrollTop = box.scrollHeight;
   }
   lastPcKey = pcKey;
@@ -211,7 +212,7 @@ function render(s: AppState, prev: AppState): void {
     ? ["rightTab", "tasks", "projects", "openTaskId", "editingTaskId", "taskScope", "activeProjectId", "activeChatId", "chats", "projectAssets", "assetPick", "runCheck", "taskRuns"]
     : s.rightTab === "access" ? ["rightTab", "grants", "accessHistory", "machines"]
     : s.rightTab === "activity" ? ["rightTab", "activity", "activityFilter"]
-    : ["rightTab", "machines", "today", "machinesRefresh", "tasks", "pairing", "gpuOpen", "gpuPins"];
+    : ["rightTab", "machines", "today", "machinesRefresh", "tasks", "pairing", "gpuOpen", "gpuPins", "cardStyle"];
   // Never rebuild the task editor under the user's hands; only when it opens or closes.
   const editing = s.rightTab === "tasks" && s.editingTaskId && s.editingTaskId === prev.editingTaskId && !firstRender;
   // The open task's W2 runs (for its report): loaded when it opens and when tasks change.
@@ -267,7 +268,7 @@ function render(s: AppState, prev: AppState): void {
   }
   const settings = $("#settings");
   settings.hidden = !s.settingsOpen;
-  if (s.settingsOpen && changed(s, prev, ["settingsOpen", "providers", "roles", "admin", "theme", "isAdmin", "notifications", "windshift", "logoVersion", "voice", "voicePrefs"])) {
+  if (s.settingsOpen && changed(s, prev, ["settingsOpen", "providers", "roles", "admin", "theme", "isAdmin", "notifications", "windshift", "logoVersion", "voice", "voicePrefs", "cardStyle"])) {
     remount(settings, renderSettings(s));
   }
   firstRender = false;
@@ -300,6 +301,21 @@ function applyEvent(ev: ServerEvent): void {
     if (ev.done) readAloud(store.get().messages.find((m) => m.id === ev.messageId)?.text ?? "");
   }
 }
+
+// Card colours (item 7): applied at once (steps re-render), saved for this user, rolled back on error.
+function setCards(style: import("./core/cardtypes").CardStyle): void {
+  const before = store.get().cardStyle;
+  setStepCardStyle(style);
+  messageList?.clear();
+  store.set({ cardStyle: style, messages: [...store.get().messages] });
+  api.setCardStyle(style).catch((e) => {
+    setStepCardStyle(before);
+    messageList?.clear();
+    store.set({ cardStyle: before, messages: [...store.get().messages] });
+    showError(e);
+  });
+}
+
 
 // The Run form checks the folder on the chosen computer (exists? which folders?) when the
 // computer or folder changes, when browsing, and once more before Start.
@@ -676,6 +692,7 @@ function wire(shell: HTMLElement): void {
       if (store.get().recording === "recording") void stopRecording(); else void startRecording();
     },
     "voice-stop": () => reader.stop(),
+    "card-reset": () => setCards({}),
     // Stop a running step on the computer (Esc never stops anything).
     "step-stop": (el) => {
       el.setAttribute("disabled", "");
@@ -754,6 +771,17 @@ function wire(shell: HTMLElement): void {
       const id = runField.dataset.id ?? "";
       const { machine, folder } = runFields(id);
       if (folder.trim()) void folderCheck(id, machine, folder);
+      return;
+    }
+    const cardInput = ev.target as HTMLInputElement;
+    if (cardInput.classList.contains("card-label") || cardInput.classList.contains("card-color")) {
+      const style: import("./core/cardtypes").CardStyle = {};
+      for (const k of ["read", "edit", "run", "network", "system", "git"] as const) {
+        const label = (document.getElementById(`card-label-${k}`) as HTMLInputElement | null)?.value.trim() ?? "";
+        const color = (document.getElementById(`card-color-${k}`) as HTMLInputElement | null)?.value ?? "";
+        if (label && /^#[0-9a-f]{6}$/i.test(color)) style[k] = { label: label.slice(0, 30), color };
+      }
+      setCards(style);
       return;
     }
     if (fid === "voice-input" || fid === "voice-read") {

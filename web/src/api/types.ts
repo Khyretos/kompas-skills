@@ -188,6 +188,7 @@ export interface ServerStatus {
   theme?: ThemeChoice;
   machinesRefresh?: number; // seconds; 1 = live
   gpuPins?: string[];
+  cardStyle?: import("../core/cardtypes").CardStyle;
   windshift?: "connected" | "not configured";
   windshiftWarning?: string | null;
   logoVersion?: string | null; // set when an admin uploaded a logo

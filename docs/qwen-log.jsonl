@@ -188,3 +188,18 @@
 {"name": "runs-web-test", "out": "web/tests/runs.spec.ts", "gpu_seconds": 13.5, "tokens": 306, "lines": 24, "review": "skipped", "model": "Coder", "at": "2026-10-05T03:12:48"}
 {"name": "runs-web-main", "out": "web/src/main.ts", "mode": "patch", "gpu_seconds": 35.9, "tokens": 809, "lines": 2, "attempts": 1, "model": "Coder", "at": "2026-10-05T03:12:57"}
 {"name": "grant-mirror-now", "out": "server/src/pcagent/mod.rs", "mode": "patch", "gpu_seconds": 27.3, "tokens": 696, "lines": 1, "attempts": 2, "model": "Coder", "at": "2026-10-05T03:33:11"}
+{"name": "cards-migration", "out": "server/migrations/0021_card_style.sql", "gpu_seconds": 6.0, "tokens": 60, "lines": 2, "review": "skipped", "model": "Coder", "at": "2026-10-05T03:34:19"}
+{"name": "cards-status", "out": "server/src/auth.rs", "mode": "patch", "gpu_seconds": 19.3, "tokens": 487, "lines": 2, "attempts": 1, "model": "Coder", "at": "2026-10-05T03:34:38"}
+{"name": "cards-prefs", "out": "server/src/admin.rs", "mode": "patch", "gpu_seconds": 95.6, "tokens": 2519, "lines": 2, "attempts": 2, "model": "Coder", "at": "2026-10-05T03:35:49"}
+{"name": "cards-core", "out": "web/src/core/cardtypes.ts", "gpu_seconds": 79.4, "tokens": 2130, "lines": 89, "model": "Coder", "at": "2026-10-05T03:37:25"}
+{"name": "cards-api", "out": "web/src/api/client.ts", "mode": "patch", "gpu_seconds": 7.3, "tokens": 78, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T03:37:52"}
+{"name": "cards-mock", "out": "web/src/api/mock.ts", "mode": "patch", "gpu_seconds": 1.9, "tokens": 36, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T03:37:54"}
+{"name": "cards-http", "out": "web/src/api/http.ts", "mode": "patch", "gpu_seconds": 11.7, "tokens": 170, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T03:37:57"}
+{"name": "cards-state", "out": "web/src/state.ts", "mode": "patch", "gpu_seconds": 12.6, "tokens": 291, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T03:38:07"}
+{"name": "cards-step", "out": "web/src/views/conversation.ts", "mode": "patch", "gpu_seconds": 13.4, "tokens": 333, "lines": 2, "attempts": 1, "model": "Coder", "at": "2026-10-05T03:38:20"}
+{"name": "cards-pcactions", "out": "web/src/views/pcactions.ts", "mode": "patch", "gpu_seconds": 24.1, "tokens": 588, "lines": 3, "attempts": 1, "model": "Coder", "at": "2026-10-05T03:38:21"}
+{"name": "cards-types", "out": "web/src/api/types.ts", "mode": "patch", "gpu_seconds": 4.8, "tokens": 94, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T03:38:52"}
+{"name": "cards-settings", "out": "web/src/views/settings.ts", "mode": "patch", "gpu_seconds": 19.9, "tokens": 452, "lines": 3, "attempts": 1, "model": "Coder", "at": "2026-10-05T03:39:07"}
+{"name": "cards-main", "out": "web/src/main.ts", "mode": "patch", "gpu_seconds": 50.6, "tokens": 1378, "lines": 8, "attempts": 1, "model": "Coder", "at": "2026-10-05T03:39:43"}
+{"name": "cards-css", "out": "web/src/views/cards.css", "gpu_seconds": 21.0, "tokens": 452, "lines": 12, "review": "skipped", "model": "Coder", "at": "2026-10-05T03:40:37"}
+{"name": "cards-test", "out": "web/tests/cards.spec.ts", "gpu_seconds": 24.7, "tokens": 550, "lines": 57, "review": "skipped", "model": "Coder", "at": "2026-10-05T03:40:41"}

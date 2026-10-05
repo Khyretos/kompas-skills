@@ -1,6 +1,7 @@
 import { html, type SafeHtml } from "../core/html";
 import type { PcAction } from "../api/client";
 import { fromTool, renderOutput } from "../core/output";
+import { kindOf, NEED_LABEL, styleOf, textOn, type CardStyle } from "../core/cardtypes";
 
 export function renderPcPicker(
   machines: { id: string; name: string; online?: boolean }[],
@@ -40,7 +41,7 @@ const stateLabels: Record<string, string> = {
   refused: "not allowed on that computer",
 };
 
-export function renderPcActions(actions: PcAction[], machineNames: Record<string, string>): SafeHtml {
+export function renderPcActions(actions: PcAction[], machineNames: Record<string, string>, cardStyle?: CardStyle): SafeHtml {
   if (actions.length === 0) {
     return html``;
   }
@@ -59,7 +60,11 @@ export function renderPcActions(actions: PcAction[], machineNames: Record<string
         `;
 
         return html`
-          <article class="pc-action ${a.state}">
+          <article class="pc-action ${a.state} kind-${kindOf(a.tool)}">
+            <header class="card-kind" style="background:${styleOf(kindOf(a.tool), cardStyle).color};color:${textOn(styleOf(kindOf(a.tool), cardStyle).color)}">
+              <span>${styleOf(kindOf(a.tool), cardStyle).label}</span>
+              <span class="need">${a.state === "pending" ? NEED_LABEL.approval : NEED_LABEL.automatic}</span>
+            </header>
             <strong>${a.summary}</strong>
             <span class="muted small">on ${machineNames[a.machineId] ?? "a computer"}</span>
             ${a.needs && a.state === "pending" ? html`<span class="small">Needs: ${a.needs}</span>` : ""}
