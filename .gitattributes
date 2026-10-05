@@ -1,3 +1,3 @@
-# Append-only logs: merges keep the lines of both sides instead of conflicting
-# (every drafting branch appends to the same file).
+# Append-only drafting logs: merges keep both sides instead of conflicting.
 docs/qwen-log.jsonl merge=union
+docs/qwen-log/*.jsonl merge=union
