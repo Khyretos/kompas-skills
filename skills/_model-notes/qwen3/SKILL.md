@@ -7,7 +7,7 @@ models: [qwen3, qwen3.5]
 
 General lessons learned from these models now live where every model reads them:
 `work-habits.md`, `orchestrator/prompting-workers.md`, `shared/colour-themes.md`, `worker/*`.
-Full history with evidence: `~/Docker/docs/ai-capability/qwen3-notes-history-2026-10.md`.
+Full history with evidence: `docs/model-notes/qwen3-history-2026-10.md`.
 
 ## Settings
 

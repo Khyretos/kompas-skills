@@ -73,7 +73,7 @@ Never print environment values when inspecting a container: a grep for a model n
 
 ## 5. Ollama hosts: one model name, and what the RAM is (2026-10-03)
 
-Source: soucouyant benchmark, ~/Docker/docs/ai-capability/soucouyant-model-benchmark-2026-10.md.
+Source: soucouyant benchmark, docs/model-notes/soucouyant-model-benchmark-2026-10.md.
 
 - Ollama 0.35 runs models through llama.cpp's llama-server. It keeps a prompt cache in system RAM
   (`--cache-ram`, default 8192 MiB) that fills after a few hundred different prompts: that, not the model,

@@ -3,7 +3,7 @@
 ## gemma4:12b-it-qat (Ollama on soucouyant, RX 9070 XT)
 
 Benchmarked 2026-10-03 against qwen3:14b, qwen3.5:9b, gpt-oss:20b and qwen3.6:35b-a3b
-(details: ~/Docker/docs/ai-capability/soucouyant-model-benchmark-2026-10.md).
+(details: docs/model-notes/soucouyant-model-benchmark-2026-10.md).
 
 - Apache 2.0, vision, tools. 65 tok/s, ~2,600 tok/s prompt; 8.8 GB VRAM at 16k and still only
   12.4 GB card total at 128k context (sliding-window attention keeps the KV cache small).

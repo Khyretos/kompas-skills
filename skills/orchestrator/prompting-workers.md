@@ -7,7 +7,7 @@ tags: [prompt, drafting, fix-round, review]
 # Prompting a worker model
 
 Learned from Qwen3.5-9B, qwen3:14b and gemma4 drafts (2026-10-01 to 10-05). True for any model;
-smaller models just fail sooner. Evidence per lesson: `docs/ai-capability/qwen3-notes-history-2026-10.md`.
+smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-history-2026-10.md`.
 
 1. Put the real config, paths, hosts, API signatures and file excerpts in the prompt. A worker
    invents whatever is missing (paths, settings, endpoints, constructors).

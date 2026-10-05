@@ -43,4 +43,4 @@ These files grow with every review, so models get only what a job needs, and eve
   job lists in `"skills"` and the model's notes (`MODEL_NOTES`, default `qwen3`). Next: a loader that
   picks cards by paths, tags and search within a size budget per model (Kompanion task).
 - Every review finding: a lesson in the right card or core, and a row in
-  `~/Docker/docs/ai-capability/lessons-learned.md`.
+  `docs/lessons-learned.md` (in this repo).
