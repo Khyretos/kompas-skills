@@ -29,3 +29,15 @@ paths: ["android/**"]
    to `getDistributors(ctx)` (minus your own package), `saveDistributor`, then `register`.
    Test push on a real phone: the server log shows the phone's API calls; `push_endpoints` shows
    whether it registered.
+10. (2026-10-05) Xiaomi HyperOS (MIUI) blocks one app from waking another: logcat shows
+    "Unable to launch app io.heckel.ntfy ... not permitted to auto start ... Security_WakePath".
+    Both ntfy and the app need Autostart (Settings > Apps > Permissions > Autostart on HyperOS 3;
+    adb: `am start -n com.miui.securitycenter/com.miui.permcenter.autostart.AutoStartManagementActivity`;
+    check with `appops get <pkg> 10008`). An activity resumed from the background does not run
+    `onCreate`, so force-stop and relaunch to retry the registration.
+11. (2026-10-05) ntfy creates UnifiedPush topics on its *Default server* (ntfy.sh unless changed).
+    The server refuses endpoints on other servers (400 "not on an allowed push server"), which is
+    right; tell the user to set ntfy's Default server to their own and delete the old topic.
+12. (2026-10-05) Debug on the real phone with wireless adb from soucouyant (`adb pair`, then
+    `adb -s <ip:port>`): `logcat -s UnifiedPush`, `cmd package query-receivers -a
+    org.unifiedpush.android.distributor.REGISTER`, and the proxy log for `/api/push/register`.
