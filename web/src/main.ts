@@ -143,15 +143,33 @@ async function start(server: Server): Promise<void> {
 
 /** Links in mails and in the project thread: #task=<id> opens that task's detail, #chat=<id> that chat. */
 async function followHash(): Promise<void> {
-  const [, kind, id] = /^#(task|chat)=([\w-]+)$/.exec(location.hash) ?? [];
+  const [, kind, id, msg] = /^#(task|chat)=([\w-]+)(?:&msg=([\w-]+))?$/.exec(location.hash) ?? [];
   if (!id) return;
   history.replaceState(null, "", location.pathname + location.search);
   if (kind === "task" && store.get().tasks.some((t) => t.id === id)) {
     store.set({ openTaskId: id, rightTab: "tasks", pane: "right" });
     $(".shell").dispatchEvent(new CustomEvent("kk-expand", { detail: "right" }));
+  } else if (kind === "chat" && msg) {
+    await jumpToMessage(id, msg);
   } else if (kind === "chat") {
     await openChat(id);
   }
+}
+
+/** Opens a chat scrolled to one message, which lights up briefly (search hits, notification links). */
+async function jumpToMessage(chatId: string | undefined, msgId: string): Promise<void> {
+  flashMessage(msgId);
+  await openChat(chatId);
+  whenShown(() => {
+    const el = document.getElementById(`msg-${msgId}`);
+    if (el) {
+      el.scrollIntoView({ block: "center" });
+      el.classList.add("search-hit");
+      setTimeout(() => { flashMessage(undefined); document.getElementById(`msg-${msgId}`)?.classList.remove("search-hit"); }, 2500);
+      return true;
+    }
+    return false;
+  });
 }
 
 /** Settings sections the global search finds by name (their headings in Settings). */
@@ -176,21 +194,9 @@ async function goTo(r: SearchResult): Promise<void> {
     case "chat":
       await openChat(r.id);
       return;
-    case "message": {
-      flashMessage(r.id);
-      await openChat(r.parent ?? undefined);
-      whenShown(() => {
-        const el = document.getElementById(`msg-${r.id}`);
-        if (el) {
-          el.scrollIntoView({ block: "center" });
-          el.classList.add("search-hit");
-          setTimeout(() => { flashMessage(undefined); document.getElementById(`msg-${r.id}`)?.classList.remove("search-hit"); }, 2500);
-          return true;
-        }
-        return false;
-      });
+    case "message":
+      await jumpToMessage(r.parent ?? undefined, r.id);
       return;
-    }
     case "project": {
       const expanded = new Set(store.get().expandedProjects);
       expanded.add(r.id);

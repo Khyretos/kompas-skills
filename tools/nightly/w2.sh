@@ -46,8 +46,12 @@ RUNNER=""
 cleanup() {
     kill "$RUNNER" 2>/dev/null || true
     docker rm -f "$N" >/dev/null 2>&1 || true
-    docker volume rm "$N" >/dev/null 2>&1 || true
-    if [ "${KEEP:-0}" = 1 ]; then echo "kept $T" >&2; else rm -rf "$T"; fi
+    if [ "${KEEP:-0}" = 1 ]; then
+        echo "kept $T and the volume $N (database: docker run --rm -v $N:/data alpine ls /data; remove with docker volume rm $N)" >&2
+    else
+        docker volume rm "$N" >/dev/null 2>&1 || true
+        rm -rf "$T"
+    fi
 }
 trap cleanup EXIT
 

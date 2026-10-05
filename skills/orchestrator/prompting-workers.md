@@ -58,3 +58,8 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
 22. (2026-10-05) Tests that set a process-wide env var race each other (cargo runs tests in
     parallel): hold one `tokio::sync::Mutex` per module around them, and run a new suite three
     times before trusting it.
+23. (2026-10-05) A patch job sees only its `focus` excerpts: asking it to add a test to a module
+    that is not in the excerpt makes it invent the module's lines and fail twice. Put the test
+    module's last lines in `focus`, or insert fixed code by script. Never write a correction into
+    a prompt ("... NO: add it after X instead"): rewrite the instruction, or the model follows
+    both halves (a stray `}` was left behind).

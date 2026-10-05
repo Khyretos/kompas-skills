@@ -168,6 +168,13 @@ fn mail_body(title: &str, label: &str, step: &str, link: &str) -> String {
 
 /// Call after a task's state changed; mails in the background if wanted.
 pub fn task_changed(db: SqlitePool, user_id: String, task_id: String, title: String, from: String, to: String) {
+    let hash = format!("task={task_id}");
+    task_changed_at(db, user_id, task_id, title, from, to, hash);
+}
+
+/// Like task_changed, with the app link's hash given: "task=<id>", or "chat=<id>&msg=<id>" for a
+/// message in the project thread.
+pub fn task_changed_at(db: SqlitePool, user_id: String, task_id: String, title: String, from: String, to: String, hash: String) {
     if from == to {
         return;
     }
@@ -177,7 +184,7 @@ pub fn task_changed(db: SqlitePool, user_id: String, task_id: String, title: Str
             Err(e) => return tracing::warn!("notification prefs: {e}"),
         };
         let Some(label) = wanted(&p, &to) else { return };
-        let push_link = PUBLIC_URL.get().map(|u| format!("{u}/#task={task_id}")).unwrap_or_default();
+        let push_link = PUBLIC_URL.get().map(|u| format!("{u}/#{hash}")).unwrap_or_default();
         crate::push::notify(db.clone(), user_id.clone(), title.clone(), label, push_link);
         if p.email.is_empty() {
             return;
@@ -198,7 +205,7 @@ pub fn task_changed(db: SqlitePool, user_id: String, task_id: String, title: Str
             .flatten()
             .and_then(|(s,)| s)
             .unwrap_or_default();
-        let link = PUBLIC_URL.get().map(|u| format!("{u}/#task={task_id}")).unwrap_or_default();
+        let link = PUBLIC_URL.get().map(|u| format!("{u}/#{hash}")).unwrap_or_default();
         let status = match label { "needs you" => crate::mailhtml::Status::NeedsYou, "failed" => crate::mailhtml::Status::Failed, _ => crate::mailhtml::Status::Done };
         let intro = match label { "needs you" => "This task is waiting for you.", "failed" => "This task stopped with an error.", _ => "This task is finished." };
         let need_label = if label == "failed" { "Where it stopped" } else { "What's needed" };

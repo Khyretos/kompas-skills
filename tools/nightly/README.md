@@ -5,7 +5,7 @@
 - Pass: the task ends done, `python3 -m unittest` passes in the fixture and no test file changed. A run that edits the tests to pass fails (`"test":"tests-changed"`).
 - Numbers per night: `~/.local/share/kompanion-nightly/<date>.json` (state, test, seconds, model calls).
 - On failure it adds the task "Nightly W2 failed <date>" to the live board (needs you).
-- Runs only between 03:00 and 05:00, and skips when a studio app (ComfyUI, HeartMuLa, MOSS) is running. By hand: `sh tools/nightly/w2.sh --now`; keep the temp folder with `KEEP=1`; test without touching the live board with `LIVE=none`.
+- Runs only between 03:00 and 05:00, and skips when a studio app (ComfyUI, HeartMuLa, MOSS) is running. By hand: `sh tools/nightly/w2.sh --now`; keep the temp folder and the server's data volume (its database) with `KEEP=1`; test without touching the live board with `LIVE=none`.
 
 Install the timer (systemd user units):
 ```sh

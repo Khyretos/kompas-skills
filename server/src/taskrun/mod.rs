@@ -17,8 +17,24 @@ const ROUNDS: usize = 3;
 /// Tasks the user stopped: the run ends at the next step, and the running step is stopped.
 static STOPPED: std::sync::LazyLock<std::sync::Mutex<std::collections::HashSet<String>>> = std::sync::LazyLock::new(Default::default);
 
+/// Tasks the user paused from the project thread: the run waits before its next step.
+static PAUSED: std::sync::LazyLock<std::sync::Mutex<std::collections::HashSet<String>>> = std::sync::LazyLock::new(Default::default);
+
 pub fn is_stopped(task_id: &str) -> bool {
     STOPPED.lock().unwrap().contains(task_id)
+}
+
+pub fn pause(task_id: &str) {
+    PAUSED.lock().unwrap().insert(task_id.to_string());
+}
+
+/// Lets a paused task go on; false when it wasn't paused.
+pub fn resume(task_id: &str) -> bool {
+    PAUSED.lock().unwrap().remove(task_id)
+}
+
+pub fn is_paused(task_id: &str) -> bool {
+    PAUSED.lock().unwrap().contains(task_id)
 }
 
 /// POST /tasks/{id}/stop
@@ -53,6 +69,35 @@ async fn stopped_here(s: &AppState, r: &Run) -> bool {
     note(s, r, "Stopped by you.").await;
     finish(s, r, "needs_input", "stopped by you").await;
     true
+}
+
+/// Waits while the user has the task paused. True when the run must end (stopped while paused).
+async fn held_or_stopped(s: &AppState, r: &Run) -> bool {
+    if stopped_here(s, r).await {
+        return true;
+    }
+    if !is_paused(&r.task_id) {
+        return false;
+    }
+    progress_step(s, r, "paused by you").await;
+    while is_paused(&r.task_id) {
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+        if stopped_here(s, r).await {
+            return true;
+        }
+    }
+    false
+}
+
+/// Shows a step text on the task without changing its progress.
+async fn progress_step(s: &AppState, r: &Run, step: &str) {
+    let _ = sqlx::query("UPDATE tasks SET step = ?, updated_at = ? WHERE id = ?")
+        .bind(step)
+        .bind(util::now())
+        .bind(&r.task_id)
+        .execute(&s.db)
+        .await;
+    s.bus.send(&r.user_id, Event::Changed { what: "tasks", machine_id: None });
 }
 
 #[derive(Deserialize)]
@@ -219,12 +264,14 @@ async fn finish(s: &AppState, r: &Run, state: &str, step: &str) {
         .execute(&s.db)
         .await;
     s.bus.send(&r.user_id, Event::Changed { what: "tasks", machine_id: None });
-    crate::notify::task_changed(s.db.clone(), r.user_id.clone(), r.task_id.clone(), r.title.clone(), "running".into(), state.into());
     let text = match state {
         "done" => format!("Done: **{}** ({step}). [Open the task](#task={})", r.title, r.task_id),
         _ => format!("**{}** needs you: {step}. [Open the task](#task={})", r.title, r.task_id),
     };
-    crate::thread::post_run(s, &r.run_id, &text).await;
+    // Post first, so the notification can open the thread at this message.
+    let posted = crate::thread::post_run(s, &r.run_id, &text).await;
+    let hash = posted.map(|m| format!("chat={}&msg={}", m.chat_id, m.id)).unwrap_or_else(|| format!("task={}", r.task_id));
+    crate::notify::task_changed_at(s.db.clone(), r.user_id.clone(), r.task_id.clone(), r.title.clone(), "running".into(), state.into(), hash);
 }
 
 /// One answer from a model, without tools (plans and reviews), recorded with the run.
@@ -461,7 +508,7 @@ async fn run(s: AppState, r: Run) {
     // 2. The steps.
     let n = steps.len();
     for (i, step) in steps.iter().enumerate() {
-        if stopped_here(&s, &r).await {
+        if held_or_stopped(&s, &r).await {
             return;
         }
         progress(&s, &r, i as f64 / n as f64 * 0.8, &format!("Step {}/{n}: {}", i + 1, step.what)).await;
@@ -493,7 +540,7 @@ async fn run(s: AppState, r: Run) {
     let review_skills = crate::skills::text_with(&skills_root, &lessons_dir, &[vec!["reviewer/SKILL".to_string()], used.clone()].concat());
     // 3. Check and review, with fix rounds.
     for round in 1..=ROUNDS {
-        if stopped_here(&s, &r).await {
+        if held_or_stopped(&s, &r).await {
             return;
         }
         progress(&s, &r, 0.85, &format!("review, round {round}")).await;
