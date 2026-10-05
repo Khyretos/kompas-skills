@@ -225,7 +225,7 @@ pub async fn test_mail(
         "This is a test from {}. If you can read it, mail notifications work.\n",
         st.app_name
     );
-    mail::send(&smtp, password.as_deref(), b.to.trim(), &format!("{}: test mail", st.app_name), &body)
+    mail::send(&smtp, password.as_deref(), b.to.trim(), &format!("{}: test mail", st.app_name), &body, None)
         .await
         .map_err(|e| {
             tracing::warn!("test mail failed: {e:#}");

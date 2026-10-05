@@ -109,9 +109,29 @@ fn reply_to_with_name(reply_to: &str) -> String {
 
 static SENT: LazyLock<Mutex<HashMap<String, Instant>>> = LazyLock::new(Default::default);
 
-async fn send(db: &SqlitePool, to: &str, subject_tail: &str, body: &str) -> anyhow::Result<()> {
+/// The parts of a branded mail besides the app's own name, link, logo and colour.
+struct Card<'a> {
+    status: crate::mailhtml::Status,
+    title: &'a str,
+    intro: &'a str,
+    rows: &'a [(&'a str, &'a str)],
+    button: Option<(&'a str, &'a str)>,
+}
+
+/// The branded HTML of a mail, with this server's name, link, logo and colour.
+async fn card_html(db: &SqlitePool, c: Card<'_>) -> anyhow::Result<String> {
     let st = crate::admin::load(db).await?;
-    anyhow::ensure!(!st.smtp_host.is_empty() && !st.smtp_from.is_empty(), "mail is not set up");
+    let url = PUBLIC_URL.get().cloned().unwrap_or_default();
+    let logo = if url.is_empty() { String::new() } else { format!("{url}/api/logo") };
+    Ok(crate::mailhtml::render(&crate::mailhtml::Mail {
+        app_name: &st.app_name, app_url: &url, logo_url: &logo, brand: &st.color_brand,
+        status: c.status, title: c.title, intro: c.intro, rows: c.rows, button: c.button,
+    }))
+}
+
+async fn send(db: &SqlitePool, to: &str, subject_tail: &str, body: &str, card: Option<Card<'_>>) -> anyhow::Result<()> {
+    let st = crate::admin::load(db).await?;
+    anyhow::ensure!(!st.smtp_host.is_empty() && st.smtp_from.is_empty(), "mail is not set up");
     let smtp = mail::SmtpSettings {
         host: st.smtp_host,
         port: st.smtp_port,
@@ -121,7 +141,15 @@ async fn send(db: &SqlitePool, to: &str, subject_tail: &str, body: &str) -> anyh
         reply_to: reply_to_with_name(&st.smtp_reply_to),
     };
     let password = std::env::var("SMTP_PASSWORD").ok().filter(|p| !p.is_empty());
-    mail::send(&smtp, password.as_deref(), to, &format!("{}: {subject_tail}", st.app_name), body).await
+    let url = PUBLIC_URL.get().cloned().unwrap_or_default();
+    let logo = if url.is_empty() { String::new() } else { format!("{url}/api/logo") };
+    let html = card.map(|c| {
+        crate::mailhtml::render(&crate::mailhtml::Mail {
+            app_name: &st.app_name, app_url: &url, logo_url: &logo, brand: &st.color_brand,
+            status: c.status, title: c.title, intro: c.intro, rows: c.rows, button: c.button,
+        })
+    });
+    mail::send(&smtp, password.as_deref(), to, &format!("{}: {subject_tail}", st.app_name), body, html.as_deref()).await
 }
 
 /// The text of a task mail: what happened, what is needed, and where to open it.
@@ -168,9 +196,13 @@ pub fn task_changed(db: SqlitePool, user_id: String, task_id: String, title: Str
             .flatten()
             .and_then(|(s,)| s)
             .unwrap_or_default();
-        let link = PUBLIC_URL.get().map(|u| format!("{u}/#task={task_id}")).unwrap_or_default();
+        let status = match label { "needs you" => crate::mailhtml::Status::NeedsYou, "failed" => crate::mailhtml::Status::Failed, _ => crate::mailhtml::Status::Done };
+        let intro = match label { "needs you" => "This task is waiting for you.", "failed" => "This task stopped with an error.", _ => "This task is finished." };
+        let need_label = if label == "failed" { "Where it stopped" } else { "What's needed" };
+        let rows_owned: Vec<(&str, &str)> = if step.is_empty() || label == "done" { vec![] } else { vec![(need_label, step.as_str())] };
+        let card = Card { status, title: &title, intro, rows: &rows_owned, button: if link.is_empty() { None } else { Some(("Open the task", link.as_str())) } };
         let body = mail_body(&title, label, &step, &link);
-        if let Err(e) = send(&db, &p.email, &format!("{title} — {label}"), &body).await {
+        if let Err(e) = send(&db, &p.email, &format!("{title} — {label}"), &body, Some(card)).await {
             tracing::warn!("task mail failed: {e:#}");
         }
     });
@@ -208,8 +240,13 @@ pub fn spawn_daily(db: SqlitePool) {
                 .fetch_all(&db)
                 .await
                 .unwrap_or_default();
+                let rows: Vec<(String, String)> = counts.iter().map(|(s, n)| (s.replace('_', " "), n.to_string())).collect();
+                let row_refs: Vec<(&str, &str)> = rows.iter().map(|(a, b)| (a.as_str(), b.as_str())).collect();
+                let url = PUBLIC_URL.get().cloned().unwrap_or_default();
+                let card = Card { status: crate::mailhtml::Status::Info, title: "Your tasks today", intro: "How your tasks stand this morning.", rows: &row_refs,
+                    button: if url.is_empty() { None } else { Some(("Open Kompanion", url.as_str())) } };
                 let body: String = counts.iter().map(|(s, n)| format!("{}: {n}\n", s.replace('_', " "))).collect();
-                if let Err(e) = send(&db, &email, "today", &body).await {
+                if let Err(e) = send(&db, &email, "today", &body, Some(card)).await {
                     tracing::warn!("daily summary mail failed: {e:#}");
                     continue;
                 }
@@ -221,6 +258,21 @@ pub fn spawn_daily(db: SqlitePool) {
             }
         }
     });
+}
+
+/// `kompanion-server test-mail <address>`: a sample "needs you" mail through the configured
+/// mail server, to check the branded mail renders.
+pub async fn send_test(db: &SqlitePool, to: &str, print: bool) -> anyhow::Result<()> {
+    let url = PUBLIC_URL.get().cloned().unwrap_or_default();
+    let link = format!("{url}/");
+    let rows: [(&str, &str); 2] = [("What's needed", "folder not found on soucouyant"), ("Project", "Kreative Kompanion")];
+    let card = Card { status: crate::mailhtml::Status::NeedsYou, title: "Add initials() to names.py (test mail)", intro: "This task is waiting for you.", rows: &rows,
+        button: Some(("Open the task", link.as_str())) };
+    if print {
+        println!("{}", card_html(db, card).await?);
+        return Ok(());
+    }
+    send(db, to, "test mail", "Add initials() to names.py (test mail)\nNow: needs you.\nWhat's needed: folder not found on soucouyant.\n", Some(card)).await
 }
 
 #[cfg(test)]

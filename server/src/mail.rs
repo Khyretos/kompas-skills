@@ -4,7 +4,7 @@
 use anyhow::{Context, Result};
 use lettre::{
     AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor,
-    message::{Mailbox, header::ContentType},
+    message::{Mailbox, MultiPart, header::ContentType},
     transport::smtp::authentication::Credentials,
 };
 
@@ -19,7 +19,7 @@ pub struct SmtpSettings {
     pub reply_to: String,
 }
 
-pub async fn send(s: &SmtpSettings, password: Option<&str>, to: &str, subject: &str, body: &str) -> Result<()> {
+pub async fn send(s: &SmtpSettings, password: Option<&str>, to: &str, subject: &str, body: &str, html: Option<&str>) -> Result<()> {
     let builder = match s.tls.as_str() {
         "tls" => AsyncSmtpTransport::<Tokio1Executor>::relay(&s.host),
         "starttls" => AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&s.host),
@@ -35,12 +35,13 @@ pub async fn send(s: &SmtpSettings, password: Option<&str>, to: &str, subject: &
     if !s.reply_to.trim().is_empty() {
         message = message.reply_to(s.reply_to.parse::<Mailbox>().context("reply-to address")?);
     }
-    let message = message
-        .to(to.parse::<Mailbox>().context("recipient address")?)
-        .subject(subject)
-        .header(ContentType::TEXT_PLAIN)
-        .body(body.to_string())
-        .context("building the mail")?;
+    let message = message.to(to.parse::<Mailbox>().context("recipient address")?).subject(subject);
+    // Branded HTML with the plain text next to it; plain text alone when there is no HTML.
+    let message = match html {
+        Some(h) => message.multipart(MultiPart::alternative_plain_html(body.to_string(), h.to_string())),
+        None => message.header(ContentType::TEXT_PLAIN).body(body.to_string()),
+    }
+    .context("building the mail")?;
     builder.build().send(message).await.context("sending")?;
     Ok(())
 }

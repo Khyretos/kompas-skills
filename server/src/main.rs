@@ -20,6 +20,7 @@ mod hoststats;
 mod import;
 mod llm;
 mod mail;
+mod mailhtml;
 mod notify;
 mod oidc;
 mod project_ctx;
@@ -118,6 +119,19 @@ async fn main() -> anyhow::Result<()> {
         let Some((user_id,)) = user else { anyhow::bail!("no account named {account}") };
         let (code, expires) = pairing::new_pair_code(&db, &user_id, args.get(3).map(String::as_str).unwrap_or("")).await?;
         println!("{code} (valid until {expires})");
+        return Ok(());
+    }
+    // `kompanion-server test-mail <address>`: a sample branded task mail via the configured server.
+    if args.get(1).map(String::as_str) == Some("test-mail") {
+        let Some(to) = args.get(2) else { anyhow::bail!("usage: kompanion-server test-mail <address>") };
+        if let Some(u) = config.allowed_origins.iter().find(|o| o.starts_with("https://")) {
+            let _ = notify::PUBLIC_URL.set(u.trim_end_matches('/').to_string());
+        }
+        let print = args.get(3).map(String::as_str) == Some("--print");
+        notify::send_test(&db, to, print).await?;
+        if !print {
+            println!("sent to {to}");
+        }
         return Ok(());
     }
     if args.get(1).map(String::as_str) == Some("import") {

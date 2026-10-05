@@ -209,3 +209,8 @@
 {"name": "search-test", "out": "web/tests/tasksearch.spec.ts", "gpu_seconds": 14.5, "tokens": 384, "lines": 36, "review": "skipped", "model": "Coder", "at": "2026-10-05T03:51:49"}
 {"name": "search-tasks", "out": "web/src/views/tasks.ts", "mode": "patch", "gpu_seconds": 54.1, "tokens": 1432, "lines": 5, "attempts": 1, "model": "Coder", "at": "2026-10-05T03:51:59"}
 {"name": "search-tasks-fix", "out": "web/src/views/tasks.ts", "mode": "patch", "gpu_seconds": 11.2, "tokens": 333, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T03:54:48"}
+{"name": "mail-html", "out": "server/src/mailhtml.rs", "gpu_seconds": 222.3, "tokens": 5891, "lines": 262, "model": "Coder", "at": "2026-10-05T03:59:42"}
+{"name": "mail-html-2", "out": "server/src/mailhtml.rs", "gpu_seconds": 230.9, "tokens": 6360, "lines": 299, "model": "Coder", "at": "2026-10-05T04:04:11"}
+{"name": "mail-admin-caller", "out": "server/src/admin.rs", "mode": "patch", "gpu_seconds": 8.3, "tokens": 80, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T04:05:03"}
+{"name": "mail-multipart", "out": "server/src/mail.rs", "mode": "patch", "gpu_seconds": 19.8, "tokens": 359, "lines": 3, "attempts": 1, "model": "Coder", "at": "2026-10-05T04:05:14"}
+{"name": "mail-notify-html", "out": "server/src/notify.rs", "mode": "patch", "gpu_seconds": 61.5, "tokens": 1670, "lines": 4, "attempts": 1, "model": "Coder", "at": "2026-10-05T04:06:04"}
