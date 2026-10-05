@@ -274,8 +274,24 @@ fn agent(s: &AppState, r: &Run, max_steps: usize) -> pcagent::Agent {
 
 /// Runs the worker on one instruction: Ok(its last line) or Err(why it stopped).
 async fn work(s: &AppState, r: &Run, max_steps: usize, instruction: String) -> Result<String, String> {
+    work_with(s, r, max_steps, instruction, "").await
+}
+
+/// Like work(), with the skill cards of this step after the worker's own prompt.
+async fn work_with(
+    s: &AppState,
+    r: &Run,
+    max_steps: usize,
+    instruction: String,
+    skills: &str,
+) -> Result<String, String> {
+    let system = if skills.is_empty() {
+        worker_prompt(r)
+    } else {
+        format!("{}\n\nFollow these rules:\n\n{skills}", worker_prompt(r))
+    };
     agent(s, r, max_steps)
-        .run(vec![json!({ "role": "system", "content": worker_prompt(r) }), json!({ "role": "user", "content": instruction })])
+        .run(vec![json!({ "role": "system", "content": system }), json!({ "role": "user", "content": instruction })])
         .await
 }
 
@@ -342,6 +358,8 @@ async fn run(s: AppState, r: Run) {
     }
 
     // 1. Plan.
+    let skills_root = crate::skills::dir();
+    let areas = crate::skills::areas(&skills_root);
     let plan_user = format!(
         "Task: {}\n\n{}\n\nWork in the folder {} on {}.\n\nWhat Kompanion has (for planning only):\n{}",
         r.title,
@@ -355,11 +373,14 @@ async fn run(s: AppState, r: Run) {
         &r,
         &r.orchestrator,
         "Plan the task.",
-        "You plan coding and admin tasks on the user's computer. Answer only with a JSON array of 1 to 6 steps, each \
-         {\"step\": \"...\", \"done_when\": \"...\"}. A step is one change the user would notice (\"add char_count \
-         to textutil.py\"), never only opening, reading or finding something, and never running the tests or the \
-         check: that runs by itself afterwards. done_when is one fact the worker can see, such as \"textutil.py \
-         defines char_count\". A small task is one or two steps.",
+        &format!(
+            "You plan coding and admin tasks on the user's computer. Answer only with a JSON array of 1 to 6 steps, each \
+             {{\"step\": \"...\", \"done_when\": \"...\", \"area\": \"...\"}}. A step is one change the user would notice (\"add char_count \
+             to textutil.py\"), never only opening, reading or finding something, and never running the tests or the \
+             check: that runs by itself afterwards. done_when is one fact the worker can see, such as \"textutil.py \
+             defines char_count\". A small task is one or two steps. area is the kind of work, one of: {}.",
+            areas.join(", ")
+        ),
         &plan_user,
     )
     .await
@@ -375,14 +396,33 @@ async fn run(s: AppState, r: Run) {
         note(&s, &r, "I couldn't make a plan; the task description may need more detail.").await;
         return finish(&s, &r, "needs_input", "no plan").await;
     }
+    // Each step gets the cards for its area and its words, within the budget for the worker's model.
+    let notes = crate::skills::notes_for(&skills_root, &r.worker.model_id);
+    let budget = s.config.skills.budget(&r.worker.model_id);
+    let picked: Vec<Vec<String>> = steps
+        .iter()
+        .map(|x| {
+            // Files the step names decide the area when the planner picked a wrong one, and count for the cards.
+            let paths = crate::skills::paths_in(&format!("{} {}", x.what, x.done_when));
+            let area = crate::skills::area_for(&skills_root, if areas.contains(&x.area) { x.area.as_str() } else { "worker" }, &paths);
+            crate::skills::select(&skills_root, &area, &format!("{} {} {}", r.title, x.what, x.done_when), &paths, notes.as_deref(), budget)
+        })
+        .collect();
     let plan_list = steps
         .iter()
         .enumerate()
         .map(|(i, x)| if x.done_when.is_empty() { format!("{}. {}", i + 1, x.what) } else { format!("{}. {} (done when: {})", i + 1, x.what, x.done_when) })
         .collect::<Vec<_>>()
         .join("\n");
-    note(&s, &r, &format!("Plan:\n{plan_list}")).await;
-    let plan_json = json!(steps.iter().map(|x| json!({ "step": x.what, "done_when": x.done_when })).collect::<Vec<_>>());
+    let plan_note = steps
+        .iter()
+        .zip(&picked)
+        .enumerate()
+        .map(|(i, (x, k))| format!("{}. {}\n   skills: {}", i + 1, x.what, k.join(", ")))
+        .collect::<Vec<_>>()
+        .join("\n");
+    note(&s, &r, &format!("Plan:\n{plan_note}")).await;
+    let plan_json = json!(steps.iter().zip(&picked).map(|(x, k)| json!({ "step": x.what, "done_when": x.done_when, "area": x.area, "skills": k })).collect::<Vec<_>>());
     let _ = sqlx::query("UPDATE runs SET plan = ? WHERE id = ?").bind(plan_json.to_string()).bind(&r.run_id).execute(&s.db).await;
 
     // 2. The steps.
@@ -392,7 +432,7 @@ async fn run(s: AppState, r: Run) {
             return;
         }
         progress(&s, &r, i as f64 / n as f64 * 0.8, &format!("Step {}/{n}: {}", i + 1, step.what)).await;
-        match work(&s, &r, 12, step_instruction(&r.description, i, n, step, &plan_list)).await {
+        match work_with(&s, &r, 12, step_instruction(&r.description, i, n, step, &plan_list), &crate::skills::text(&skills_root, &picked[i])).await {
             Ok(line) => {
                 note(&s, &r, &format!("Step {}: {line}", i + 1)).await;
                 crate::thread::post_run(&s, &r.run_id, &format!("**{}**, step {}/{n} done: {line}", r.title, i + 1)).await;
@@ -409,6 +449,15 @@ async fn run(s: AppState, r: Run) {
         }
     }
 
+    // The reviewer checks against its own core plus every card the steps used; fixes get the steps' cards.
+    let mut used: Vec<String> = Vec::new();
+    for name in picked.iter().flatten() {
+        if !used.contains(name) {
+            used.push(name.clone());
+        }
+    }
+    let fix_skills = crate::skills::text(&skills_root, &used);
+    let review_skills = crate::skills::text(&skills_root, &[vec!["reviewer/SKILL".to_string()], used].concat());
     // 3. Check and review, with fix rounds.
     for round in 1..=ROUNDS {
         if stopped_here(&s, &r).await {
@@ -443,8 +492,8 @@ async fn run(s: AppState, r: Run) {
             &r,
             &r.reviewer,
             "Review the result.",
-            "You review a finished task. Answer only with JSON: {\"ok\": true|false, \"findings\": [\"...\"]}. \
-             ok only when the check passed and the changes do what the task asks, nothing more.",
+            &format!("You review a finished task. Answer only with JSON: {{\"ok\": true|false, \"findings\": [\"...\"]}}. \
+             ok only when the check passed and the changes do what the task asks, nothing more.\n\nThe rules the worker had to follow:\n\n{review_skills}"),
             &review_user,
         )
         .await
@@ -471,7 +520,7 @@ async fn run(s: AppState, r: Run) {
             note(&s, &r, "Still not right after 3 rounds; it needs you.").await;
             return finish(&s, &r, "needs_input", "review failed 3 times").await;
         }
-        match work(&s, &r, 12, format!("The task:\n{}\n\nFix these review findings, then answer with one short line:\n{findings}", cut(&r.description, 3000))).await {
+        match work_with(&s, &r, 12, format!("The task:\n{}\n\nFix these review findings, then answer with one short line:\n{findings}", cut(&r.description, 3000)), &fix_skills).await {
             Ok(line) => note(&s, &r, &format!("Fix {round}: {line}")).await,
             Err(_) if stopped_here(&s, &r).await => return,
             Err(why) => {
@@ -507,12 +556,12 @@ mod tests {
 
     #[test]
     fn a_step_instruction_names_only_its_step_and_its_done_when() {
-        let step = parse::PlanStep { what: "add char_count".into(), done_when: "textutil.py defines char_count".into() };
+        let step = parse::PlanStep { what: "add char_count".into(), done_when: "textutil.py defines char_count".into(), ..Default::default() };
         let t = step_instruction("T", 0, 2, &step, "1. add char_count\n2. add a test");
         assert!(t.starts_with("The task, for context:\nT\n\n"));
         assert!(t.contains("Step 1 of 2: add char_count\nDone when: textutil.py defines char_count"));
         assert!(t.contains("Do only step 1"));
-        let bare = parse::PlanStep { what: "x".into(), done_when: String::new() };
+        let bare = parse::PlanStep { what: "x".into(), done_when: String::new(), ..Default::default() };
         assert!(!step_instruction("X", 1, 2, &bare, "").contains("Done when"));
     }
 }

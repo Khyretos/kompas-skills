@@ -11,10 +11,7 @@ use crate::{AppState, auth::User, error::{ApiError, ApiResult}, llm, pcagent, ut
 
 /// Returns the directory containing skill files.
 fn skills_dir() -> PathBuf {
-    std::env::var("KOMPANION_SKILLS")
-        .ok()
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("/app/skills"))
+    crate::skills::dir()
 }
 
 /// Maps a tool name to its capability description.

@@ -54,7 +54,7 @@
   ]
  },
  {
-  "chars": 3119,
+  "chars": 3838,
   "description": "How to write a job prompt any worker model can carry out, and how to run fix rounds.",
   "file": "orchestrator/prompting-workers",
   "models": [],
@@ -255,7 +255,12 @@
   "file": "worker/cpp-games/SKILL",
   "models": [],
   "name": "worker/cpp-games",
-  "paths": [],
+  "paths": [
+   "**/*.cpp",
+   "**/*.hpp",
+   "**/*.h",
+   "**/CMakeLists.txt"
+  ],
   "roles": [
    "worker",
    "reviewer"
@@ -291,7 +296,10 @@
   "file": "worker/localization/SKILL",
   "models": [],
   "name": "worker/localization",
-  "paths": [],
+  "paths": [
+   "**/locales/**",
+   "**/*.po"
+  ],
   "roles": [
    "worker",
    "reviewer"
@@ -323,7 +331,7 @@
   ]
  },
  {
-  "chars": 10695,
+  "chars": 11360,
   "description": "Writing Rust for the Kompanion server, runner and helpers.",
   "file": "worker/rust/SKILL",
   "models": [],

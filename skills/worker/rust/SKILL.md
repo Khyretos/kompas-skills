@@ -122,3 +122,10 @@ paths: ["**/*.rs", "**/Cargo.toml"]
     `Some(id)` (that returns `(String,)`, not `String`). Tests use only helpers that exist: a module
     such as `crate::test_helpers` is never assumed; copy the `db()`/`state()` helpers into the test
     module. Bind exactly as many values as the SQL has `?`.
+50. (2026-10-05) Use only crates listed in `Cargo.toml` (a made-up `glob` crate broke the build);
+    reuse the module's own helpers. Skill cards are Markdown with a `---` header, never JSON.
+    `?` works only in a function or closure that returns Option/Result; in a closure returning
+    bool chain `.and_then(..).is_some_and(..)`. `trim_matches` takes one pattern: pass a closure
+    (`|c: char| "()[]".contains(c)`). Cut strings with `strip_prefix`/`strip_suffix`, never at
+    hand-counted indexes (`[12..]` for the 13-character "_model-notes/" left a "/"). When porting
+    Python, its `'text'` strings become `"text"` in Rust: single quotes are one `char`.

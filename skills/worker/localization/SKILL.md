@@ -3,6 +3,7 @@ name: worker/localization
 description: Translating the website (kk-localize): what to protect, what needs context.
 roles: [worker, reviewer]
 tags: [translate, localization, i18n]
+paths: ["**/locales/**", "**/*.po"]
 ---
 # Worker: localization (website translation)
 

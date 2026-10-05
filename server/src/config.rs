@@ -39,6 +39,11 @@ pub struct Config {
     /// UnifiedPush servers the Android app may register endpoints on (`[push] servers = [...]`).
     #[serde(default)]
     pub push: PushConfig,
+    /// `[skills]`: how many tokens of skill cards a plan step gets on top of the role cores.
+    /// `budget_tokens` is a number, or a table per model name with an optional "default"
+    /// (`budget_tokens = { "Coder" = 1500, default = 2000 }`); 1500 when not set.
+    #[serde(default)]
+    pub skills: SkillsConfig,
     /// `[assets]`: the models the asset library uses for tags and search; empty = the worker role's provider and model.
     #[serde(default)]
     pub assets: AssetsConfig,
@@ -48,6 +53,26 @@ pub struct Config {
     /// `[features]`: switch whole areas off (all on by default).
     #[serde(default)]
     pub features: FeaturesConfig,
+}
+
+/// `[skills]`: how many tokens of skill cards a plan step gets on top of the role cores.
+/// `budget_tokens` is a number, or a table per model name with an optional "default"
+/// (`budget_tokens = { "Coder" = 1500, default = 2000 }`); 1500 when not set.
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct SkillsConfig {
+    #[serde(default)]
+    pub budget_tokens: Option<toml::Value>,
+}
+
+impl SkillsConfig {
+    pub fn budget(&self, model: &str) -> usize {
+        let as_usize = |v: &toml::Value| v.as_integer().and_then(|n| usize::try_from(n).ok());
+        match &self.budget_tokens {
+            Some(toml::Value::Table(t)) => t.get(model).or_else(|| t.get("default")).and_then(as_usize).unwrap_or(1500),
+            Some(v) => as_usize(v).unwrap_or(1500),
+            None => 1500,
+        }
+    }
 }
 
 /// `[push]`: where phones may receive pushes (an ntfy server); empty = push off.
@@ -318,5 +343,20 @@ impl Config {
 
     pub fn provider(&self, id: &str) -> Option<&ProviderConfig> {
         self.providers.iter().find(|p| p.id == id)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn skills_budget_is_a_number_or_per_model() {
+        let one: SkillsConfig = toml::from_str("budget_tokens = 900").unwrap();
+        assert_eq!(one.budget("Coder"), 900);
+        let per: SkillsConfig = toml::from_str("budget_tokens = { Coder = 1200, default = 2000 }").unwrap();
+        assert_eq!(per.budget("Coder"), 1200);
+        assert_eq!(per.budget("qwen3.5:9b"), 2000);
+        assert_eq!(SkillsConfig::default().budget("x"), 1500);
     }
 }

@@ -3,6 +3,7 @@ name: worker/cpp-games
 description: kk-engine games in C++: cameras, controllers, assets, tests on soucouyant.
 roles: [worker, reviewer]
 tags: [cpp, game, engine]
+paths: ["**/*.cpp", "**/*.hpp", "**/*.h", "**/CMakeLists.txt"]
 ---
 # Worker: kk-engine games (C++)
 
