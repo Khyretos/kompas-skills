@@ -84,7 +84,7 @@ async fn changed_since(db: &SqlitePool, last: &mut Option<String>) -> bool {
 /// In the server: every 2 s, look for an import by another process and send the same
 /// "changed" events the API sends, so every open app updates without a refresh.
 pub fn watch(s: crate::AppState) {
-    tokio::spawn(async move {
+    crate::util::supervise("import-watch", move || { let s = s.clone(); async move {
         let mut last = change_mark(&s.db).await;
         let mut tick = tokio::time::interval(std::time::Duration::from_secs(2));
         loop {
@@ -94,7 +94,7 @@ pub fn watch(s: crate::AppState) {
                 s.bus.send_all(crate::events::Event::Changed { what: "tasks", machine_id: None });
             }
         }
-    });
+    } });
 }
 
 pub async fn run(db: &SqlitePool, path: &str, user: Option<&str>) -> Result<()> {

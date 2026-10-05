@@ -177,7 +177,7 @@ pub fn spawn(s: AppState) {
     if s.config.gpus.is_empty() {
         return;
     }
-    tokio::spawn(async move {
+    crate::util::supervise("gpus", move || { let s = s.clone(); async move {
         let mut tick = tokio::time::interval(SAMPLE_EVERY);
         loop {
             let sampled = tokio::select! {
@@ -202,7 +202,7 @@ pub fn spawn(s: AppState) {
                 s.bus.send_all(Event::Changed { what: "gpus", machine_id: None });
             }
         }
-    });
+    } });
 }
 
 fn same(a: &[GpuLedger], b: &[GpuLedger]) -> bool {

@@ -165,7 +165,7 @@ pub static LAST_ERROR: std::sync::Mutex<Option<(String, String)>> = std::sync::M
 
 /// Runs the sync after 10 s and then every five minutes.
 pub fn spawn(db: SqlitePool, ws: std::sync::Arc<Windshift>) {
-    tokio::spawn(async move {
+    crate::util::supervise("windshift-sync", move || { let db = db.clone(); let ws = ws.clone(); async move {
         tokio::time::sleep(Duration::from_secs(10)).await;
         loop {
             match sync_once(&db, &ws).await {
@@ -183,7 +183,7 @@ pub fn spawn(db: SqlitePool, ws: std::sync::Arc<Windshift>) {
             }
             tokio::time::sleep(Duration::from_secs(300)).await;
         }
-    });
+    } });
 }
 
 async fn history(db: &SqlitePool, task_id: &str, user_id: &str, detail: Value) -> sqlx::Result<()> {
