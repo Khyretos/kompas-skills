@@ -103,7 +103,10 @@ export function card(it: ActivityItem): SafeHtml {
   </div>`;
 }
 
-export function renderActivity(items: ActivityItem[], filter: ActivityFilter): SafeHtml {
+export function renderActivity(items: ActivityItem[], filter: ActivityFilter, weekly?: import("../api/types").WeeklyCosts): SafeHtml {
+  const week = weekly && weekly.tasks
+    ? html`<p class="activity-costs">Last 7 days: Coder wrote ${weekly.coderOutput.toLocaleString("en")} tokens, Claude ${weekly.claudeOutput.toLocaleString("en")} (${weekly.tasks} tasks; Coder's share ${Math.round(weekly.coderShare * 100)} %).</p>`
+    : html``;
   const machines = Array.from(new Set(items.map((i) => i.machine))).sort();
   const chats = Array.from(new Set(items.filter((i) => i.chatId).map((i) => i.chatId))).sort();
 
@@ -125,6 +128,7 @@ export function renderActivity(items: ActivityItem[], filter: ActivityFilter): S
   const groupedByDay = groupByDay(filtered);
 
   return html`
+    ${week}
     <div class="act-filters">
       <select id="activity-machine" class="small-select" aria-label="Computer">
         <option value="">All computers</option>

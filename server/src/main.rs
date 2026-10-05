@@ -5,6 +5,7 @@ mod api;
 mod auth;
 mod capabilities;
 mod config;
+mod costs;
 mod contrast;
 mod error;
 mod events;
@@ -146,6 +147,11 @@ async fn main() -> anyhow::Result<()> {
         }
         return Ok(());
     }
+    if args.get(1).map(String::as_str) == Some("costs") {
+        let path = args.get(2).context("usage: kompanion-server costs <line.json> <user name>")?;
+        let user = args.get(3).context("usage: kompanion-server costs <line.json> <user name>")?;
+        return costs::record(&db, path, user).await;
+    }
     if args.get(1).map(String::as_str) == Some("import") {
         let path = args
             .get(2)
@@ -219,6 +225,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/tasks/{id}/start", post(taskrun::start))
         .route("/tasks/{id}/stop", post(taskrun::stop))
         .route("/tasks/{id}/runs", get(runs::of_task))
+        .route("/tasks/{id}/costs", get(costs::of_task))
+        .route("/costs/weekly", get(costs::weekly))
         .route("/runs/{id}/report", get(runs::report))
         .route("/chats/{id}/report", get(runs::chat))
         .route("/actions/{id}/stop", post(pcagent::stop))

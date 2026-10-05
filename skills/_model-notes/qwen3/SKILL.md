@@ -45,3 +45,5 @@ Full history with evidence: `docs/model-notes/qwen3-history-2026-10.md`.
 - Asked to remove lines, it may comment them out instead; say "delete them entirely".
 - Adds filters or options the spec did not ask for (a `--task` filter that matched nothing); check
   every condition in a draft against the spec.
+- Big files: several edits in one patch job run out of answer room or get half-applied; send one
+  edit per job. "Replace X with Y" can come back as "delete X"; check the line is there.

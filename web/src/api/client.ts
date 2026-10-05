@@ -89,6 +89,10 @@ export interface KompanionApi {
   stopTask(id: string): Promise<void>;
   /** A task's W2 runs, newest first (their ids open the report: /api/runs/<id>/report). */
   taskRuns(taskId: string): Promise<{ id: string; startedAt: string; endedAt: string | null; status: string; step: string | null }[]>;
+  /** Get cost lines for a task. */
+  taskCosts(taskId: string): Promise<import("./types").CostLine | null>;
+  /** Get weekly costs summary. */
+  weeklyCosts(): Promise<import("./types").WeeklyCosts>;
   /** Does this folder exist on that computer, and which folders are in it (needs a read grant)? */
   checkFolder(machineId: string, path: string): Promise<{ state: "ok" | "nogrant" | "missing" | "notfolder" | "noanswer"; path: string; folders?: string[]; files?: number; message?: string }>;
   listActivity(): Promise<import("../views/activity").ActivityItem[]>;

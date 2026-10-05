@@ -141,3 +141,6 @@
 46. (2026-10-04) Boolean attributes in `html` templates: `${x ? "selected" : ""}`, never `${String(x)}`.
     Use only icon names that exist in `views/icons.ts`. One small function per template branch.
 47. (2026-10-05) "Plain JavaScript" means no type annotations; run `node --check` on every `.mjs`.
+48. (2026-10-05) New state is drawn only when its key is in the redraw list of the pane that shows it
+    (`rightKeys` in main.ts: tasks, access, activity, machines). A value shown on Activity but listed
+    under Tasks appears only when it happens to load before the first render.
