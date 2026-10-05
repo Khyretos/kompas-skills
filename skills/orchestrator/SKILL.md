@@ -63,3 +63,7 @@ Lessons for the orchestrator role. Numbered and dated, newest last.
   them (`kompanion-server gpu-role` ran a migration on a host database otherwise). Live tests of
   privileged actions go through the same helper the server uses, with the socket path as an
   environment override, not through a second code path.
+- (2026-10-05) Drafting logs go to `docs/qwen-log/<branch>.jsonl` (one file per branch): the
+  shared docs/qwen-log.jsonl conflicted on almost every merge. Never `git add -A` a folder in a
+  worktree: it committed the worktree's web/node_modules symlink into main (#29). Run tools
+  from the main checkout's node_modules instead of symlinking.

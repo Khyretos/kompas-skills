@@ -3,3 +3,5 @@ dist/
 .env
 kompanion.toml
 /gpu-role/target/
+# node_modules as a folder or a symlink (a worktree's symlink was committed once, 2026-10-05)
+node_modules
