@@ -1,3 +1,10 @@
+---
+name: worker/rust
+description: Writing Rust for the Kompanion server, runner and helpers.
+roles: [worker, reviewer]
+tags: [rust, sqlx, axum, tokio]
+paths: ["**/*.rs", "**/Cargo.toml"]
+---
 # Worker: Rust (Kompanion server, runner, machine-stats)
 
 1. (2026-10-03) SQL: use runtime queries only, `sqlx::query(...)`/`query_as(...)` with `.bind(...)`. Never the `query!` macros: they need a database at build time and the build has none. Never `format!` values into SQL.

@@ -1,3 +1,9 @@
+---
+name: worker/cpp-games
+description: kk-engine games in C++: cameras, controllers, assets, tests on soucouyant.
+roles: [worker, reviewer]
+tags: [cpp, game, engine]
+---
 # Worker: kk-engine games (C++)
 
 Source: the racing round (kk-engine PR #3, 2026-10-04): seven cameras, any controller, deeper dents.

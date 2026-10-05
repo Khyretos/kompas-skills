@@ -171,7 +171,7 @@ pub fn skills() -> Vec<Value> {
             let path = entry.path();
             if path.is_dir() {
                 todo.push(path);
-            } else if path.file_name().is_some_and(|n| n == "SKILL.md") {
+            } else if path.extension().is_some_and(|e| e == "md") && path.file_name().is_some_and(|n| n != "README.md") {
                 files.push(path);
             }
         }
@@ -179,8 +179,10 @@ pub fn skills() -> Vec<Value> {
     let mut output: Vec<Value> = files
         .into_iter()
         .filter_map(|path| {
-            let folder = path.parent()?.strip_prefix(&root).ok()?;
-            let id = folder.components().map(|c| c.as_os_str().to_string_lossy()).collect::<Vec<_>>().join("/");
+            // A role core (worker/web/SKILL.md) is "worker/web"; a card (shared/colour-themes.md) is "shared/colour-themes".
+            let rel = path.strip_prefix(&root).ok()?.with_extension("");
+            let rel = rel.to_string_lossy().to_string();
+            let id = rel.strip_suffix("/SKILL").map(str::to_string).unwrap_or(rel);
             if id.is_empty() {
                 return None;
             }
@@ -221,7 +223,8 @@ pub async fn skill(Query(q): Query<SkillQuery>) -> ApiResult<Json<Value>> {
         return Err(ApiError::BadRequest("Unknown skill.".into()));
     }
 
-    let path = skills_dir().join(&q.id).join("SKILL.md");
+    let core = skills_dir().join(&q.id).join("SKILL.md");
+    let path = if core.exists() { core } else { skills_dir().join(format!("{}.md", q.id)) };
     let text = std::fs::read_to_string(&path).map_err(|_| ApiError::NotFound)?;
 
     Ok(Json(json!({

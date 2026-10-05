@@ -1,3 +1,9 @@
+---
+name: worker/localization
+description: Translating the website (kk-localize): what to protect, what needs context.
+roles: [worker, reviewer]
+tags: [translate, localization, i18n]
+---
 # Worker: localization (website translation)
 
 These lessons come from the kk-localize pipeline (LibreTranslate draft, LLM review, independent judge). Model-specific notes: `_model-notes/qwen3/`.

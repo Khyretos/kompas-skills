@@ -1,3 +1,10 @@
+---
+name: worker/web
+description: Writing the vanilla TypeScript web app and its Playwright tests.
+roles: [worker, reviewer]
+tags: [typescript, web, css, html, playwright]
+paths: ["web/**"]
+---
 # Worker: web app (vanilla TypeScript)
 
 1. (2026-10-01) Templates: only the escaping `html` tagged template; nested `html` values and arrays of them are fine. Never `innerHTML`, never `.join("")` on `html` arrays (it escapes the markup).

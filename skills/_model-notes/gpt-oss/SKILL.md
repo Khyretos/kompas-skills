@@ -1,3 +1,8 @@
+---
+name: _model-notes/gpt-oss
+description: Quirks of the gpt-oss models only (settings, speed, memory, typical slips).
+models: [gpt-oss]
+---
 # gpt-oss, notes for prompts
 
 ## gpt-oss:20b (Ollama on soucouyant, RX 9070 XT)

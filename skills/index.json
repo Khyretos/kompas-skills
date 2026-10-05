@@ -1,0 +1,367 @@
+[
+ {
+  "chars": 2481,
+  "description": "Quirks of the Gemma 4 models only (settings, speed, memory, typical slips).",
+  "file": "_model-notes/gemma4/SKILL",
+  "models": [
+   "gemma4"
+  ],
+  "name": "_model-notes/gemma4",
+  "paths": [],
+  "roles": [],
+  "tags": []
+ },
+ {
+  "chars": 820,
+  "description": "Quirks of the gpt-oss models only (settings, speed, memory, typical slips).",
+  "file": "_model-notes/gpt-oss/SKILL",
+  "models": [
+   "gpt-oss"
+  ],
+  "name": "_model-notes/gpt-oss",
+  "paths": [],
+  "roles": [],
+  "tags": []
+ },
+ {
+  "chars": 2892,
+  "description": "Quirks of the Qwen3 and Qwen3.5 models only (settings, speed, memory, typical slips). General rules are in the role skills.",
+  "file": "_model-notes/qwen3/SKILL",
+  "models": [
+   "qwen3",
+   "qwen3.5"
+  ],
+  "name": "_model-notes/qwen3",
+  "paths": [],
+  "roles": [],
+  "tags": []
+ },
+ {
+  "chars": 6908,
+  "description": "Planning tasks into steps, building job prompts, running the drafting pipeline and PRs.",
+  "file": "orchestrator/SKILL",
+  "models": [],
+  "name": "orchestrator",
+  "paths": [],
+  "roles": [
+   "orchestrator"
+  ],
+  "tags": [
+   "plan",
+   "prompt",
+   "pipeline",
+   "pr"
+  ]
+ },
+ {
+  "chars": 2725,
+  "description": "How to write a job prompt any worker model can carry out, and how to run fix rounds.",
+  "file": "orchestrator/prompting-workers",
+  "models": [],
+  "name": "orchestrator/prompting-workers",
+  "paths": [],
+  "roles": [
+   "orchestrator",
+   "reviewer"
+  ],
+  "tags": [
+   "prompt",
+   "drafting",
+   "fix-round",
+   "review"
+  ]
+ },
+ {
+  "chars": 2746,
+  "description": "What to check in a draft, in order.",
+  "file": "reviewer/SKILL",
+  "models": [],
+  "name": "reviewer",
+  "paths": [],
+  "roles": [
+   "reviewer"
+  ],
+  "tags": [
+   "review",
+   "check"
+  ]
+ },
+ {
+  "chars": 2089,
+  "description": "Running tools on computers within the access grants.",
+  "file": "runner/SKILL",
+  "models": [],
+  "name": "runner",
+  "paths": [],
+  "roles": [
+   "runner"
+  ],
+  "tags": [
+   "runner",
+   "grant",
+   "shell"
+  ]
+ },
+ {
+  "chars": 1131,
+  "description": "Facts every role needs: language priority, never pass a check by changing it.",
+  "file": "shared/SKILL",
+  "models": [],
+  "name": "shared",
+  "paths": [],
+  "roles": [
+   "orchestrator",
+   "worker",
+   "reviewer",
+   "runner"
+  ],
+  "tags": [
+   "shared"
+  ]
+ },
+ {
+  "chars": 1177,
+  "description": "Writing colour themes, palettes and CSS re-themes (editors, terminals, web apps) that stay readable.",
+  "file": "shared/colour-themes",
+  "models": [],
+  "name": "shared/colour-themes",
+  "paths": [
+   "**/*.css",
+   "**/*theme*",
+   "**/*.theme",
+   "**/*colors*"
+  ],
+  "roles": [
+   "worker",
+   "reviewer"
+  ],
+  "tags": [
+   "theme",
+   "palette",
+   "css",
+   "colours",
+   "contrast",
+   "brand"
+  ]
+ },
+ {
+  "chars": 4291,
+  "description": "Running local models on shared GPUs: Ollama hosts, model tags, night batches, CPU use, OVMS VRAM.",
+  "file": "shared/models-and-gpus",
+  "models": [],
+  "name": "shared/models-and-gpus",
+  "paths": [],
+  "roles": [
+   "worker",
+   "reviewer",
+   "orchestrator"
+  ],
+  "tags": [
+   "ollama",
+   "ovms",
+   "gpu",
+   "vram",
+   "model",
+   "batch",
+   "llama"
+  ]
+ },
+ {
+  "chars": 1688,
+  "description": "Background processes, long jobs, containers and CI: waiting, detaching, inspecting without leaking secrets.",
+  "file": "shared/processes",
+  "models": [],
+  "name": "shared/processes",
+  "paths": [],
+  "roles": [
+   "worker",
+   "reviewer",
+   "orchestrator"
+  ],
+  "tags": [
+   "process",
+   "background",
+   "container",
+   "docker",
+   "ci",
+   "secrets",
+   "detached"
+  ]
+ },
+ {
+  "chars": 6879,
+  "description": "Theming apps and desktops in the Kreative Kompas brand: readability checks, colour roles, web, desktop and Kate themes.",
+  "file": "shared/theming-brand",
+  "models": [],
+  "name": "shared/theming-brand",
+  "paths": [
+   "**/*.css",
+   "**/*theme*"
+  ],
+  "roles": [
+   "worker",
+   "reviewer",
+   "orchestrator"
+  ],
+  "tags": [
+   "theme",
+   "css",
+   "colours",
+   "brand",
+   "contrast",
+   "desktop",
+   "kate"
+  ]
+ },
+ {
+  "chars": 1524,
+  "description": "How the reviewer works; given to every job of every role.",
+  "file": "work-habits",
+  "models": [],
+  "name": "work-habits",
+  "paths": [],
+  "roles": [
+   "orchestrator",
+   "worker",
+   "reviewer",
+   "runner"
+  ],
+  "tags": []
+ },
+ {
+  "chars": 3002,
+  "description": "The Kompanion Android app (plain Java WebView app with UnifiedPush) and its build container.",
+  "file": "worker/android",
+  "models": [],
+  "name": "worker/android",
+  "paths": [
+   "android/**"
+  ],
+  "roles": [
+   "worker",
+   "reviewer"
+  ],
+  "tags": [
+   "android",
+   "java",
+   "gradle",
+   "unifiedpush",
+   "apk"
+  ]
+ },
+ {
+  "chars": 4425,
+  "description": "kk-engine games in C++: cameras, controllers, assets, tests on soucouyant.",
+  "file": "worker/cpp-games/SKILL",
+  "models": [],
+  "name": "worker/cpp-games",
+  "paths": [],
+  "roles": [
+   "worker",
+   "reviewer"
+  ],
+  "tags": [
+   "cpp",
+   "game",
+   "engine"
+  ]
+ },
+ {
+  "chars": 1274,
+  "description": "Writing READMEs, guides and task descriptions from given facts.",
+  "file": "worker/docs/SKILL",
+  "models": [],
+  "name": "worker/docs",
+  "paths": [
+   "**/*.md"
+  ],
+  "roles": [
+   "worker",
+   "reviewer"
+  ],
+  "tags": [
+   "docs",
+   "markdown",
+   "readme"
+  ]
+ },
+ {
+  "chars": 10547,
+  "description": "Translating the website (kk-localize): what to protect, what needs context.",
+  "file": "worker/localization/SKILL",
+  "models": [],
+  "name": "worker/localization",
+  "paths": [],
+  "roles": [
+   "worker",
+   "reviewer"
+  ],
+  "tags": [
+   "translate",
+   "localization",
+   "i18n"
+  ]
+ },
+ {
+  "chars": 619,
+  "description": "Python scripts and services (ingest jobs, MCP servers, small web servers).",
+  "file": "worker/python",
+  "models": [],
+  "name": "worker/python",
+  "paths": [
+   "**/*.py"
+  ],
+  "roles": [
+   "worker",
+   "reviewer"
+  ],
+  "tags": [
+   "python",
+   "psycopg",
+   "sql",
+   "scripts"
+  ]
+ },
+ {
+  "chars": 10343,
+  "description": "Writing Rust for the Kompanion server, runner and helpers.",
+  "file": "worker/rust/SKILL",
+  "models": [],
+  "name": "worker/rust",
+  "paths": [
+   "**/*.rs",
+   "**/Cargo.toml"
+  ],
+  "roles": [
+   "worker",
+   "reviewer"
+  ],
+  "tags": [
+   "rust",
+   "sqlx",
+   "axum",
+   "tokio"
+  ]
+ },
+ {
+  "chars": 13496,
+  "description": "Writing the vanilla TypeScript web app and its Playwright tests.",
+  "file": "worker/web/SKILL",
+  "models": [],
+  "name": "worker/web",
+  "paths": [
+   "web/**"
+  ],
+  "roles": [
+   "worker",
+   "reviewer"
+  ],
+  "tags": [
+   "typescript",
+   "web",
+   "css",
+   "html",
+   "playwright"
+  ]
+ }
+]

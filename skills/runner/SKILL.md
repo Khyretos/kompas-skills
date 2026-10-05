@@ -1,3 +1,9 @@
+---
+name: runner
+description: Running tools on computers within the access grants.
+roles: [runner]
+tags: [runner, grant, shell]
+---
 # Runner
 
 Lessons for the runner role. Numbered and dated, newest last.

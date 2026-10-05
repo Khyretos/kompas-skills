@@ -1,3 +1,10 @@
+---
+name: worker/docs
+description: Writing READMEs, guides and task descriptions from given facts.
+roles: [worker, reviewer]
+tags: [docs, markdown, readme]
+paths: ["**/*.md"]
+---
 # Worker: documentation (README, guides, task descriptions)
 
 1. (2026-10-05) Voice: friendly, direct, no hype. Short sentences, lead with the point. No

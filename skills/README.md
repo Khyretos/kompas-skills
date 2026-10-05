@@ -39,8 +39,11 @@ These files grow with every review, so models get only what a job needs, and eve
 - `_model-notes/<family>/SKILL.md` holds only quirks of that model family (settings, speed, typical
   slips). A general rule never lives only there.
 - `work-habits.md` goes to every job.
-- Loading today: `tools/qwen/pipeline.py` gives a job `work-habits.md`, the role core, the cards the
-  job lists in `"skills"` and the model's notes (`MODEL_NOTES`, default `qwen3`). Next: a loader that
-  picks cards by paths, tags and search within a size budget per model (Kompanion task).
+- Loading (SK-01): `tools/skills/load.py` gives every job `work-habits.md`, `shared/SKILL.md`, the role
+  core, the cards the job names in `"skills"` and the model's notes (`MODEL_NOTES`, default `qwen3`),
+  then the cards whose `paths` match the job's files or whose `tags` appear in the task, best match
+  first, within `[skills] budget_tokens` in kompanion.toml (default 1500). Each drafting-log line
+  lists the files a job got. `tools/skills/index.py` writes `skills/index.json`; with `--check`
+  (in CI) it fails on a file without a header.
 - Every review finding: a lesson in the right card or core, and a row in
   `docs/lessons-learned.md` (in this repo).
