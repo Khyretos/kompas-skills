@@ -77,3 +77,6 @@ Lessons for the orchestrator role. Numbered and dated, newest last.
 - (2026-10-05) Name the task in every PR title: `[TEN-03] ...` (the end of the task id or the start of
   its title). The forge webhook then moves the task to in review, done or queued by itself
   (`docs/forge-webhook.md`).
+- (2026-10-05) After a branch's work, add its cost line: `tools/qwen/summary.py <branch> --task <id>`
+  (Coder tokens from the drafting log, Claude tokens from the session transcript, counts only).
+  It shows when a task type is cheaper to hand off and when it is not.

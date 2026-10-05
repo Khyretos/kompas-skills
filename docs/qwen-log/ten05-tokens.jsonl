@@ -1,0 +1,7 @@
+{"name": "ten05-pipeline-prompt", "out": "tools/qwen/pipeline.py", "mode": "patch", "gpu_seconds": 36.0, "tokens": 1059, "lines": 6, "attempts": 1, "model": "Coder", "at": "2026-10-05T17:33:28"}
+{"name": "ten05-claude-usage", "out": "tools/qwen/claude-usage.py", "gpu_seconds": 79.2, "tokens": 2397, "lines": 165, "model": "Coder", "at": "2026-10-05T17:34:48"}
+{"name": "ten05-summary", "out": "tools/qwen/summary.py", "gpu_seconds": 81.1, "tokens": 2497, "lines": 156, "model": "Coder", "at": "2026-10-05T17:36:09"}
+{"name": "ten05-usage-fix", "out": "tools/qwen/claude-usage.py", "mode": "patch", "gpu_seconds": 12.2, "tokens": 318, "prompt_tokens": 5652, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T17:36:55"}
+{"name": "ten05-summary-task-filter", "out": "tools/qwen/summary.py", "mode": "patch", "gpu_seconds": 3.6, "tokens": 77, "prompt_tokens": 6575, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T17:37:37"}
+{"name": "ten05-summary-positional", "out": "tools/qwen/summary.py", "mode": "patch", "gpu_seconds": 4.2, "tokens": 98, "prompt_tokens": 6574, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T17:38:08"}
+{"summary": true, "branch": "ten05-tokens", "task": "kompanion-TEN-05", "at": "2026-10-05T17:38:08", "coder": {"jobs": 6, "output": 6446, "prompt": 18801, "gpu_seconds": 216.3, "lines": 330}, "claude": {"answers": 46, "output": 38592, "input": 92, "cache_read": 33617601, "cache_write": 735453}, "output_share_coder": 0.14}
