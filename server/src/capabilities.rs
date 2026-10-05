@@ -237,6 +237,7 @@ pub async fn list(State(s): State<AppState>, Extension(u): Extension<User>) -> A
         "tools": tools(),
         "mcp": [],
         "gpus": crate::gpus::current(&s).await,
+        "gpuRole": crate::gpus::role::current(),
         "indexes": indexes(&s).await,
         "skills": skills()
     })))
