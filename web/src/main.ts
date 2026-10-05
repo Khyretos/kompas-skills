@@ -12,7 +12,7 @@ import { onCodeAction } from "./core/codeblocks";
 import { activeProject, store, type AppState } from "./state";
 import { showConnect } from "./views/connect";
 import { renderSidebar } from "./views/sidebar";
-import { composer, elapsedText, fillMessage, groupChoice, messageViews, openSteps, renderEmpty, renderHeader, renderMessage, setCardStyle as setStepCardStyle, type MessageView } from "./views/conversation";
+import { composer, elapsedText, fillMessage, flashMessage, groupChoice, messageViews, openSteps, renderEmpty, renderHeader, renderMessage, setCardStyle as setStepCardStyle, type MessageView } from "./views/conversation";
 import { KeyedList } from "./core/keyed";
 import { paneTabs, renderTasks, setAssetThumbs } from "./views/tasks";
 import { renderMachines, REFRESH_STEPS, setGpuView } from "./views/machines";
@@ -161,13 +161,14 @@ async function goTo(r: SearchResult): Promise<void> {
       await openChat(r.id);
       return;
     case "message": {
+      flashMessage(r.id);
       await openChat(r.parent ?? undefined);
       whenShown(() => {
         const el = document.getElementById(`msg-${r.id}`);
         if (el) {
           el.scrollIntoView({ block: "center" });
           el.classList.add("search-hit");
-          setTimeout(() => el.classList.remove("search-hit"), 2500);
+          setTimeout(() => { flashMessage(undefined); document.getElementById(`msg-${r.id}`)?.classList.remove("search-hit"); }, 2500);
           return true;
         }
         return false;
