@@ -5,6 +5,7 @@
 pub mod jobs;
 pub mod ledger;
 pub mod sched;
+pub mod role_policy;
 
 use std::{collections::HashMap, sync::Mutex, time::Duration};
 

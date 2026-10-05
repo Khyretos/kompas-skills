@@ -110,14 +110,16 @@ mod tests {
     #[test]
     fn test_coder_with_one_asset_job_and_nothing_else() {
         let mut v = view(Mode::Coder);
-        v.queued_asset = &["studio:heartmula:loop".to_string()];
+        let assets = ["studio:heartmula:loop".to_string()];
+        v.queued_asset = &assets;
         assert_eq!(decide(&v), Some(Target::Studio("heartmula".to_string())));
     }
 
     #[test]
     fn test_coder_with_asset_job_and_queued_code_job_stays() {
         let mut v = view(Mode::Coder);
-        v.queued_asset = &["studio:heartmula:loop".to_string()];
+        let assets = ["studio:heartmula:loop".to_string()];
+        v.queued_asset = &assets;
         v.queued_code = 1;
         assert_eq!(decide(&v), None);
     }
@@ -125,19 +127,21 @@ mod tests {
     #[test]
     fn test_coder_with_asset_job_while_coder_busy_stays() {
         let mut v = view(Mode::Coder);
-        v.queued_asset = &["studio:heartmula:loop".to_string()];
+        let assets = ["studio:heartmula:loop".to_string()];
+        v.queued_asset = &assets;
         v.coder_busy = true;
         assert_eq!(decide(&v), None);
     }
 
     #[test]
     fn test_any_switch_within_299_s_is_refused_at_300_s_allowed() {
-        let mut v = view(Mode::Coder);
+        // Artist with nothing queued wants to go back to coder: only after 5 minutes.
+        let mut v = view(Mode::Artist);
         v.secs_since_switch = Some(299);
         assert_eq!(decide(&v), None);
 
         v.secs_since_switch = Some(300);
-        assert_eq!(decide(&v), Some(Target::Studio("comfyui".to_string())));
+        assert_eq!(decide(&v), Some(Target::Coder));
     }
 
     #[test]
@@ -167,7 +171,8 @@ mod tests {
     #[test]
     fn test_artist_with_code_queued_and_studio_idle_goes_to_coder_even_if_assets_queued() {
         let mut v = view(Mode::Artist);
-        v.queued_asset = &["studio:heartmula:loop".to_string()];
+        let assets = ["studio:heartmula:loop".to_string()];
+        v.queued_asset = &assets;
         v.queued_code = 1;
         assert_eq!(decide(&v), Some(Target::Coder));
     }
