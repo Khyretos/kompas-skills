@@ -62,7 +62,7 @@ export function renderSettings(s: AppState): SafeHtml {
           <label><input type="checkbox" name="onDone" ${s.notifications.onDone ? "checked" : ""}> A task is done</label>
           <label><input type="checkbox" name="dailySummary" ${s.notifications.dailySummary ? "checked" : ""}> A daily summary (08:00 UTC)</label>
         </fieldset>
-        <p class="muted small">Mails only name the task and its state, never its contents.</p>
+        <p class="muted small">Mails name the task, its state and in one line what is needed, never its description or chat.</p>
         <p id="notify-msg" class="small" role="status"></p>
         <button class="btn primary" type="submit">Save</button>
       </form>` : ""}

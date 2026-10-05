@@ -143,6 +143,10 @@ async fn main() -> anyhow::Result<()> {
     notify::spawn_daily(state.db.clone());
     assets::spawn(state.clone());
     import::watch(state.clone());
+    // Links in mails go to the first public (https) address the app is served from.
+    if let Some(u) = state.config.allowed_origins.iter().find(|o| o.starts_with("https://")) {
+        let _ = notify::PUBLIC_URL.set(u.trim_end_matches('/').to_string());
+    }
     gpus::spawn(state.clone());
     if let Some(ws) = windshift {
         tracing::info!("Windshift sync on");

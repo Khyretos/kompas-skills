@@ -127,6 +127,13 @@ async function start(server: Server): Promise<void> {
   api.voiceInfo().then((voice) => store.set({ voice }), () => store.set({ voice: { enabled: false, voices: [] } }));
   wire(shellRoot);
   await openChat(chats[0]?.id);
+  // A link from a mail: #task=<id> opens that task's detail.
+  const linked = /^#task=([\w-]+)$/.exec(location.hash)?.[1];
+  if (linked && store.get().tasks.some((t) => t.id === linked)) {
+    store.set({ openTaskId: linked, rightTab: "tasks", pane: "right" });
+    $(".shell").dispatchEvent(new CustomEvent("kk-expand", { detail: "right" }));
+    history.replaceState(null, "", location.pathname + location.search);
+  }
 }
 
 async function openChat(chatId?: string): Promise<void> {

@@ -197,7 +197,7 @@ async fn finish(s: &AppState, r: &Run, state: &str, step: &str) {
     .execute(&s.db)
     .await;
     s.bus.send(&r.user_id, Event::Changed { what: "tasks", machine_id: None });
-    crate::notify::task_changed(s.db.clone(), r.user_id.clone(), r.title.clone(), "running".into(), state.into());
+    crate::notify::task_changed(s.db.clone(), r.user_id.clone(), r.task_id.clone(), r.title.clone(), "running".into(), state.into());
 }
 
 /// One answer from a model, without tools (plans and reviews).

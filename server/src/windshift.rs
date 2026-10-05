@@ -256,7 +256,7 @@ pub async fn sync_once(db: &SqlitePool, ws: &Windshift) -> Result<(usize, usize)
                         .await?;
                     }
                     crate::notify::task_changed(
-                        db.clone(), user_id.clone(), item.title.clone(), t.state.clone(), to_kompanion(&status).into(),
+                        db.clone(), user_id.clone(), t.id.clone(), item.title.clone(), t.state.clone(), to_kompanion(&status).into(),
                     );
                     sqlx::query(
                         "UPDATE tasks SET title = ?, description = ?, state = ?, remote_updated_at = ?,

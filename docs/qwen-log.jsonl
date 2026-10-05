@@ -157,3 +157,10 @@
 {"name": "stop-web-task", "out": "web/src/views/tasks.ts", "mode": "patch", "gpu_seconds": 12.0, "tokens": 193, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T02:19:26"}
 {"name": "stop-web-main", "out": "web/src/main.ts", "mode": "patch", "gpu_seconds": 18.7, "tokens": 367, "lines": 2, "attempts": 1, "model": "Coder", "at": "2026-10-05T02:19:33"}
 {"name": "stop-web-test", "out": "web/tests/stop.spec.ts", "gpu_seconds": 18.4, "tokens": 337, "lines": 29, "review": "skipped", "model": "Coder", "at": "2026-10-05T02:20:07"}
+{"name": "mail-callers-taskrun", "out": "server/src/taskrun/mod.rs", "mode": "patch", "gpu_seconds": 9.2, "tokens": 123, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T02:34:05"}
+{"name": "mail-callers-tasks", "out": "server/src/tasks.rs", "mode": "patch", "gpu_seconds": 6.2, "tokens": 159, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T02:34:12"}
+{"name": "mail-public-url", "out": "server/src/main.rs", "mode": "patch", "gpu_seconds": 6.8, "tokens": 175, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T02:34:19"}
+{"name": "mail-deeplink-web", "out": "web/src/main.ts", "mode": "patch", "gpu_seconds": 8.6, "tokens": 173, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T02:34:27"}
+{"name": "mail-callers-windshift", "out": "server/src/windshift.rs", "mode": "patch", "gpu_seconds": 6.5, "tokens": 84, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T02:35:46"}
+{"name": "mail-notify", "out": "server/src/notify.rs", "mode": "patch", "gpu_seconds": 111.6, "tokens": 3349, "lines": 4, "attempts": 2, "model": "Coder", "at": "2026-10-05T02:37:32"}
+{"name": "mail-callers-windshift-2", "out": "server/src/windshift.rs", "mode": "patch", "gpu_seconds": 3.5, "tokens": 88, "lines": 1, "attempts": 1, "model": "qwen3.5:9b-q8_0", "at": "2026-10-05T02:37:49"}

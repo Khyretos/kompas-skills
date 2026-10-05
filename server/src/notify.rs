@@ -97,6 +97,16 @@ fn wanted(p: &Prefs, to: &str) -> Option<&'static str> {
     }
 }
 
+/// The app's public address for links in mails ("https://kompanion.example.com"), set at start.
+pub static PUBLIC_URL: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
+/// A Reply-To with a display name: a bare address shows whatever name the reader's mail app
+/// learned for it (info@ showed as "Watchtower", whose updates come from that address).
+fn reply_to_with_name(reply_to: &str) -> String {
+    let r = reply_to.trim();
+    if r.is_empty() || r.contains('<') { r.to_string() } else { format!("Kreative Kompas <{r}>") }
+}
+
 static SENT: LazyLock<Mutex<HashMap<String, Instant>>> = LazyLock::new(Default::default);
 
 async fn send(db: &SqlitePool, to: &str, subject_tail: &str, body: &str) -> anyhow::Result<()> {
@@ -108,14 +118,28 @@ async fn send(db: &SqlitePool, to: &str, subject_tail: &str, body: &str) -> anyh
         tls: st.smtp_tls,
         user: st.smtp_user,
         from: st.smtp_from,
-        reply_to: st.smtp_reply_to,
+        reply_to: reply_to_with_name(&st.smtp_reply_to),
     };
     let password = std::env::var("SMTP_PASSWORD").ok().filter(|p| !p.is_empty());
     mail::send(&smtp, password.as_deref(), to, &format!("{}: {subject_tail}", st.app_name), body).await
 }
 
+/// The text of a task mail: what happened, what is needed, and where to open it.
+fn mail_body(title: &str, label: &str, step: &str, link: &str) -> String {
+    let mut b = format!("{title}\nNow: {label}.\n");
+    let need = match label {
+        "needs you" if !step.is_empty() => format!("What's needed: {step}.\n"),
+        "needs you" => "What's needed: an answer or a decision from you in Kompanion.\n".to_string(),
+        "failed" if !step.is_empty() => format!("Where it stopped: {step}.\n"),
+        _ => String::new(),
+    };
+    b.push_str(&need);
+    b.push_str(&if link.is_empty() { "Open Kompanion to see the details.\n".to_string() } else { format!("Open it: {link}\n") });
+    b
+}
+
 /// Call after a task's state changed; mails in the background if wanted.
-pub fn task_changed(db: SqlitePool, user_id: String, title: String, from: String, to: String) {
+pub fn task_changed(db: SqlitePool, user_id: String, task_id: String, title: String, from: String, to: String) {
     if from == to {
         return;
     }
@@ -136,7 +160,16 @@ pub fn task_changed(db: SqlitePool, user_id: String, title: String, from: String
             }
             sent.insert(key, Instant::now());
         }
-        let body = format!("{title}\nNow: {label}.\nOpen Kompanion to see the details.\n");
+        let step: String = sqlx::query_as::<_, (Option<String>,)>("SELECT step FROM tasks WHERE id = ?")
+            .bind(&task_id)
+            .fetch_optional(&db)
+            .await
+            .ok()
+            .flatten()
+            .and_then(|(s,)| s)
+            .unwrap_or_default();
+        let link = PUBLIC_URL.get().map(|u| format!("{u}/#task={task_id}")).unwrap_or_default();
+        let body = mail_body(&title, label, &step, &link);
         if let Err(e) = send(&db, &p.email, &format!("{title} — {label}"), &body).await {
             tracing::warn!("task mail failed: {e:#}");
         }
@@ -201,5 +234,16 @@ mod tests {
         assert_eq!(wanted(&p, "failed"), Some("failed"));
         assert_eq!(wanted(&p, "done"), None);
         assert_eq!(wanted(&Prefs { on_done: true, ..p }, "done"), Some("done"));
+    }
+
+    #[test]
+    fn task_mails_say_what_is_needed() {
+        let b = mail_body("Add initials()", "needs you", "folder not found", "https://k.example/#task=t1");
+        assert!(b.contains("What's needed: folder not found.") && b.contains("Open it: https://k.example/#task=t1"));
+        assert!(mail_body("T", "needs you", "", "").contains("an answer or a decision"));
+        assert!(!mail_body("T", "done", "x", "").contains("needed"));
+        assert_eq!(reply_to_with_name("info@kreative-kompas.com"), "Kreative Kompas <info@kreative-kompas.com>");
+        assert_eq!(reply_to_with_name("Team <a@b.c>"), "Team <a@b.c>");
+        assert_eq!(reply_to_with_name(" "), "");
     }
 }
