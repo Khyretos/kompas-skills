@@ -229,6 +229,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/machines/{id}/folder", post(folders::api))
         .route("/gpus", get(gpus::list))
         .route("/gpus/jobs", get(gpus::jobs::list))
+        .route("/gpus/role", get(gpus::role::get).post(gpus::role::set))
         .route("/capabilities", get(capabilities::list))
         .route("/capabilities/skill", get(capabilities::skill))
         .route("/voice", get(voice::info))

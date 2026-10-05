@@ -35,12 +35,10 @@ pub struct View<'a> {
 /// The studio app an asset job needs: `what` "studio:<app>:..." names it;
 /// anything else is comfyui.
 pub fn app_for(what: &str) -> String {
-    if let Some(rest) = what.strip_prefix("studio:") {
-        if let Some(app) = rest.splitn(2, ':').next() {
-            if STUDIO_APPS.contains(&app) {
-                return app.to_string();
-            }
-        }
+    if let Some(app) = what.strip_prefix("studio:").and_then(|rest| rest.split(':').next())
+        && STUDIO_APPS.contains(&app)
+    {
+        return app.to_string();
     }
     "comfyui".to_string()
 }
@@ -58,10 +56,8 @@ pub fn decide(v: &View) -> Option<Target> {
     }
 
     // Enforce minimum gap between switches
-    if let Some(secs) = v.secs_since_switch {
-        if secs < MIN_GAP_SECS {
-            return None;
-        }
+    if v.secs_since_switch.is_some_and(|secs| secs < MIN_GAP_SECS) {
+        return None;
     }
 
     match v.mode {
