@@ -445,7 +445,7 @@ pub async fn report(
     }
     sqlx::query("UPDATE machines SET last_seen = ?, runner_version = COALESCE(?, runner_version) WHERE id = ?")
         .bind(util::now())
-        .bind(version.as_deref())
+        .bind(headers.get("x-kompanion-runner").and_then(|v| v.to_str().ok()).map(|v| v.chars().take(20).collect::<String>()))
         .bind(&id)
         .execute(&s.db)
         .await?;
