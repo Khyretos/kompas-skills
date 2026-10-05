@@ -39,7 +39,8 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 def skills(role):
     parts = []
     # Only the role's lessons and the model's notes, to keep prompts small.
-    for rel in [f"skills/{role}/SKILL.md", f"skills/_model-notes/{NOTES}/SKILL.md"]:
+    # work-habits.md: how the reviewer works, for every role (also in ai-skills/_shared).
+    for rel in ["skills/work-habits.md", f"skills/{role}/SKILL.md", f"skills/_model-notes/{NOTES}/SKILL.md"]:
         p = os.path.join(REPO, rel)
         if os.path.exists(p):
             parts.append(open(p).read())
