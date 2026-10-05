@@ -13,3 +13,5 @@
 {"name": "ten01-gpu-role-main-fix", "out": "gpu-role/src/main.rs", "mode": "patch", "gpu_seconds": 18.5, "tokens": 544, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T15:13:21"}
 {"name": "ten01-gpu-role-harden", "out": "gpu-role/src/main.rs", "mode": "patch", "gpu_seconds": 40.3, "tokens": 1191, "lines": 2, "attempts": 1, "model": "Coder", "at": "2026-10-05T15:14:25"}
 {"name": "ten01-gpu-role-readme", "out": "gpu-role/README.md", "gpu_seconds": 19.2, "tokens": 568, "lines": 20, "review": "skipped", "model": "Coder", "at": "2026-10-05T15:15:14"}
+{"name": "ten01-pipeline-config", "out": "/tmp/claude-1000/-home-khyretos-Docker/c5a0265a-7889-4330-9817-f7c831e1b2fc/scratchpad/pipeline-head.py", "gpu_seconds": 32.1, "tokens": 883, "lines": 59, "review": "skipped", "model": "Coder", "at": "2026-10-05T15:17:16"}
+{"name": "ten01-pipeline-worktree", "out": "tools/qwen/pipeline.py", "mode": "patch", "gpu_seconds": 32.6, "tokens": 980, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T15:18:15"}
