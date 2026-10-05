@@ -7,3 +7,4 @@ kompanion.toml
 node_modules
 __pycache__/
 *.pyc
+web/test-results/
