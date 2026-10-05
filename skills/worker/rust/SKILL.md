@@ -108,3 +108,6 @@
     write answers to the socket, not stdout, and return errors instead of panicking.
 47. (2026-10-04) Binary formats (WAV and similar): take the byte offsets from the spec in the prompt
     and test against a real file, not only a fixture you wrote with the same offsets.
+48. (2026-10-05) URL allow-lists: compare the whole prefix (`format!("{}/", server)`), never the host
+    part against a full URL; split off `?query` before checking the path's characters. Test with
+    look-alike hosts (`ntfy.example.com.evil.com`), `http://`, extra query keys and `/../`.
