@@ -288,7 +288,8 @@ function remount(el: HTMLElement, content: ReturnType<typeof renderSidebar>): vo
   if (focusId || focusKey) {
     const f = (focusId ? document.getElementById(focusId)
       : [...el.querySelectorAll<HTMLInputElement>("form [name]")].find((x) => `${x.form?.className}|${x.form?.dataset.id ?? ""}|${x.name}` === focusKey)) as HTMLInputElement | null;
-    f?.focus();
+    // preventScroll: focus() would scroll the field into view and undo the restored position on every live update.
+    f?.focus({ preventScroll: true });
     if (f && caret) try { f.setSelectionRange(caret[0], caret[1]); } catch { /* not a text field */ }
   }
 }
