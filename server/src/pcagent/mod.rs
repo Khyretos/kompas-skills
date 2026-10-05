@@ -398,6 +398,13 @@ async fn step(s: &AppState, user_id: &str, chat_id: &str, machine_id: &str, job:
 
     // A one-step grant goes away again; an earlier grant on that target comes back.
     if let (Some(before), Some((target, _))) = (restore, &needed) {
+        // Update the server's copy at once: the next step must not count on a grant that is
+        // being removed (a run report showed a step refused while marked "standing grant").
+        let _ = sqlx::query("DELETE FROM machine_grants WHERE machine_id = ? AND target = ?")
+            .bind(machine_id)
+            .bind(target)
+            .execute(&s.db)
+            .await;
         let _ = access::queue_job(&s.db, machine_id, user_id, &json!({ "tool": "revoke_grant", "target": target }), None).await;
         if let Some(g) = before {
             let _ = access::queue_job(&s.db, machine_id, user_id, &json!({ "tool": "add_grant", "grant": g }), None).await;
