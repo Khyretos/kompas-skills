@@ -164,3 +164,9 @@ Details: ~/Docker/docs/ai-capability/assets-previews-2026-10.md.
 - (2026-10-05) Markdown answers come back without a wrapping fence. `pipeline.py` used to take
   the first fence inside the README (a ```sh block) as the start of the answer and cut 70 lines;
   `strip()` now keeps an unwrapped `.md` answer whole. Check the line count of every docs draft.
+- (2026-10-05, install script) Given numbered steps, Coder copies them as numbered comments
+  ("# 1. cd to the script's own folder"). Say "no comments that repeat the step list; at most two
+  short comments where a step is not obvious".
+- (2026-10-05, install script) `case "${1:-}" in --x) ;; *) usage; exit 2;; esac` rejects the
+  no-argument run, and the option was checked after a one-minute build. Both fixed in one
+  follow-up draft once the review named them; now in ai-skills `shell`.

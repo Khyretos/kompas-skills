@@ -117,3 +117,17 @@
     every card type in both themes and with extreme custom colours, and fails on any faded
     ancestor: a bare `.pending { opacity: 0.6 }` meant for grant rows had dimmed every waiting
     approval card, and colour-only checks could not see it. Scope state classes (`.grant-row.pending`).
+37. (2026-10-05) kireserver has no Playwright browser on the host. Run browser scripts and tests
+    in the image matching `web/node_modules/playwright` (1.63.0):
+    `docker run --rm --network host -u $(id -u):$(id -g) -e HOME=/tmp -v <dir>:<dir> -w <dir>/web mcr.microsoft.com/playwright:v1.63.0-noble node <script>`.
+    Never run `npx playwright install` on the host.
+38. (2026-10-05) A Node ESM script outside `web/` (e.g. `docs/screenshots/shoot.mjs`) cannot
+    `import "playwright"`: ESM resolves packages from the script's folder, not the working folder.
+    Use `createRequire(join(process.cwd(), "x.js"))("playwright")` and run it from `web/`.
+39. (2026-10-05) Screenshots of a dialog: `el.scrollIntoView()` also scrolls the page behind it.
+    Scroll only the dialog's own scroll box (the nearest ancestor with scrollHeight > clientHeight).
+40. (2026-10-05) Step groups in the chat fold themselves shut when all steps are done, so
+    `waitFor()` (visible) times out on finished steps. Wait with `{ state: "attached" }`, then set
+    `details.open = true` in `page.evaluate` before the screenshot.
+41. (2026-10-05) The demo needs `/?demo` plus a click on `button.found-server`; the dev server
+    takes `PORT=<n>` (default 5173, often taken by another session).
