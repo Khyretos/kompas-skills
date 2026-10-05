@@ -1,6 +1,6 @@
 import { showSignIn } from "./views/signin";
 import { HttpApi } from "./api/http";
-import { $, html, html as h, mount, onAction, restoreBusy, busyWhile } from "./core/html";
+import { $, html, html as h, mount, onAction, restoreBusy, busyWhile, swUrl } from "./core/html";
 import { initResize } from "./core/resize";
 import { modal, type Modal } from "./core/modal";
 import { MockApi } from "./api/mock";
@@ -95,6 +95,11 @@ async function fresh(): Promise<HTMLElement> {
 boot();
 
 async function start(server: Server): Promise<void> {
+  // Apps 2: the service worker makes the app installable and opens it offline. HTTPS only
+  // (not the dev server or the demo preview); a failure never matters.
+  if ("serviceWorker" in navigator && location.protocol === "https:" && !__DEMO__) {
+    navigator.serviceWorker.register(swUrl()).catch(() => undefined);
+  }
   const shellRoot = await fresh();
 
   mount(shellRoot, html`

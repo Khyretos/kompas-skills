@@ -1,7 +1,7 @@
 // Bundles src/main.ts with esbuild. `--serve` runs a dev server with live rebuilds.
 // `--single` writes dist/preview.html with JS and CSS inlined (for sharing a preview).
 import * as esbuild from "esbuild";
-import { readFile, writeFile, mkdir, copyFile } from "node:fs/promises";
+import { readFile, writeFile, mkdir, copyFile, readdir } from "node:fs/promises";
 
 const serve = process.argv.includes("--serve");
 const single = process.argv.includes("--single");
@@ -25,6 +25,8 @@ const options = {
 
 await mkdir("dist", { recursive: true });
 await copyFile("index.html", "dist/index.html");
+// Apps 2: the web app manifest, its icons and the service worker, next to index.html.
+for (const f of await readdir("pwa")) await copyFile(`pwa/${f}`, `dist/${f}`);
 
 if (serve) {
   const ctx = await esbuild.context(options);
