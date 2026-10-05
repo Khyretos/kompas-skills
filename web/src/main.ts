@@ -740,6 +740,10 @@ function wire(shell: HTMLElement): void {
       markGrant(machineId, target, "revoke");
       return api.revokeGrant(machineId, target).catch((e) => { showError(e); void loadAccess(); });
     },
+    "clear-task-filter": () => {
+      store.set({ taskFilter: "" });
+      document.getElementById("task-filter")?.focus();
+    },
     "close-task": () => store.set({ openTaskId: undefined }),
     scope: (el) => store.set({ taskScope: el.dataset.scope as AppState["taskScope"] }),
     pane: (el) => store.set({ pane: el.dataset.pane as AppState["pane"] }),

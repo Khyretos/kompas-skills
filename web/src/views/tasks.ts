@@ -281,8 +281,12 @@ export function renderTasks(s: AppState): SafeHtml {
   const scope = project && s.taskScope === "project" ? "project" : "all";
   const list = scope === "project" ? s.tasks.filter((t) => t.projectId === project!.id) : s.tasks;
   const shown = s.taskFilter.trim() ? list.filter((t) => matchTask(s.taskFilter, t, stateLabel(t.state))) : list;
-  const search = html`<label class="sr-only" for="task-filter">Find a task</label>
-    <input type="search" id="task-filter" class="task-filter" value="${s.taskFilter}" placeholder="Find a task (title, description, status)" autocomplete="off">`;
+  const search = html`<div class="search-input">
+      ${icon("search")}
+      <label class="sr-only" for="task-filter">Search tasks</label>
+      <input type="search" id="task-filter" value="${s.taskFilter}" placeholder="Search tasks" autocomplete="off" title="Matches title, description and status">
+      ${s.taskFilter ? html`<button type="button" class="icon-btn search-clear" data-action="clear-task-filter" aria-label="Clear the search">${icon("close")}</button>` : ""}
+    </div>`;
   const projectName = (t: Task) => (scope === "all" ? s.projects.find((p) => p.id === t.projectId)?.name : undefined);
 
   return html`
