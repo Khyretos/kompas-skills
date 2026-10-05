@@ -4,6 +4,8 @@ test.describe("Global search", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/?demo");
     await page.click("button.found-server");
+    // Ctrl+K works once the app is wired up; the header field shows then.
+    await expect(page.locator(".search-field")).toBeVisible();
   });
 
   test("Ctrl+K opens it, Escape closes it", async ({ page }) => {
