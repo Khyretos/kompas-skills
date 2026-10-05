@@ -510,7 +510,18 @@ export class MockApi implements KompanionApi {
     step("done", "resolving dependencies...\ninstalling htop...\nexit: 0", 600);
   }
   async send(chatId: string, text: string, machineId?: string) {
-    if (machineId) {
+    if (machineId && /three steps/i.test(text)) {
+      // Demo of a step group: three automatic steps that finish one after another.
+      const at = Date.now() + 50;
+      for (let k = 0; k < 3; k++) {
+        const a = { id: id("a"), chatId, machineId, summary: `step ${k + 1}: read file ${k + 1}`, tool: { tool: "read_file", path: `/home/kees/f${k + 1}.txt` },
+          state: k === 0 ? "running" : "approved", result: null, createdAt: new Date(at + k).toISOString() } as PcAction & { chatId: string };
+        actions.push(a);
+        setTimeout(() => { a.state = "running"; this.emit({ type: "changed", what: "actions" }); }, 600 + k * 900);
+        setTimeout(() => { a.state = "done"; a.result = `line ${k + 1}`; this.emit({ type: "changed", what: "actions" }); }, 1000 + k * 900);
+      }
+      setTimeout(() => this.emit({ type: "changed", what: "actions" }), 100);
+    } else if (machineId) {
       const a = { id: id("a"), chatId, machineId, summary: "install htop with paru", tool: { tool: "package", manager: "paru", action: "install", names: ["htop"] }, needs: "packages + root (asks for the password on the PC)",
         state: "pending", result: null, createdAt: new Date().toISOString() } as PcAction & { chatId: string };
       actions.push(a);

@@ -11,7 +11,7 @@ import { onCodeAction } from "./core/codeblocks";
 import { activeProject, store, type AppState } from "./state";
 import { showConnect } from "./views/connect";
 import { renderSidebar } from "./views/sidebar";
-import { composer, fillMessage, messageViews, openSteps, renderEmpty, renderHeader, renderMessage, type MessageView } from "./views/conversation";
+import { composer, fillMessage, groupChoice, messageViews, openSteps, renderEmpty, renderHeader, renderMessage, type MessageView } from "./views/conversation";
 import { KeyedList } from "./core/keyed";
 import { paneTabs, renderTasks, setAssetThumbs } from "./views/tasks";
 import { renderMachines, REFRESH_STEPS, setGpuView } from "./views/machines";
@@ -552,6 +552,14 @@ function wire(shell: HTMLElement): void {
     },
     // Steps open and close through this action (not the native toggle), so the
     // choice is recorded before any re-render can replace the element.
+    // Step groups remember the user's choice, recorded before any re-render (as steps do).
+    "group-toggle": (el) => {
+      const id = el.dataset.id ?? "";
+      const d = el.closest("details");
+      const open = !(d ? d.open : groupChoice.get(id));
+      groupChoice.set(id, open);
+      if (d) d.open = open;
+    },
     "step-toggle": (el) => {
       const id = el.dataset.id ?? "";
       const d = el.closest("details");

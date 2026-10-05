@@ -22,6 +22,9 @@ const STEP_LABEL: Record<string, string> = {
 
 /** Steps the user opened stay open across re-renders (main.ts keeps this in step). */
 export const openSteps = new Set<string>();
+/** The user's open/closed choice per step group ("N steps on …"), by message id. Without a
+ *  choice a group is open only while one of its steps runs; a choice is never overridden. */
+export const groupChoice = new Map<string, boolean>();
 
 function renderStep(a: PcAction, machines: Record<string, string>): SafeHtml {
   const busy = ["approved", "always", "granting", "running"].includes(a.state);
@@ -36,12 +39,17 @@ function renderStep(a: PcAction, machines: Record<string, string>): SafeHtml {
     </details>`;
 }
 
-function renderSteps(steps: PcAction[], machines: Record<string, string>): SafeHtml {
+const BUSY = ["approved", "always", "granting", "running"];
+
+function renderSteps(steps: PcAction[], machines: Record<string, string>, key: string): SafeHtml {
   if (steps.length === 0) return html``;
   const list = html`${steps.map((a) => renderStep(a, machines))}`;
   if (steps.length < 3) return html`<div class="steps">${list}</div>`;
   const where = machines[steps[0].machineId] ?? "a computer";
-  return html`<details class="steps group"><summary>${steps.length} steps on ${where}</summary>${list}</details>`;
+  const running = steps.some((a) => BUSY.includes(a.state));
+  const open = groupChoice.get(key) ?? running;
+  return html`<details class="steps group" data-group="${key}" ${open ? "open" : ""}>
+    <summary data-action="group-toggle" data-id="${key}">${steps.length} steps on ${where}${running ? html` <span class="chip running">running…</span>` : ""}</summary>${list}</details>`;
 }
 
 export function renderHeader(s: AppState): SafeHtml {
@@ -117,7 +125,7 @@ export function renderMessage({ m, tasks, steps, machines }: MessageView): SafeH
         <time datetime="${m.at}">${clock(m.at)}</time>
       </header>
       <div class="body"></div>
-      ${renderSteps(steps, machines)}
+      ${renderSteps(steps, machines, m.id)}
       ${tasks.length ? html`
         <ul class="msg-tasks">${tasks.map((t) => html`
           <li><button class="task-ref" data-action="open-task" data-id="${t.id}">
