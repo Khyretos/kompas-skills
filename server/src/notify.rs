@@ -196,6 +196,7 @@ pub fn task_changed(db: SqlitePool, user_id: String, task_id: String, title: Str
             .flatten()
             .and_then(|(s,)| s)
             .unwrap_or_default();
+        let link = PUBLIC_URL.get().map(|u| format!("{u}/#task={task_id}")).unwrap_or_default();
         let status = match label { "needs you" => crate::mailhtml::Status::NeedsYou, "failed" => crate::mailhtml::Status::Failed, _ => crate::mailhtml::Status::Done };
         let intro = match label { "needs you" => "This task is waiting for you.", "failed" => "This task stopped with an error.", _ => "This task is finished." };
         let need_label = if label == "failed" { "Where it stopped" } else { "What's needed" };
