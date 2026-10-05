@@ -105,3 +105,11 @@
     re-renders 20-30 times a second (steps streaming) delays it by seconds under load, so the
     click lands in a later state (the step group had already closed itself). For state that
     changes by itself, read the state and click in one page.evaluate, then assert the opposite.
+36. (2026-10-05, Kees: "I like my text bright, both in buttons and headers. Do not make me
+    squint.") Headers, titles, badges, state chips and buttons: 7:1 or more; secondary text 4.5:1
+    and no dimmer than #c8c4d8 on dark. Coloured headers are a dark tint of the colour
+    (color-mix with the surface) plus a coloured edge and near-white text, never a light fill
+    with dark text; primary buttons are violet with white text. tests/contrast.spec.ts measures
+    every card type in both themes and with extreme custom colours, and fails on any faded
+    ancestor: a bare `.pending { opacity: 0.6 }` meant for grant rows had dimmed every waiting
+    approval card, and colour-only checks could not see it. Scope state classes (`.grant-row.pending`).
