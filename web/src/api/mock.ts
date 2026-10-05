@@ -543,6 +543,19 @@ export class MockApi implements KompanionApi {
       actions.push(a);
       setTimeout(() => this.emit({ type: "changed", what: "actions" }), 100);
       setTimeout(() => { if (a.state !== "running") return; a.state = "done"; a.result = "Finished\nexit: 0"; this.emit({ type: "changed", what: "actions" }); }, 20_000);
+    } else if (machineId && /every card type/i.test(text)) {
+      // Demo of every approval card type (readability checks): one pending card each.
+      const tools: [string, Record<string, unknown>][] = [
+        ["Read `Cargo.toml`", { tool: "read_file", path: "/home/kees/projects/kk-engine/Cargo.toml" }],
+        ["Edit `src/main.rs`", { tool: "edit_file", path: "/home/kees/projects/kk-engine/src/main.rs" }],
+        ["Run `cargo test` in kk-engine", { tool: "shell", command: "cargo test" }],
+        ["Download the asset pack", { tool: "shell", command: "curl -LO https://example.org/pack.zip" }],
+        ["install htop with paru", { tool: "package", manager: "paru", action: "install", names: ["htop"] }],
+        ["Run `git diff --stat` in kk-engine", { tool: "shell", command: "git diff --stat" }],
+      ];
+      tools.forEach(([summary, tool], k) => actions.push({ id: id("a"), chatId, machineId, summary, tool, needs: k === 4 ? "packages + root" : undefined,
+        state: "pending", result: null, createdAt: new Date(Date.now() + k).toISOString() } as PcAction & { chatId: string }));
+      setTimeout(() => this.emit({ type: "changed", what: "actions" }), 100);
     } else if (machineId && /three steps/i.test(text)) {
       // Demo of a step group: three automatic steps that finish one after another.
       const at = Date.now() + 50;

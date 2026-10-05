@@ -1,7 +1,7 @@
 import { html, type SafeHtml } from "../core/html";
 import type { PcAction } from "../api/client";
 import { fromTool, renderOutput } from "../core/output";
-import { kindOf, NEED_LABEL, styleOf, textOn, type CardStyle } from "../core/cardtypes";
+import { kindOf, NEED_LABEL, styleOf, type CardStyle } from "../core/cardtypes";
 
 export function renderPcPicker(
   machines: { id: string; name: string; online?: boolean }[],
@@ -61,7 +61,7 @@ export function renderPcActions(actions: PcAction[], machineNames: Record<string
 
         return html`
           <article class="pc-action ${a.state} kind-${kindOf(a.tool)}">
-            <header class="card-kind" style="background:${styleOf(kindOf(a.tool), cardStyle).color};color:${textOn(styleOf(kindOf(a.tool), cardStyle).color)}">
+            <header class="card-kind" style="--kind:${styleOf(kindOf(a.tool), cardStyle).color}">
               <span>${styleOf(kindOf(a.tool), cardStyle).label}</span>
               <span class="need">${a.state === "pending" ? NEED_LABEL.approval : NEED_LABEL.automatic}</span>
             </header>

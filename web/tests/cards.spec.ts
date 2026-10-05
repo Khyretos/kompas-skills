@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 
 test.describe("PC Action Cards", () => {
   test.beforeEach(async ({ page }) => {
+    await page.emulateMedia({ colorScheme: "dark" });
     await page.goto("/?demo");
     await page.click("button.found-server");
     await page.selectOption("#pc-machine", { label: "soucouyant" });
@@ -16,16 +17,11 @@ test.describe("PC Action Cards", () => {
     await expect(card.locator(".card-kind")).toContainText("Package / system");
     await expect(card.locator(".card-kind .need")).toHaveText("needs your approval");
 
-    // Check computed styles
-    const backgroundColor = await card.locator(".card-kind").evaluate((el) => 
-      getComputedStyle(el).backgroundColor
-    );
-    const color = await card.locator(".card-kind").evaluate((el) => 
-      getComputedStyle(el).color
-    );
-
-    expect(backgroundColor).toBe("rgb(191, 78, 255)");
-    expect(color).toBe("rgb(12, 9, 23)");
+    // A dark tint with the kind colour as the left edge, and bright text (Kees: no squinting).
+    const edge = await card.locator(".card-kind").evaluate((el) => getComputedStyle(el).borderLeftColor);
+    const color = await card.locator(".card-kind").evaluate((el) => getComputedStyle(el).color);
+    expect(edge).toBe("rgb(191, 78, 255)");
+    expect(color).toBe("rgb(245, 243, 255)");
   });
 
   test("a colour changed in Settings shows at once", async ({ page }) => {
