@@ -122,7 +122,7 @@ struct Card<'a> {
 async fn card_html(db: &SqlitePool, c: Card<'_>) -> anyhow::Result<String> {
     let st = crate::admin::load(db).await?;
     let url = PUBLIC_URL.get().cloned().unwrap_or_default();
-    let logo = if url.is_empty() { String::new() } else { format!("{url}/api/logo") };
+    let logo = if url.is_empty() { String::new() } else { format!("{url}/api/mail-logo.png") };
     Ok(crate::mailhtml::render(&crate::mailhtml::Mail {
         app_name: &st.app_name, app_url: &url, logo_url: &logo, brand: &st.color_brand,
         status: c.status, title: c.title, intro: c.intro, rows: c.rows, button: c.button,
@@ -142,7 +142,7 @@ async fn send(db: &SqlitePool, to: &str, subject_tail: &str, body: &str, card: O
     };
     let password = std::env::var("SMTP_PASSWORD").ok().filter(|p| !p.is_empty());
     let url = PUBLIC_URL.get().cloned().unwrap_or_default();
-    let logo = if url.is_empty() { String::new() } else { format!("{url}/api/logo") };
+    let logo = if url.is_empty() { String::new() } else { format!("{url}/api/mail-logo.png") };
     let html = card.map(|c| {
         crate::mailhtml::render(&crate::mailhtml::Mail {
             app_name: &st.app_name, app_url: &url, logo_url: &logo, brand: &st.color_brand,

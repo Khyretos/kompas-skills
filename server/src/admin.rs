@@ -333,6 +333,36 @@ pub async fn set_prefs(
     Ok(StatusCode::NO_CONTENT)
 }
 
+/// The logo for mails: the uploaded logo when it is a PNG, JPEG or GIF (mail apps such as Gmail do not show SVG), otherwise the built-in Kreative Kompas logo for dark backgrounds.
+pub async fn get_mail_logo(State(s): State<AppState>) -> axum::response::Response {
+    use base64::Engine;
+    let kind = setting(&s.db, "logoType").await.ok().flatten();
+    let data = setting(&s.db, "logoData").await.ok().flatten();
+    if let (Some(k), Some(d)) = (kind, data)
+        && matches!(k.as_str(), "image/png" | "image/jpeg" | "image/gif")
+        && let Ok(decoded) = base64::engine::general_purpose::STANDARD.decode(d)
+    {
+        return (
+            [
+                (header::CONTENT_TYPE, k),
+                (header::CACHE_CONTROL, "public, max-age=3600".to_string()),
+                (header::X_CONTENT_TYPE_OPTIONS, "nosniff".to_string()),
+            ],
+            decoded,
+        )
+            .into_response();
+    }
+    (
+        [
+            (header::CONTENT_TYPE, "image/png".to_string()),
+            (header::CACHE_CONTROL, "public, max-age=3600".to_string()),
+            (header::X_CONTENT_TYPE_OPTIONS, "nosniff".to_string()),
+        ],
+        include_bytes!("../assets/mail-logo.png").to_vec(),
+    )
+        .into_response()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

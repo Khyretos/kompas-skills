@@ -183,6 +183,7 @@ async fn main() -> anyhow::Result<()> {
                 .layer(axum::extract::DefaultBodyLimit::max(300 * 1024)),
         )
         .route("/logo", get(admin::get_logo))
+        .route("/mail-logo.png", get(admin::get_mail_logo))
         .route("/setup", post(auth::setup))
         .route("/login", post(auth::login))
         .route("/logout", post(auth::logout))
