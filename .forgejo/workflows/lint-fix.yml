@@ -41,4 +41,5 @@ jobs:
           curl -sf "$CI_RAW/lint_setup.sh" | sh
           for f in lint_nightly.py lint_ai_fix.py keep_eol.py; do curl -sf "$CI_RAW/$f" -o "/tmp/$f"; done
       - name: Fix one linter and open a PR
-        run: python3 /tmp/lint_nightly.py
+        # No GITHUB_STEP_SUMMARY: Forgejo discards job summaries with a warning (see lint.yml).
+        run: env -u GITHUB_STEP_SUMMARY python3 /tmp/lint_nightly.py

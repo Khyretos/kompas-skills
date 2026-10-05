@@ -36,7 +36,10 @@ jobs:
           FILEIO_REPORTER: "false"
           JSON_REPORTER: "true"          # read by the summary step
           MARKDOWN_SUMMARY_REPORTER: "false"
-        run: /entrypoint.sh
+        # Without GITHUB_STEP_SUMMARY: MegaLinter writes its markdown summary there even with
+        # MARKDOWN_SUMMARY_REPORTER off, and Forgejo (15) discards job summaries with a warning.
+        # The same results reach the PR as the readable comment below.
+        run: env -u GITHUB_STEP_SUMMARY /entrypoint.sh
       - name: Post a readable summary on the PR (updates its own earlier comment)
         if: always() && github.event_name == 'pull_request'
         env:
