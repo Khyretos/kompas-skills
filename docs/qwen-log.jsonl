@@ -243,3 +243,4 @@
 {"name": "gpu-role-helper-2", "out": "gpu-role/src/main.rs", "gpu_seconds": 183.8, "tokens": 4313, "lines": 238, "model": "Coder", "at": "2026-10-05T08:00:34"}
 {"name": "gpu-role-io", "out": "server/src/gpus/role.rs", "gpu_seconds": 226.0, "tokens": 5679, "lines": 296, "model": "Coder", "at": "2026-10-05T08:07:56"}
 {"name": "role-chip", "out": "web/src/views/capabilities.ts", "mode": "patch", "gpu_seconds": 55.3, "tokens": 1464, "lines": 3, "attempts": 1, "model": "Coder", "at": "2026-10-05T08:18:02"}
+{"name": "chat-report-per-run", "out": "server/src/runs.rs", "mode": "patch", "gpu_seconds": 89.4, "tokens": 1833, "lines": 3, "attempts": 1, "model": "Coder", "at": "2026-10-05T07:55:04"}
