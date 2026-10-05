@@ -67,3 +67,7 @@ Lessons for the orchestrator role. Numbered and dated, newest last.
   shared docs/qwen-log.jsonl conflicted on almost every merge. Never `git add -A` a folder in a
   worktree: it committed the worktree's web/node_modules symlink into main (#29). Run tools
   from the main checkout's node_modules instead of symlinking.
+- (2026-10-05) `tools/qwen/pipeline.py` takes the model from the worker role in kompanion.toml
+  (KOMPANION_CONFIG, else the repo root, else the main checkout for worktrees). When you change
+  the pipeline itself, run its jobs with `KOMPANION_CONFIG=<main checkout>/kompanion.toml` so a
+  half-finished change cannot stop the job that finishes it.
