@@ -650,6 +650,23 @@ export class MockApi implements KompanionApi {
     messages.push(user);
     this.emit({ type: "message", message: structuredClone(user) });
 
+    // A project thread: "pause" and "go on" steer the project's running tasks (server: thread::command).
+    const thread = chats.find((c) => c.id === chatId && c.thread);
+    const word = text.trim().toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, "").split(/\s+/).join(" ");
+    const cmd = ["pause", "pause please", "hold on", "wait", "stop for now"].includes(word) ? "pause"
+      : ["go on", "continue", "resume", "go ahead", "carry on"].includes(word) ? "resume" : undefined;
+    if (thread && cmd) {
+      const running = tasks.filter((t) => t.projectId === thread.projectId && t.state === "running");
+      const titles = running.map((t) => `**${t.title}**`).join(", ");
+      const answer = !running.length ? "Nothing is running in this project."
+        : cmd === "pause" ? `Paused ${titles}: the current step finishes, then it waits. Write "go on" to continue.`
+        : `Going on with ${titles}.`;
+      const m: Message = { id: id("m"), chatId, author: "orchestrator", text: answer, at: new Date().toISOString() };
+      messages.push(m);
+      setTimeout(() => this.emit({ type: "message", message: structuredClone(m) }), 200);
+      return;
+    }
+
     const chat = chats.find((c) => c.id === chatId);
     const reply: Message = { id: id("m"), chatId, author: "orchestrator", text: "", at: new Date().toISOString(), streaming: true };
     messages.push(reply);

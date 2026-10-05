@@ -205,6 +205,21 @@ pub async fn send(
     let user_msg = insert_message(&s, &chat_id, "user", &text).await?;
     s.bus.send(&u.id, Event::Message { message: user_msg });
 
+    // In a project thread, "pause" and "go on" steer the project's running tasks (SK-02);
+    // anything else is a question for the orchestrator, answered below as usual.
+    let thread: Option<(Option<String>, i64)> = sqlx::query_as("SELECT project_id, thread FROM chats WHERE id = ?")
+        .bind(&chat_id)
+        .fetch_optional(&s.db)
+        .await?;
+    if let Some((Some(project_id), 1)) = thread
+        && let Some(cmd) = crate::thread::command(&text)
+    {
+        let reply = crate::thread::steer(&s, &u.id, &project_id, cmd).await;
+        let m = insert_message(&s, &chat_id, "orchestrator", &reply).await?;
+        s.bus.send(&u.id, Event::Message { message: m });
+        return Ok(StatusCode::ACCEPTED);
+    }
+
     let role = user_roles(&s, &u.id)
         .await?
         .into_iter()

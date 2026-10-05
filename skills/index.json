@@ -54,7 +54,7 @@
   ]
  },
  {
-  "chars": 4548,
+  "chars": 4980,
   "description": "How to write a job prompt any worker model can carry out, and how to run fix rounds.",
   "file": "orchestrator/prompting-workers",
   "models": [],
