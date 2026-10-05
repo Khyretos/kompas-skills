@@ -239,3 +239,4 @@
 {"name": "lostclick-test", "out": "web/tests/stepgroups.spec.ts", "mode": "patch", "gpu_seconds": 17.7, "tokens": 478, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T06:11:59"}
 {"name": "remount-keep-fields", "out": "web/src/main.ts", "mode": "patch", "gpu_seconds": 38.0, "tokens": 924, "lines": 2, "attempts": 1, "model": "Coder", "at": "2026-10-05T06:36:25"}
 {"name": "contrast-test", "out": "web/tests/contrast.spec.ts", "gpu_seconds": 266.1, "tokens": 6343, "lines": 279, "model": "Coder", "at": "2026-10-05T07:48:25"}
+{"name": "chat-report-per-run", "out": "server/src/runs.rs", "mode": "patch", "gpu_seconds": 89.4, "tokens": 1833, "lines": 3, "attempts": 1, "model": "Coder", "at": "2026-10-05T07:55:04"}

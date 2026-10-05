@@ -105,6 +105,10 @@
     re-renders 20-30 times a second (steps streaming) delays it by seconds under load, so the
     click lands in a later state (the step group had already closed itself). For state that
     changes by itself, read the state and click in one page.evaluate, then assert the opposite.
+35. (2026-10-05) A list that other views depend on must stay current where it is used: the Run
+    form read the computer list, which was only refreshed on the Machines tab, so a list loaded
+    during a server restart said "offline" until a reload. Poll it lightly everywhere and
+    re-render only when the part that matters (who is online) changes.
 36. (2026-10-05, Kees: "I like my text bright, both in buttons and headers. Do not make me
     squint.") Headers, titles, badges, state chips and buttons: 7:1 or more; secondary text 4.5:1
     and no dimmer than #c8c4d8 on dark. Coloured headers are a dark tint of the colour

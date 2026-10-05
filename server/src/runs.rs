@@ -122,12 +122,14 @@ pub fn step_json(machine: &str, tool: &Value, summary: &str, state: &str, result
 
 /// Fetches steps for a run or chat by ID.
 pub async fn steps_where(s: &AppState, column: &str, id: &str) -> ApiResult<Vec<Value>> {
-    if column != "run_id" && column != "chat_id" {
+    if column != "run_id" && column != "chat_id" && column != "chat_without_run" {
         return Ok(Vec::new());
     }
     
+    let filter = if column == "chat_without_run" { "p.chat_id = ? AND p.run_id IS NULL" } else { &format!("p.{column} = ?") };
+    
     let rows: Vec<(String, String, String, String, String, String, Option<String>, Option<String>, String)> = sqlx::query_as(
-        &format!("SELECT p.machine_id, p.tool, p.summary, p.state, COALESCE(p.result, ''), COALESCE(p.decided_at, p.created_at), p.ended_at, p.grant_note, COALESCE(m.name, p.machine_id) FROM pc_actions p LEFT JOIN machines m ON m.id = p.machine_id WHERE p.{column} = ? ORDER BY p.created_at")
+        &format!("SELECT p.machine_id, p.tool, p.summary, p.state, COALESCE(p.result, ''), COALESCE(p.decided_at, p.created_at), p.ended_at, p.grant_note, COALESCE(m.name, p.machine_id) FROM pc_actions p LEFT JOIN machines m ON m.id = p.machine_id WHERE {} ORDER BY p.created_at", filter)
     )
     .bind(id)
     .fetch_all(&s.db)
@@ -143,12 +145,14 @@ pub async fn steps_where(s: &AppState, column: &str, id: &str) -> ApiResult<Vec<
 
 /// Fetches model calls for a run or chat by ID.
 pub async fn calls_where(s: &AppState, column: &str, id: &str) -> ApiResult<Vec<Value>> {
-    if column != "run_id" && column != "chat_id" {
+    if column != "run_id" && column != "chat_id" && column != "chat_without_run" {
         return Ok(Vec::new());
     }
     
+    let filter = if column == "chat_without_run" { "c.chat_id = ? AND c.run_id IS NULL" } else { &format!("c.{column} = ?") };
+    
     let rows: Vec<(String, String, String, String, Option<i64>, Option<i64>, i64, Option<String>, String)> = sqlx::query_as(
-        &format!("SELECT role, provider_id, model_id, reason, tokens_in, tokens_out, ms, error, at FROM calls WHERE {column} = ? ORDER BY at")
+        &format!("SELECT role, provider_id, model_id, reason, tokens_in, tokens_out, ms, error, at FROM calls c WHERE {} ORDER BY at", filter)
     )
     .bind(id)
     .fetch_all(&s.db)
@@ -214,7 +218,7 @@ pub async fn run_report(s: &AppState, user_id: &str, run_id: &str) -> ApiResult<
     }))
 }
 
-/// Returns a report for a specific chat.
+/// A chat's report, split per run (newest first) so one run's failures never hide another's result.
 pub async fn chat_report(s: &AppState, user_id: &str, chat_id: &str) -> ApiResult<Value> {
     let chat_row = sqlx::query_as::<_, (String,)>(
         "SELECT title FROM chats WHERE id = ? AND user_id = ?"
@@ -227,14 +231,47 @@ pub async fn chat_report(s: &AppState, user_id: &str, chat_id: &str) -> ApiResul
     
     let (title,) = chat_row;
     
-    let steps = steps_where(s, "chat_id", chat_id).await?;
-    let calls = calls_where(s, "chat_id", chat_id).await?;
+    // All runs of this chat, newest first
+    let runs_rows: Vec<(String, String, String, Option<String>, String, String, String, String)> = sqlx::query_as(
+        "SELECT r.id, COALESCE(m.name, r.machine_id), r.started_at, r.ended_at, r.status, r.rounds, r.task_id, t.title FROM runs r JOIN tasks t ON t.id = r.task_id LEFT JOIN machines m ON m.id = r.machine_id WHERE r.chat_id = ? AND r.user_id = ? ORDER BY r.started_at DESC"
+    )
+    .bind(chat_id)
+    .bind(user_id)
+    .fetch_all(&s.db)
+    .await?;
+    
+    let mut runs = Vec::new();
+    for (id, computer, started, ended, status, rounds_str, task_id, title) in runs_rows {
+        let steps = steps_where(s, "run_id", &id).await?;
+        let calls = calls_where(s, "run_id", &id).await?;
+        let rounds: Value = serde_json::from_str(&rounds_str).unwrap_or(json!([]));
+        
+        let duration = ended.as_deref().and_then(|e| secs_between(&started, e));
+        let summary_val = summary(&steps, &calls, &rounds.as_array().map(|v| v.as_slice()).unwrap_or(&[]), &status);
+        
+        runs.push(json!({
+            "runId": id,
+            "computer": computer,
+            "startedAt": started,
+            "endedAt": ended,
+            "durationS": duration,
+            "status": status,
+            "task": { "id": task_id, "title": title },
+            "summary": summary_val,
+            "steps": steps,
+            "modelCalls": calls
+        }));
+    }
+    
+    // Steps and calls outside any run
+    let loose_steps = steps_where(s, "chat_without_run", chat_id).await?;
+    let loose_calls = calls_where(s, "chat_without_run", chat_id).await?;
     
     Ok(json!({
-        "summary": summary(&steps, &calls, &[], "chat"),
         "chat": { "id": chat_id, "title": title },
-        "steps": steps,
-        "modelCalls": calls
+        "runs": runs,
+        "outsideRuns": { "summary": summary(&loose_steps, &loose_calls, &[], "chat"), "steps": loose_steps, "modelCalls": loose_calls },
+        "note": "Each run is counted on its own; outsideRuns has the chat's steps that belong to no run."
     }))
 }
 
