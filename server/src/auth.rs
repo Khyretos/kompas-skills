@@ -164,6 +164,12 @@ pub async fn status(
         "gpuPins": serde_json::from_str::<serde_json::Value>(&pins).unwrap_or(serde_json::json!([])),
         "cardStyle": serde_json::from_str::<serde_json::Value>(&cards).unwrap_or(serde_json::json!({})),
         "version": env!("CARGO_PKG_VERSION"),
+        "features": {
+            "assets": state.config.features.assets,
+            "gpus": state.config.features.gpus,
+            "voice": state.config.features.voice,
+            "windshift": state.config.features.windshift,
+        },
         "setupNeeded": !users_exist(&state).await?,
         "user": user.map(|u| u.name),
         "logoVersion": crate::admin::logo_version(&state.db).await?,

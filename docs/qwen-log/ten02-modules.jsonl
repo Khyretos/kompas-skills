@@ -1,1 +1,8 @@
 {"name": "ten02-supervise", "out": "server/src/util.rs", "gpu_seconds": 38.1, "tokens": 1158, "lines": 116, "review": "skipped", "model": "Coder", "at": "2026-10-05T15:32:53"}
+{"name": "ten02-features-config", "out": "server/src/config.rs", "mode": "patch", "gpu_seconds": 14.8, "tokens": 376, "lines": 2, "attempts": 1, "model": "Coder", "at": "2026-10-05T15:35:06"}
+{"name": "ten02-gpus-routes", "out": "server/src/gpus/mod.rs", "mode": "patch", "gpu_seconds": 14.7, "tokens": 395, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T15:35:21"}
+{"name": "ten02-main-features", "out": "server/src/main.rs", "mode": "patch", "gpu_seconds": 17.2, "tokens": 489, "lines": 4, "attempts": 1, "model": "Coder", "at": "2026-10-05T15:35:38"}
+{"name": "ten02-status-features", "out": "server/src/auth.rs", "mode": "patch", "gpu_seconds": 4.4, "tokens": 115, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T15:35:43"}
+{"name": "ten02-example-features", "out": "server/kompanion.example.toml", "mode": "patch", "gpu_seconds": 8.2, "tokens": 231, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T15:35:51"}
+{"name": "ten02-main-fix", "out": "server/src/main.rs", "mode": "patch", "gpu_seconds": 15.4, "tokens": 458, "lines": 2, "attempts": 1, "model": "Coder", "at": "2026-10-05T15:36:47"}
+{"name": "ten02-api-404", "out": "server/src/main.rs", "mode": "patch", "gpu_seconds": 5.8, "tokens": 155, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T15:37:53"}

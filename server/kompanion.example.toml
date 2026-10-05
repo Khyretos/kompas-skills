@@ -76,6 +76,14 @@ reviewer = { provider = "ollama", model = "qwen3.5:9b" }
 #   { name = "qwen3.5:9b", probe = "ollama:http://host.docker.internal:11434", model = "*" },
 # ]
 
+# Switch whole areas off; each is on by default. An area that is off has no routes,
+# no background jobs and no menu item.
+# [features]
+# assets = true      # the asset library (needs ASSET_LIBRARY)
+# gpus = true        # GPU ledger, scheduler and timeline (needs [[gpu]])
+# voice = true       # push-to-talk and reading replies aloud (needs [voice])
+# windshift = true   # two-way task sync with Windshift (needs WINDSHIFT_URL)
+
 # Push to the Android app through UnifiedPush (an ntfy server, FOSS), optional. Phones may only register endpoints on these servers. Empty: push is off; the app can still notify through its own connection.
 [push]
 servers = []

@@ -45,6 +45,9 @@ pub struct Config {
     /// `[voice]`: speech to text and text to speech; off when neither URL is set.
     #[serde(default)]
     pub voice: VoiceConfig,
+    /// `[features]`: switch whole areas off (all on by default).
+    #[serde(default)]
+    pub features: FeaturesConfig,
 }
 
 /// `[push]`: where phones may receive pushes (an ntfy server); empty = push off.
@@ -92,6 +95,25 @@ pub struct VoiceConfig {
     pub tts_model: Option<String>,
     #[serde(default)]
     pub api_key_env: Option<String>,
+}
+
+/// `[features]`: an area that is off has no routes, no background jobs and no menu item.
+#[derive(Debug, Clone, Deserialize)]
+pub struct FeaturesConfig {
+    #[serde(default = "yes")]
+    pub assets: bool,
+    #[serde(default = "yes")]
+    pub gpus: bool,
+    #[serde(default = "yes")]
+    pub voice: bool,
+    #[serde(default = "yes")]
+    pub windshift: bool,
+}
+
+impl Default for FeaturesConfig {
+    fn default() -> Self {
+        FeaturesConfig { assets: true, gpus: true, voice: true, windshift: true }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]

@@ -163,21 +163,21 @@ async fn main() -> anyhow::Result<()> {
         dummy_hash: auth::hash_password(&util::random_token())?,
         oidc: Default::default(),
         host: Default::default(),
-        windshift: windshift.is_some(),
+        windshift: windshift.is_some() && config.features.windshift,
     };
     hoststats::HostStats::spawn_live(state.clone());
     notify::spawn_daily(state.db.clone());
     let _ = push::SERVERS.set(state.config.push.servers.clone());
     let _ = assets::ai::CONFIG.set(assets::ai::settings_from(&state.config));
-    let _ = voice::SETTINGS.set(state.config.voice.clone());
-    assets::spawn(state.clone());
+    let _ = voice::SETTINGS.set(if state.config.features.voice { state.config.voice.clone() } else { Default::default() });
+    if state.config.features.assets { assets::spawn(state.clone()); }
     import::watch(state.clone());
     // Links in mails go to the first public (https) address the app is served from.
     if let Some(u) = state.config.allowed_origins.iter().find(|o| o.starts_with("https://")) {
         let _ = notify::PUBLIC_URL.set(u.trim_end_matches('/').to_string());
     }
-    gpus::spawn(state.clone());
-    if let Some(ws) = windshift {
+    if state.config.features.gpus { gpus::spawn(state.clone()); }
+    if let Some(ws) = windshift.filter(|_| state.config.features.windshift) {
         tracing::info!("Windshift sync on");
         windshift::spawn(state.db.clone(), ws);
     }
@@ -240,10 +240,6 @@ async fn main() -> anyhow::Result<()> {
         .route("/access", get(access::history))
         .route("/activity", get(activity::list))
         .route("/machines/{id}/folder", post(folders::api))
-        .route("/gpus", get(gpus::list))
-        .route("/gpus/jobs", get(gpus::jobs::list))
-        .route("/gpus/role", get(gpus::role::get).post(gpus::role::set))
-        .route("/gpus/timeline", get(gpus::timeline::timeline))
         .route("/capabilities", get(capabilities::list))
         .route("/capabilities/skill", get(capabilities::skill))
         .route("/voice", get(voice::info))
@@ -259,7 +255,9 @@ async fn main() -> anyhow::Result<()> {
         .route("/push/register", post(push::register).delete(push::unregister))
         .route("/me/prefs", axum::routing::put(admin::set_prefs))
         .route("/events", get(api::events))
-        .merge(assets::routes())
+        .merge(if state.config.features.assets { assets::routes() } else { Router::new() })
+        .merge(if state.config.features.gpus { gpus::routes() } else { Router::new() })
+        .fallback(|| async { (axum::http::StatusCode::NOT_FOUND, "no such API route") })
         // Inside the guard, so the signed-in user is known.
         .layer(middleware::from_fn_with_state(state.clone(), live::notify_changes))
         .layer(middleware::from_fn_with_state(state.clone(), auth::guard))
