@@ -79,3 +79,6 @@
     `el.hidden = true` showed nothing. `.btn[hidden] { display: none; }` is in styles.css; for any
     other displayed class you toggle with `hidden`, add the same `[hidden]` rule. Test hidden state
     with `toBeHidden()`.
+30. (2026-10-05) Remember UI state by the identity of the thing itself, never by its current
+    container: step groups were keyed by message id, and the steps moved to the reply message when
+    it arrived, so the user's open/closed choice was lost. Key by the first step's id.
