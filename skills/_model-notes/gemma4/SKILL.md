@@ -1,3 +1,8 @@
+---
+name: _model-notes/gemma4
+description: Quirks of the Gemma 4 models only (settings, speed, memory, typical slips).
+models: [gemma4]
+---
 # Gemma 4 family, notes for prompts
 
 ## gemma4:12b-it-qat (Ollama on soucouyant, RX 9070 XT)

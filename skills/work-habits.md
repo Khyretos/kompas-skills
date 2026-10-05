@@ -1,3 +1,8 @@
+---
+name: work-habits
+description: How the reviewer works; given to every job of every role.
+roles: [orchestrator, worker, reviewer, runner]
+---
 # Work habits (how the reviewer works; do the same)
 * Read before you write: open the real file, API, schema or `--help` first. Never guess a name, flag, path or setting.
 * Look before you change: read the target, check it ends with a newline, know how to undo (backup, git, the old value).

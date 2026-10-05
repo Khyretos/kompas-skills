@@ -45,6 +45,18 @@ jobs:
           (cd server && cargo test --locked)
           BUILD
 
+  skills:
+    # SK-01: every skill file has a header, model notes only hold model quirks, the loader works.
+    runs-on: kireserver
+    container:
+      image: node:22 # has python3 too; checkout needs Node
+    steps:
+      - uses: https://code.forgejo.org/actions/checkout@v4
+      - name: Skill headers and loader
+        run: |
+          python3 tools/skills/index.py --check
+          python3 -m unittest tools/skills/test_load.py
+
   web:
     runs-on: kireserver
     container:

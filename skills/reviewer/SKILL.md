@@ -1,3 +1,9 @@
+---
+name: reviewer
+description: What to check in a draft, in order.
+roles: [reviewer]
+tags: [review, check]
+---
 # Reviewer
 
 Check in this order; stop at the first failing layer and send it back.

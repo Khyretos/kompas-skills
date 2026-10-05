@@ -1,3 +1,9 @@
+---
+name: orchestrator
+description: Planning tasks into steps, building job prompts, running the drafting pipeline and PRs.
+roles: [orchestrator]
+tags: [plan, prompt, pipeline, pr]
+---
 # Orchestrator
 
 Lessons for the orchestrator role. Numbered and dated, newest last.

@@ -76,21 +76,29 @@ def card(rel):
             text = text[end + 5:]
     return text.strip()
 
-def skills(role, extra=()):
-    """work-habits + the role's core + the cards the job names (job["skills"], e.g.
-    ["shared/colour-themes"]) + this model's quirks. Until the smart loader exists,
-    the orchestrator picks the cards per job."""
-    parts = []
-    # Only the role's lessons and the model's notes, to keep prompts small.
-    # work-habits.md: how the reviewer works, for every role (also in ai-skills/_shared).
-    rels = ["skills/work-habits.md", f"skills/{role}/SKILL.md"] + [f"skills/{c}.md" for c in extra] + [f"skills/_model-notes/{NOTES}/SKILL.md"]
-    for rel in rels:
-        p = os.path.join(REPO, rel)
-        if os.path.exists(p):
-            parts.append(card(p))
-        elif rel.startswith("skills/") and rel[7:-3] in extra:
-            raise RuntimeError(f"unknown skill card {rel}")
-    return "\n\n".join(parts)
+def skill_budget():
+    """[skills] budget_tokens in kompanion.toml: a number, or a table per model name
+    ({ "Coder" = 1500 }); default 1500 tokens for the cards picked on top of the cores."""
+    try:
+        b = tomllib.load(open(config_path(), "rb")).get("skills", {}).get("budget_tokens", 1500)
+    except OSError:
+        return 1500
+    if isinstance(b, dict):
+        return int(b.get(os.environ.get("WORKER_MODEL", "Coder"), b.get("default", 1500)))
+    return int(b)
+
+def skills(role, extra=(), task="", paths=()):
+    """The job's lessons from tools/skills/load.py: work habits, shared and role cores, the cards
+    the job names, the model's notes, and the cards that match the task within the budget.
+    The chosen files are logged per job (LANE.skills)."""
+    sys.path.insert(0, os.path.join(REPO, "tools", "skills"))
+    import load
+    try:
+        names, text = load.select(role, task, list(paths), notes=NOTES, budget_tokens=skill_budget(), extra=list(extra))
+    except ValueError as e:
+        raise RuntimeError(str(e))
+    LANE.skills = names
+    return text
 
 def ask(system, user, max_tokens):
     url, model, extra, key = backend()
@@ -172,7 +180,7 @@ def patch_job(job, log):
     a block that doesn't apply goes back to the model once with the error."""
     out = os.path.join(REPO, job["out"])
     text = open(out).read()
-    system = "You edit code in this repository with exact, compiling changes. Follow these rules strictly:\n\n" + skills(job["role"], job.get("skills", ()))
+    system = "You edit code in this repository with exact, compiling changes. Follow these rules strictly:\n\n" + skills(job["role"], job.get("skills", ()), job["prompt"], [job["out"]] + job.get("context", []))
     ctx = "".join(f"\n--- {c} ---\n{open(os.path.join(REPO, c)).read()}" for c in job.get("context", []) if c != job["out"])
     shown = text
     if job.get("focus"):
@@ -202,7 +210,7 @@ def patch_job(job, log):
     if err:
         raise RuntimeError(f"patch failed twice: {err[:300]}")
     open(out, "w").write(new)
-    rec = {"name": job["name"], "out": job["out"], "mode": "patch", "gpu_seconds": round(secs, 1), "tokens": toks, "prompt_tokens": getattr(LANE, "prompt", 0),
+    rec = {"name": job["name"], "out": job["out"], "mode": "patch", "gpu_seconds": round(secs, 1), "tokens": toks, "prompt_tokens": getattr(LANE, "prompt", 0), "skills": getattr(LANE, "skills", []),
            "lines": len(BLOCK.findall(answer)), "attempts": attempt + 1, "model": getattr(LANE, "model", ""), "at": time.strftime("%Y-%m-%dT%H:%M:%S")}
     log.write(json.dumps(rec) + "\n"); log.flush(); print(json.dumps(rec), flush=True)
 
@@ -212,7 +220,7 @@ def run_job(job, log):
           patch_job(job, log)
           return
       LANE.prompt = 0
-      rules = skills(job["role"], job.get("skills", ()))
+      rules = skills(job["role"], job.get("skills", ()), job["prompt"], [job["out"]] + job.get("context", []))
       ctx = "".join(f"\n--- {c} ---\n{open(os.path.join(REPO, c)).read()}" for c in job.get("context", []))
       system = "You write exact, compiling code for this repository. Follow these rules strictly:\n\n" + rules
       draft, s1, t1 = ask(system, job["prompt"] + ("\n\nRelevant files:" + ctx if ctx else ""), job.get("max_tokens", 4000))
@@ -222,7 +230,7 @@ def run_job(job, log):
           out = os.path.join(REPO, job["out"])
           os.makedirs(os.path.dirname(out), exist_ok=True)
           open(out, "w").write(with_footer(drop_path_line(strip(draft, job["out"]), job["out"]), job))
-          rec = {"name": job["name"], "out": job["out"], "gpu_seconds": round(s1, 1), "tokens": t1, "prompt_tokens": getattr(LANE, "prompt", 0),
+          rec = {"name": job["name"], "out": job["out"], "gpu_seconds": round(s1, 1), "tokens": t1, "prompt_tokens": getattr(LANE, "prompt", 0), "skills": getattr(LANE, "skills", []),
                  "lines": strip(draft, job["out"]).count("\n"), "review": "skipped", "model": getattr(LANE, "model", ""), "at": time.strftime("%Y-%m-%dT%H:%M:%S")}
           log.write(json.dumps(rec) + "\n"); log.flush(); print(json.dumps(rec), flush=True)
           return
@@ -232,7 +240,7 @@ def run_job(job, log):
       out = os.path.join(REPO, job["out"])
       os.makedirs(os.path.dirname(out), exist_ok=True)
       open(out, "w").write(with_footer(drop_path_line(strip(final, job["out"]), job["out"]), job))
-      rec = {"name": job["name"], "out": job["out"], "gpu_seconds": round(s1 + s2, 1), "tokens": t1 + t2, "prompt_tokens": getattr(LANE, "prompt", 0),
+      rec = {"name": job["name"], "out": job["out"], "gpu_seconds": round(s1 + s2, 1), "tokens": t1 + t2, "prompt_tokens": getattr(LANE, "prompt", 0), "skills": getattr(LANE, "skills", []),
              "lines": strip(final, job["out"]).count("\n"), "model": getattr(LANE, "model", ""), "at": time.strftime("%Y-%m-%dT%H:%M:%S")}
       log.write(json.dumps(rec) + "\n"); log.flush()
       print(json.dumps(rec), flush=True)
