@@ -1,5 +1,6 @@
 # Kreative Kompanion server configuration.
-# API keys never go in this file: name an environment variable with `api_key_env`.
+## Copy this file to kompanion.toml next to docker-compose.yml and change what you need.
+## API keys never go in this file: name an environment variable with `api_key_env`.
 
 # Where to listen. Put a reverse proxy with HTTPS in front for access from outside.
 bind = "0.0.0.0:8080"
@@ -11,104 +12,70 @@ web_dir = "/app/web"
 # other origins are refused.
 allowed_origins = ["https://kompanion.example.com"]
 
+# A local model through Ollama (https://ollama.com, MIT). Install it, then run: ollama pull qwen3.5:9b
 [[provider]]
-id = "ovms"
-name = "OVMS on kireserver"
+id = "ollama"
+name = "Ollama on this PC"
 kind = "openai-compatible"
-base_url = "http://ovms:8000/v3"
-local = true
-api_key_env = "OVMS_API_KEY"
-# Qwen otherwise "thinks" for thousands of tokens before a short answer.
-extra_body = { chat_template_kwargs = { enable_thinking = false } }
-
-# An Ollama on another PC works too. On kireserver Kompanion uses only OVMS (Kees,
-# 2026-10-05: soucouyant is for image and audio generation, not for Kompanion).
-[[provider]]
-id = "ollama-soucouyant"
-name = "Ollama on soucouyant"
-kind = "openai-compatible"
-base_url = "http://127.0.0.1:11434/v1"
+base_url = "http://host.docker.internal:11434/v1"
 local = true
 
-[[provider]]
-id = "deepseek"
-name = "DeepSeek"
-kind = "openai-compatible"
-base_url = "https://api.deepseek.com"
-api_key_env = "DEEPSEEK_API_KEY"
+# More providers (uncomment what you use):
+# [[provider]]
+# id = "ovms"
+# name = "OpenVINO Model Server"
+# kind = "openai-compatible"
+# base_url = "http://ovms:8000/v3"
+# local = true
+# api_key_env = "OVMS_API_KEY"
+# extra_body = { chat_template_kwargs = { enable_thinking = false } } # Qwen otherwise thinks for thousands of tokens before a short answer.
+# [[provider]]
+# id = "deepseek"
+# name = "DeepSeek"
+# kind = "openai-compatible"
+# base_url = "https://api.deepseek.com"
+# api_key_env = "DEEPSEEK_API_KEY"
+# [[provider]]
+# id = "anthropic"
+# name = "Claude (Anthropic API)"
+# kind = "anthropic"
+# base_url = "https://api.anthropic.com"
+# api_key_env = "ANTHROPIC_API_KEY"
 
-[[provider]]
-id = "anthropic"
-name = "Claude (Anthropic API)"
-kind = "anthropic"
-base_url = "https://api.anthropic.com"
-api_key_env = "ANTHROPIC_API_KEY"
-
-# Starting roles; change them later in the app.
+# Starting roles; change them later in the app (Settings > Roles). One local model can fill all three.
 [roles]
-orchestrator = { provider = "deepseek", model = "deepseek-chat" }
-worker = { provider = "ovms", model = "qwen3.5-9b" }
-reviewer = { provider = "deepseek", model = "deepseek-chat" }
+orchestrator = { provider = "ollama", model = "qwen3.5:9b" }
+worker = { provider = "ollama", model = "qwen3.5:9b" }
+reviewer = { provider = "ollama", model = "qwen3.5:9b" }
 
-# M6 GPU ledger (GET /api/gpus). Sizes in MB; the model numbers are estimates until the
-# scheduler (M6-02) measures them. A model's peak = weights + KV cache per sequence x sequences.
-[[gpu]]
-id = "a770"
-machine = "kireserver"
-pci = "0000:10:00.0"
-vram_gb = 16
-[[gpu.holder]]
-name = "Coder"
-probe = "ovms:http://ovms:8000"
-weights_mb = 9300
-kv_mb_per_seq = 1200
-max_seqs = 2
-[[gpu.holder]]
-name = "Autocomplete"
-probe = "ovms:http://ovms:8000"
-weights_mb = 2000
-[[gpu.holder]]
-name = "Whisper"
-probe = "ovms:http://ovms:8000"
-weights_mb = 1700
-[[gpu.holder]]
-name = "ComfyUI"
-kind = "app"
-probe = "comfyui:http://comfyui:8188"
-[[gpu.holder]]
-name = "HeartMuLa"
-kind = "app"
-probe = "studio:http://heartmula:8190"
-weights_mb = 10000
-[[gpu.holder]]
-name = "MOSS sound effects"
-kind = "app"
-probe = "studio:http://moss-sfx:8191"
-weights_mb = 11500
+# The asset library's AI (tags, captions, search). Without this section it uses the worker role's model.
+# [assets]
+# chat_url = "http://ovms:8000/v3"
+# model = "Coder"
+# embed_url = "http://ovms-cpu:8000/v3"   # /embeddings and /rerank for search by meaning
+# embed_model = "Embedder"
+# rerank_model = "Reranker"
+# audio_model = "Whisper"                 # writes down voice lines in sound files
+# api_key_env = "OVMS_API_KEY"
 
-# Desktop and Jellyfin: shown, never scheduled.
-[[gpu]]
-id = "a580"
-machine = "kireserver"
-pci = "0000:0c:00.0"
-vram_gb = 8
-schedulable = false
+# Voice in the app (push-to-talk and replies read aloud). Off until a URL is set.
+# [voice]
+# stt_url = "http://ovms:8000/v3"         # speech to text (/audio/transcriptions, e.g. Whisper)
+# stt_model = "Whisper"
+# tts_url = "http://ovms-cpu:8000/v3"     # text to speech (/audio/speech, e.g. Kokoro)
+# tts_model = "Voice"
+# api_key_env = "OVMS_API_KEY"
 
-[[gpu]]
-id = "rx9070"
-machine = "soucouyant"
-pci = "*"
-vram_gb = 16
-[[gpu.holder]]
-name = "Ollama"
-probe = "ollama:http://192.168.178.80:11434"
-model = "*"
-[[gpu.holder]]
-name = "ComfyUI (soucouyant)"
-kind = "app"
-probe = "comfyui:http://192.168.178.80:8188"
+# GPU scheduling (optional): list your GPUs so Kompanion knows what each one holds and has free.
+# [[gpu]]
+# id = "gpu0"
+# machine = "my-server"
+# pci = "*"
+# vram_gb = 16
+# holders = [
+#   { name = "qwen3.5:9b", probe = "ollama:http://host.docker.internal:11434", model = "*" },
+# ]
 
-# Push to the Android app through UnifiedPush (an ntfy server, FOSS). Phones may only
-# register endpoints on these servers. Leave empty to switch push off.
+# Push to the Android app through UnifiedPush (an ntfy server, FOSS), optional. Phones may only register endpoints on these servers. Empty: push is off; the app can still notify through its own connection.
 [push]
 servers = []
