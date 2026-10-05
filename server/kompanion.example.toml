@@ -21,6 +21,8 @@ api_key_env = "OVMS_API_KEY"
 # Qwen otherwise "thinks" for thousands of tokens before a short answer.
 extra_body = { chat_template_kwargs = { enable_thinking = false } }
 
+# An Ollama on another PC works too. On kireserver Kompanion uses only OVMS (Kees,
+# 2026-10-05: soucouyant is for image and audio generation, not for Kompanion).
 [[provider]]
 id = "ollama-soucouyant"
 name = "Ollama on soucouyant"

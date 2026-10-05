@@ -44,5 +44,10 @@ Lessons for the orchestrator role. Numbered and dated, newest last.
   migration left in the main checkout would have shipped unreviewed. Draft each item in its own
   worktree (`git worktree add ../kreative-kompanion-<item> -b <item> origin/main`, symlink
   web/node_modules) and deploy only from the clean main checkout. kireserver has no Playwright
-  browser; browser tests run in CI on soucouyant, which builds main and pull requests only: open
+  browser; browser tests run in CI (kireserver's runner), which builds main and pull requests only: open
   the PR without a token with `git push origin HEAD:refs/for/main -o topic=<item>` (AGit).
+- (2026-10-05, Kees) All Kompanion work runs on kireserver; soucouyant is only for image and
+  audio generation. Drafts, roles, PR-Agent and CI use Coder on OVMS (A770) at all hours, never
+  soucouyant's Ollama (it supersedes "soucouyant outside 03:00–08:00"). Coder serves 2 sequences
+  at once: drafting uses one lane, PR-Agent one worker. Every PR push makes PR-Agent call the
+  model up to 8 times, so batch pushes instead of pushing each small fix.

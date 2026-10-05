@@ -1,22 +1,24 @@
-# Tests and builds on soucouyant (the faster PC), not on kireserver.
+# Tests and builds on kireserver's runner (Kees, 2026-10-05: all Kompanion work runs on
+# kireserver; soucouyant is only for image and audio generation). That runner takes one
+# job at a time on 4 cores, so the jobs below run one after another.
 name: build
 on:
   push:
     branches: [main]
   pull_request:
 
-# soucouyant also runs other repos' CI and ComfyUI (32 GB RAM): cap parallel compiles.
+# The kireserver runner is capped at 4 cores.
 env:
-  CARGO_BUILD_JOBS: "6"
+  CARGO_BUILD_JOBS: "4"
 
 jobs:
   server:
     # Same musl image as the Dockerfile, so C dependencies that break on musl fail here
     # (2026-10-04: sqlite-vec built on glibc in CI but not in the deploy).
-    # Cargo runs in a sibling container on soucouyant's Docker (jobs there get the host
-    # socket) so the registry and target dir live in named volumes between runs;
-    # before, every push recompiled every crate.
-    runs-on: soucouyant
+    # Cargo runs in a sibling container on the runner's own Docker daemon (dind) so the
+    # registry and target dir live in named volumes between runs; before, every push
+    # recompiled every crate.
+    runs-on: kireserver
     container:
       image: docker:cli
     env:
@@ -43,7 +45,7 @@ jobs:
           BUILD
 
   web:
-    runs-on: soucouyant
+    runs-on: kireserver
     container:
       image: node:22
     steps:
@@ -57,7 +59,7 @@ jobs:
 
   web-live:
     # Browser tests in demo mode: every page updates without a reload.
-    runs-on: soucouyant
+    runs-on: kireserver
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble
     steps:
@@ -70,7 +72,7 @@ jobs:
 
   runner:
     # Cached the same way as the server job.
-    runs-on: soucouyant
+    runs-on: kireserver
     container:
       image: docker:cli
     env:
@@ -96,6 +98,5 @@ jobs:
           ls -l /cache/target/release/kompanion-runner && sha256sum /cache/target/release/kompanion-runner
           BUILD
 
-# The container image is built where it is deployed (kireserver): job containers
-# on soucouyant have no Docker daemon, and giving them the host socket would
-# hand every job root on soucouyant.
+# The container image is built where it is deployed (tools/deploy.sh on kireserver),
+# not in CI: the runner's Docker daemon is its own dind, not the host's.
