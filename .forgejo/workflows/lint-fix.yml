@@ -25,7 +25,9 @@ jobs:
       DEFAULT_WORKSPACE: ${{ github.workspace }}
       EXTENDS: ${{ github.server_url }}/khyretos/kompas-ci/raw/branch/main/mega-linter.base.yml
       CONFIG_PROPERTIES_TO_APPEND: DISABLE_LINTERS
-      TOKEN: ${{ github.token }}
+      # PRs opened with the job token start no CI (Forgejo skips its own events): open them
+      # as the review bot (user secret LINT_PR_TOKEN), else fall back to the job token.
+      TOKEN: ${{ secrets.LINT_PR_TOKEN || github.token }}
       API: ${{ github.server_url }}/api/v1/repos/${{ github.repository }}
       BASE: ${{ github.ref_name }}
     steps:
