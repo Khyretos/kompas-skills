@@ -28,6 +28,7 @@ const projects: Project[] = [
 const chats: Chat[] = [
   { id: "c-kk", title: "Debug tooling and tests", projectId: "p-kk", updatedAt: ago(14) },
   { id: "c-kk-2", title: "Renderer performance", projectId: "p-kk", updatedAt: ago(60 * 5) },
+  { id: "c-kk-thread", title: "Project thread", projectId: "p-kk", updatedAt: ago(30), thread: true },
   { id: "c-kompanion", title: "First UI draft", projectId: "p-kompanion", updatedAt: ago(2) },
   { id: "c-3dco", title: "SDL3 port", projectId: "p-3dco", updatedAt: ago(60 * 26) },
   { id: "c-nohboard", title: "Wayland input capture", projectId: "p-nohboard", updatedAt: ago(60 * 24 * 4) },
@@ -394,6 +395,16 @@ export class MockApi implements KompanionApi {
     roles = roles.map((r) => (r.role === a.role ? a : r));
   }
 
+  async openThread(projectId: string) {
+    let c = chats.find((x) => x.projectId === projectId && x.thread);
+    if (!c) {
+      c = { id: id("c"), title: "Project thread", projectId, updatedAt: new Date().toISOString(), thread: true };
+      chats.unshift(c);
+      this.emit({ type: "changed", what: "chats" });
+    }
+    return c.id;
+  }
+
   async createChat(title: string, projectId?: string) {
     const chat: Chat = { id: id("c"), title, projectId, updatedAt: new Date().toISOString() };
     chats.unshift(chat);
@@ -515,7 +526,27 @@ export class MockApi implements KompanionApi {
       { at: new Date(now - 600_000).toISOString(), kind: "grant", text: "system", target: "system", detail: "always allow, 24 h", machineId: "soucouyant", machine: "soucouyant" },
     ];
   }
-  async startTask() {}
+  async startTask(taskId: string, machineId: string) {
+    const t = tasks.find((x) => x.id === taskId);
+    if (!t) return;
+    t.state = "running"; t.step = "planning";
+    this.emit({ type: "task", task: structuredClone(t) });
+    const thread = await this.openThread(t.projectId);
+    const pc = machines.find((m) => m.id === machineId)?.name ?? machineId;
+    const post = (ms: number, text: string, then?: () => void) => setTimeout(() => {
+      const m: Message = { id: id("m"), chatId: thread, author: "orchestrator", at: new Date().toISOString(), text };
+      messages.push(m);
+      this.emit({ type: "message", message: structuredClone(m) });
+      then?.();
+    }, ms);
+    post(300, `Started **${t.title}** on ${pc}.`);
+    post(900, `**${t.title}**, step 1/2 done: added the timer around the shader compile.`);
+    post(1500, `**${t.title}**, step 2/2 done: the times go to the console.`);
+    post(2100, `Done: **${t.title}** (done after 1 round(s)). [Open the task](#task=${t.id})`, () => {
+      t.state = "done"; t.step = "done after 1 round(s)"; t.progress = 1;
+      this.emit({ type: "task", task: structuredClone(t) });
+    });
+  }
   async taskCosts(taskId: string) {
     return taskId === "t-kk-1"
       ? { coder: { jobs: 6, output: 6446, prompt: 18801, gpu_seconds: 216.3, lines: 330 }, claude: { answers: 46, output: 38592, input: 92, cache_read: 33617601, cache_write: 735453 }, output_share_coder: 0.14 }

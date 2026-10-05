@@ -57,6 +57,9 @@ pub struct Chat {
     pub updated_at: String,
     #[sqlx(default)]
     pub pinned: bool,
+    /// The project's thread: task runs post their updates here.
+    #[sqlx(default)]
+    pub thread: bool,
 }
 
 #[derive(Debug, Clone, Serialize, sqlx::FromRow)]
@@ -106,7 +109,7 @@ pub async fn chats(
     Extension(u): Extension<User>,
 ) -> ApiResult<Json<Vec<Chat>>> {
     let rows = sqlx::query_as(
-        "SELECT id, title, project_id, updated_at, pinned FROM chats\n         WHERE user_id = ? AND archived = 0 ORDER BY pinned DESC, updated_at DESC",
+        "SELECT id, title, project_id, updated_at, pinned, thread FROM chats\n         WHERE user_id = ? AND archived = 0 ORDER BY pinned DESC, thread DESC, updated_at DESC",
     )
     .bind(&u.id)
     .fetch_all(&s.db)
@@ -141,6 +144,7 @@ pub async fn create_chat(
         project_id: b.project_id,
         updated_at: util::now(),
         pinned: false,
+        thread: false,
     };
     sqlx::query(
         "INSERT INTO chats (id, project_id, title, updated_at, user_id) VALUES (?, ?, ?, ?, ?)",

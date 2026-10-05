@@ -75,6 +75,7 @@ export function renderSidebar(s: AppState): SafeHtml {
           // Unfinished tasks first, then the rest, keeping their order.
           const shown = [...ts.filter((t) => t.state !== "done"), ...ts.filter((t) => t.state === "done")];
           const done = ts.length - shown.filter((t) => t.state !== "done").length;
+          const thread = s.chats.find((c) => c.projectId === p.id && c.thread);
           return html`
           <li class="project ${open ? "open" : ""}">
             <button class="project-head ${s.activeProjectId === p.id ? "active" : ""}" data-action="project" data-id="${p.id}"
@@ -86,7 +87,9 @@ export function renderSidebar(s: AppState): SafeHtml {
             </button>
             ${open ? html`
               <ul>
-                ${s.chats.filter((c) => c.projectId === p.id && !c.pinned).map((c) => chatRow(c))}
+                <li><button class="nav-item thread-row ${thread && s.activeChatId === thread.id ? "active" : ""}" data-action="open-thread" data-project="${p.id}"
+                  ${thread && s.activeChatId === thread.id ? html`aria-current="page"` : ""}>${icon("spark")}<span class="nav-title">Project thread</span></button></li>
+                ${s.chats.filter((c) => c.projectId === p.id && !c.pinned && !c.thread).map((c) => chatRow(c))}
                 ${shown.slice(0, s.allTasksShown.has(p.id) ? undefined : TASKS_SHOWN).map((t) => html`
                   <li class="task-line state-${t.state}">
                     <button class="nav-item ${s.openTaskId === t.id ? "active" : ""}" data-action="open-task" data-id="${t.id}" title="${t.title}">

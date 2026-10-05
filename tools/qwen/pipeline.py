@@ -146,7 +146,8 @@ PATCH_RULES = """Answer ONLY with edit blocks for the file, no whole file and no
 (the new lines that replace them)
 >>>>>>> REPLACE
 Use several blocks for several places. To add code, SEARCH for the lines next to where it goes
-and repeat them in REPLACE with the new code added. Never SEARCH for lines that are not in the file."""
+and repeat them in REPLACE with the new code added. Never SEARCH for lines that are not in the file,
+and never copy the `// ...` marker of an excerpt into a SEARCH."""
 
 BLOCK = re.compile(r"<<<<<<< SEARCH\n(.*?)\n?=======\n(.*?)\n?>>>>>>> REPLACE", re.S)
 

@@ -151,3 +151,8 @@ paths: ["web/**"]
 48. (2026-10-05) New state is drawn only when its key is in the redraw list of the pane that shows it
     (`rightKeys` in main.ts: tasks, access, activity, machines). A value shown on Activity but listed
     under Tasks appears only when it happens to load before the first render.
+49. (2026-10-05) Playwright actions: `await page.locator(sel, { hasText: "..." }).click()`. `page.click()`
+    takes no `hasText`, and `expect(...)` wraps only assertions (`toBeVisible`, `toContainText`), never
+    `.click()`. To move shared steps into `test.beforeEach`, edit the existing one: a `describe` has
+    one `beforeEach`, and a second copy runs the setup twice. Read the demo data (`api/mock.ts`)
+    before writing expected text, such as which computer a form picks by default.
