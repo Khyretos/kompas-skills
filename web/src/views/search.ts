@@ -19,18 +19,26 @@ export function openSearch(o: SearchOptions, opener?: HTMLElement | null): void 
 
   const container = document.createElement("div");
   container.className = "search-backdrop";
-  container.innerHTML = `
-    <div class="search-box" role="dialog" aria-modal="true" aria-label="Search">
-      <input id="search-input" type="search" placeholder="Search tasks, chats, projects, settings…" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="search-results" aria-autocomplete="list">
-      <ul id="search-results" role="listbox"></ul>
-      <p class="search-hint muted small">↑ ↓ to move · Enter to open · Esc to close</p>
-    </div>
-  `;
+  // Built with DOM calls: the app's Trusted Types policy blocks innerHTML.
+  const box = document.createElement("div");
+  box.className = "search-box";
+  box.setAttribute("role", "dialog");
+  box.setAttribute("aria-modal", "true");
+  box.setAttribute("aria-label", "Search");
+  const input = document.createElement("input");
+  Object.assign(input, { id: "search-input", type: "search", placeholder: "Search tasks, chats, projects, settings…", autocomplete: "off" });
+  for (const [k, v] of [["role", "combobox"], ["aria-expanded", "false"], ["aria-controls", "search-results"], ["aria-autocomplete", "list"]]) input.setAttribute(k, v);
+  const list = document.createElement("ul");
+  list.id = "search-results";
+  list.setAttribute("role", "listbox");
+  const hint = document.createElement("p");
+  hint.className = "search-hint muted small";
+  hint.textContent = "↑ ↓ to move · Enter to open · Esc to close";
+  box.append(input, list, hint);
+  container.append(box);
   document.body.appendChild(container);
 
   const m = modal(container, () => container.remove());
-  const input = container.querySelector("#search-input") as HTMLInputElement;
-  const list = container.querySelector("#search-results") as HTMLUListElement;
   let seq = 0;
   let activeIndex = -1;
 
