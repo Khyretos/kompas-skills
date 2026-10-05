@@ -1,0 +1,4 @@
+{"name": "desktop-install-linux", "out": "desktop/install-linux.sh", "gpu_seconds": 45.7, "tokens": 1195, "lines": 51, "model": "Coder", "at": "2026-10-05T11:13:39"}
+{"name": "desktop-install-linux-fix", "out": "desktop/install-linux.sh", "gpu_seconds": 40.3, "tokens": 1106, "lines": 48, "model": "Coder", "at": "2026-10-05T11:14:33"}
+{"name": "desktop-readme-install", "out": "desktop/README.md", "mode": "patch", "gpu_seconds": 9.5, "tokens": 219, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T11:15:49"}
+{"name": "desktop-readme-install", "out": "desktop/README.md", "mode": "patch", "gpu_seconds": 9.5, "tokens": 263, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T11:16:15"}
