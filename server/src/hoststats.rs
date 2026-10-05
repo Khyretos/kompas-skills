@@ -76,6 +76,8 @@ struct Remote {
     at_iso: String,
     /// The interval the runner was last told to use.
     interval: u32,
+    /// The runner's version from its last report (None for runners before 0.4.5).
+    version: Option<String>,
     history: History,
 }
 
@@ -165,11 +167,18 @@ fn uptime_text(secs: u64) -> String {
     if d > 0 { format!("{d} d {h} h") } else { format!("{h} h {m} min") }
 }
 
+/// The newest runner version this server ships (from the files in /dist), e.g. "0.4.5".
+fn latest_runner() -> Option<String> {
+    let p = crate::pairing::newest_runner(std::path::Path::new("/dist"))?;
+    let name = p.file_name()?.to_str()?;
+    Some(name.strip_prefix("kompanion-runner-")?.strip_suffix("-x86_64-linux-musl")?.to_string())
+}
+
 /// A snapshot in the shape the web app's Machines panel shows.
-fn view(id: &str, name: &str, s: &Snapshot, h: &History, online: bool, sampled_at: &str, labels: &HashMap<String, String>) -> Value {
+fn view(id: &str, name: &str, s: &Snapshot, h: &History, online: bool, sampled_at: &str, labels: &HashMap<String, String>, runner: Option<&str>) -> Value {
     let os = if s.os == "Linux" || s.os.is_empty() { "Linux".to_string() } else { s.os.clone() };
     json!({
-        "id": id, "name": name, "os": os, "online": online,
+        "id": id, "name": name, "os": os, "online": online, "runnerVersion": runner, "runnerLatest": latest_runner(),
         "cpu": s.cpu.or(h.cpu.back().copied()).unwrap_or(0.0),
         "cpuCount": s.cpu_count,
         "ramUsedGb": s.ram_used_gb, "ramTotalGb": s.ram_total_gb,
@@ -203,9 +212,14 @@ impl HostStats {
         }
         let name = state.config.machine_name.as_deref().unwrap_or("This server");
         match &l.snap {
-            Some(s) => view(SERVER_ID, name, s, &l.history, true, l.at_iso.as_deref().unwrap_or(""), &state.config.gpu_labels),
+            Some(s) => view(SERVER_ID, name, s, &l.history, true, l.at_iso.as_deref().unwrap_or(""), &state.config.gpu_labels, None),
             None => json!({ "id": SERVER_ID, "name": name, "online": true }),
         }
+    }
+
+    /// A paired computer's runner version from its last report.
+    pub fn runner_version(&self, machine_id: &str) -> Option<String> {
+        self.remote.lock().unwrap().get(machine_id).and_then(|r| r.version.clone())
     }
 
     /// Measured VRAM per GPU for the M6 ledger: (None for this server or the remote machine
@@ -245,7 +259,7 @@ impl HostStats {
                 Some(r) => {
                     let online = r.at.elapsed() < Duration::from_secs(3 * r.interval.max(1) as u64 + 5);
                     let labels = HashMap::new();
-                    out.push(view(&id, &name, &r.snap, &r.history, online, &r.at_iso, &labels));
+                    out.push(view(&id, &name, &r.snap, &r.history, online, &r.at_iso, &labels, r.version.as_deref()));
                 }
                 None => out.push(json!({ "id": id, "name": name, "os": "", "online": false, "cpu": 0.0,
                     "ramUsedGb": 0.0, "ramTotalGb": 0.0, "gpus": [], "kompanionShare": 0.0, "history": [] })),
@@ -426,7 +440,8 @@ pub async fn report(
         }
         let mut history = remote.remove(&id).map(|r| r.history).unwrap_or_default();
         history.push(&snap);
-        remote.insert(id.clone(), Remote { user_id, snap, at: Instant::now(), at_iso: util::now(), interval, history });
+        let version = headers.get("x-kompanion-runner").and_then(|v| v.to_str().ok()).map(|v| v.chars().take(20).collect());
+        remote.insert(id.clone(), Remote { user_id, snap, at: Instant::now(), at_iso: util::now(), interval, history, version });
     }
     sqlx::query("UPDATE machines SET last_seen = ? WHERE id = ?")
         .bind(util::now())

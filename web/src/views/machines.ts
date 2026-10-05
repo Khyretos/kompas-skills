@@ -41,7 +41,8 @@ function machine(m: MachineStats): SafeHtml {
     <li class="machine">
       <div class="machine-head">
         <span class="dot ok" aria-hidden="true"></span>
-        <strong>${m.name}</strong><span class="muted small">${m.os}</span>
+        <strong>${m.name}</strong><span class="muted small">${m.os}${m.id !== "server" ? ` · runner ${m.runnerVersion ?? "before 0.4.5"}` : ""}</span>
+        ${m.id !== "server" && m.runnerLatest && m.runnerVersion !== m.runnerLatest ? html`<span class="chip warn-chip" title="Pair a computer shows the one-line installer">update to ${m.runnerLatest}</span>` : ""}
         ${m.id !== "server" ? html`<button class="icon-btn" data-action="unpair" data-id="${m.id}" aria-label="Unpair ${m.name}">${icon("trash")}</button>` : ""}
         <span class="watts">${cpuKind ? `${pct(m.cpu)} CPU` : watts === undefined ? "" : `${watts} W`}</span>
       </div>

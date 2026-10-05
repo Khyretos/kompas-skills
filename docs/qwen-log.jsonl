@@ -164,3 +164,10 @@
 {"name": "mail-callers-windshift", "out": "server/src/windshift.rs", "mode": "patch", "gpu_seconds": 6.5, "tokens": 84, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T02:35:46"}
 {"name": "mail-notify", "out": "server/src/notify.rs", "mode": "patch", "gpu_seconds": 111.6, "tokens": 3349, "lines": 4, "attempts": 2, "model": "Coder", "at": "2026-10-05T02:37:32"}
 {"name": "mail-callers-windshift-2", "out": "server/src/windshift.rs", "mode": "patch", "gpu_seconds": 3.5, "tokens": 88, "lines": 1, "attempts": 1, "model": "qwen3.5:9b-q8_0", "at": "2026-10-05T02:37:49"}
+{"name": "ver-caps", "out": "server/src/capabilities.rs", "mode": "patch", "gpu_seconds": 3.9, "tokens": 123, "lines": 1, "attempts": 1, "model": "qwen3.5:9b-q8_0", "at": "2026-10-05T02:45:12"}
+{"name": "ver-web-types", "out": "web/src/api/types.ts", "mode": "patch", "gpu_seconds": 3.1, "tokens": 77, "lines": 1, "attempts": 1, "model": "qwen3.5:9b-q8_0", "at": "2026-10-05T02:45:15"}
+{"name": "ver-web-machines", "out": "web/src/views/machines.ts", "mode": "patch", "gpu_seconds": 4.0, "tokens": 136, "lines": 1, "attempts": 1, "model": "qwen3.5:9b-q8_0", "at": "2026-10-05T02:45:19"}
+{"name": "ver-hs-field", "out": "server/src/hoststats.rs", "mode": "patch", "gpu_seconds": 6.5, "tokens": 351, "lines": 2, "attempts": 1, "model": "qwen3.5:9b-q8_0", "at": "2026-10-05T02:48:18"}
+{"name": "ver-hs-view", "out": "server/src/hoststats.rs", "mode": "patch", "gpu_seconds": 7.4, "tokens": 403, "lines": 4, "attempts": 1, "model": "qwen3.5:9b-q8_0", "at": "2026-10-05T02:48:26"}
+{"name": "ver-hs-fns", "out": "server/src/hoststats.rs", "mode": "patch", "gpu_seconds": 9.2, "tokens": 510, "lines": 2, "attempts": 1, "model": "qwen3.5:9b-q8_0", "at": "2026-10-05T02:48:35"}
+{"name": "ver-caps-web", "out": "web/src/views/capabilities.ts", "mode": "patch", "gpu_seconds": 4.4, "tokens": 223, "lines": 2, "attempts": 1, "model": "qwen3.5:9b-q8_0", "at": "2026-10-05T02:49:02"}

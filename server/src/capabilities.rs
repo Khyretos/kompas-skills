@@ -104,6 +104,7 @@ pub async fn computers(s: &AppState, user_id: &str) -> ApiResult<Vec<Value>> {
             "name": name,
             "online": online,
             "lastSeen": last_seen.unwrap_or_default(),
+            "runnerVersion": s.host.runner_version(&id),
             "grants": grants
         }));
     }

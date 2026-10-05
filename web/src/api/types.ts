@@ -116,6 +116,9 @@ export interface MachineStats {
   id: string;
   name: string;
   os: string;
+  /** The paired computer's runner version (null before 0.4.5), and the newest the server ships. */
+  runnerVersion?: string | null;
+  runnerLatest?: string | null;
   online: boolean;
   cpu: number; // 0..1
   ramUsedGb: number;

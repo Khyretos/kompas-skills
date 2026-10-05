@@ -176,7 +176,7 @@ fn main() {
     loop {
         thread::sleep(Duration::from_secs(interval.max(1)));
         let snap = sampler.sample();
-        match agent.post(&url).set("Authorization", &format!("Bearer {token}")).send_json(&snap) {
+        match agent.post(&url).set("Authorization", &format!("Bearer {token}")).set("X-Kompanion-Runner", env!("CARGO_PKG_VERSION")).send_json(&snap) {
             Ok(resp) => {
                 backoff = 0;
                 if let Ok(v) = resp.into_json::<serde_json::Value>() {

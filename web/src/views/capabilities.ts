@@ -25,6 +25,7 @@ export interface CapComputer {
   name: string;
   online: boolean;
   lastSeen: string;
+  runnerVersion?: string | null;
   grants: CapGrant[];
 }
 
@@ -103,7 +104,7 @@ function computerCard(c: CapComputer): SafeHtml {
         <span class="task-step">${grantsText}</span>
         <span class="task-meta">
           ${icon("pc")} ${c.online ? "seen " : "last seen "}
-          ${c.lastSeen ? relTime(c.lastSeen) : "never"}
+          ${c.lastSeen ? relTime(c.lastSeen) : "never"} · runner ${c.runnerVersion ?? "before 0.4.5"}
         </span>
       </div>
     </li>
