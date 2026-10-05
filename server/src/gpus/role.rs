@@ -172,6 +172,13 @@ pub async fn switch(s: AppState, target: Target, by: String) -> Switch {
         state.last_at = Some(Instant::now());
         state.switching = None;
     }
+    // M6-04: the switch is on the GPU timeline, so the gap in Coder's VRAM is explained.
+    if let Some(gpu) = gpu_id() {
+        let detail = format!("{} → {}, {:.1} s{}{}", sw.from, sw.to, sw.seconds,
+            sw.coder_answer_s.map(|a| format!(", Coder answered in {a:.1} s")).unwrap_or_default(),
+            if sw.ok { String::new() } else { format!(" (failed: {})", sw.error.clone().unwrap_or_default()) });
+        super::timeline::event(&s, &gpu, "role", &detail).await;
+    }
     s.bus.send_all(Event::Changed { what: "gpus", machine_id: None });
     sw
 }

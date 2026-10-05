@@ -25,6 +25,9 @@ pub struct GpuLedger {
     pub free_mib: u64,
     pub schedulable: bool,
     pub holdings: Vec<Holding>,
+    /// Power draw now, when the machine reports it (M6-04 timeline).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub watts: Option<f64>,
 }
 
 /// Parse OVMS GET /v1/config answer.
@@ -154,6 +157,7 @@ pub fn ledger(
         free_mib,
         schedulable,
         holdings: sorted_holdings,
+        watts: None,
     }
 }
 
