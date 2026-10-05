@@ -430,6 +430,22 @@ export class MockApi implements KompanionApi {
     if (i >= 0) chats.splice(i, 1);
   }
 
+  /** Demo timeline: an hour of samples every 30 s, two jobs and a role switch on the A770. */
+  async gpuTimeline(hours: 1 | 24) {
+    const end = Date.now(), span = hours * 3600_000, step = hours === 1 ? 30_000 : 240_000;
+    const at = (ms: number) => new Date(end - ms).toISOString();
+    const samples = Array.from({ length: Math.floor(span / step) }, (_, k) => {
+      const t = span - k * step, busy = t < 1_200_000 && t > 600_000;
+      return { at: at(t), usedMib: busy ? 14800 : 12100, reservedMib: 15400, watts: busy ? 168 : 42 };
+    });
+    return [
+      { gpu: "a770", machine: "kireserver", hours, samples,
+        jobs: [{ id: "j1", kind: "code", what: "W2 run: initials()", state: "done", startedAt: at(1_200_000), endedAt: at(600_000), error: null },
+          { id: "j2", kind: "asset", what: "studio:comfyui:oc sheet", state: "running", startedAt: at(240_000), endedAt: null, error: null }],
+        events: [{ at: at(300_000), kind: "role", detail: "coder → artist (comfyui), 3.0 s" }] },
+      { gpu: "a580", machine: "kireserver", hours, samples: samples.map((s) => ({ ...s, usedMib: 900, reservedMib: 0, watts: 12 })), jobs: [], events: [] },
+    ];
+  }
   async getCapabilities() {
     return {
       gpus: [

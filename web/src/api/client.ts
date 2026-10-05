@@ -94,6 +94,8 @@ export interface KompanionApi {
   listActivity(): Promise<import("../views/activity").ActivityItem[]>;
   /** What Kompanion can use right now (W3): models, computers, tools, MCP servers, indexes, skills. */
   getCapabilities(): Promise<import("../views/capabilities").Capabilities>;
+  /** M6-04: per GPU, samples, jobs and events of the last 1 or 24 hours. */
+  gpuTimeline(hours: 1 | 24): Promise<import("../views/gputimeline").TlGpu[]>;
   /** One skill's SKILL.md, read-only. */
   getSkill(id: string): Promise<{ id: string; text: string }>;
   /** W4: whether the server offers voice, and its voices. */
