@@ -116,6 +116,7 @@ a job waits for the prompt. Jobs should get their own thread (W2).
 ### UI libraries and motion (decision, 2026-10-04)
 
 Kees's order: performance, then usability, then looks. The web app stays vanilla TypeScript.
+
 - No React-based kits (Kokonut UI; bklit ui if it is React/shadcn). manus.im is an AI product,
   not a library: ideas only.
 - Motion uses plain CSS transitions (expand/collapse, card enter) and respects
@@ -138,6 +139,7 @@ Kees's order: performance, then usability, then looks. The web app stays vanilla
 ### Snappy and live, never a refresh (standing UI rule, Kees 2026-10-03)
 
 The app must feel quick and reactive. Nothing may need a page reload.
+
 1. Every action that changes data (grant, revoke, rename, move chat, settings, task
    edits, pairing, ...) updates the screen at once. It is an optimistic update: on
    failure it rolls back and shows an error toast. Its button is disabled and shows
@@ -203,6 +205,7 @@ may live inside, or depend on, one model or provider.
     shared/         project facts, your preferences (FOSS only, budget...)
     _model-notes/   quirks per model family, kept apart so a swap only drops these
   ```
+
 - **The teacher teaches its own job too.** The reviewer's rubric and the way it
   writes lessons are skills under `reviewer/`, so when a local model takes over
   the teacher slot it inherits how the job is done, not just the results.
@@ -354,7 +357,7 @@ prompts and tool ideas, with attribution) or be archived.
      sign-in on/off), users list (make admin, disable), model providers and
      default roles, mail server, default theme. Secrets stay in env.
    - *Mail*: SMTP through your own mailserver (house rule: service mail as
-     info@kreative-kompas.com, or a descriptive kompanion@ alias with replies
+     <info@kreative-kompas.com>, or a descriptive kompanion@ alias with replies
      to info@). Per-user notification settings: off, digest, or immediately.
      The first events are "a task needs you" and "a task finished or failed";
      they fire for real once tasks run (milestone 3).
@@ -397,6 +400,7 @@ menu, expandable projects, the server's own machine in the Machines tab.
 Decision (Kees, 2026-10-03): Qwen3.5 9B on both GPUs for code, tools, PC
 control and vision; gemma4 only as kk-localize's translation judge (judge runs
 move to nights later).
+
 - orchestrator, reviewer, PC-control agent (F6), vision and test-driver → Coder on OVMS
 - worker and drafting → qwen3.5:9b-q8_0 on soucouyant (thinking off with `reasoning_effort: "none"`)
 - The drafting pipeline uses soucouyant when Ollama has qwen3.5 loaded or
@@ -405,6 +409,7 @@ move to nights later).
 ### Milestone 1.5 status (2026-10-03)
 
 Done:
+
 - [x] Admins (first account), admin settings in the database, app name.
 - [x] Mail: SMTP settings, password only from `SMTP_PASSWORD`, test mail, sender kompanion@ with replies to info@.
 - [x] Theming: brand colours with the WCAG AA check, served as `/api/theme.css`; logo upload (PNG/SVG, sandboxed); light/dark/system per user.
@@ -415,6 +420,7 @@ Done:
 - [x] Sign out, chat menu, expandable projects.
 
 Still open in 1.5:
+
 - [x] Admin rights from a Keycloak role (`[oidc] admin_role`, realm or client role), checked at every sign-in.
 - [x] Sign out of Keycloak too (OIDC end-session with the session's ID token).
 - [x] Tasks made in Kompanion inside a Windshift project are created in Windshift as well.

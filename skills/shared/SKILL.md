@@ -1,6 +1,7 @@
 # Shared
 
 Lessons for the shared role. Numbered and dated, newest last.
+
 ## 1. Theming: readability is checked by a script, not by eye (2026-10-03)
 
 Source: Kreative Kompas VS Code theme (repo kreative-kompas-vscode-theme, `scripts/check-contrast.mjs`).
@@ -142,6 +143,7 @@ The GPU OVMS on kireserver (Coder, Autocomplete, Whisper) segfaulted twice. The 
 request: the kernel logged `xe ... VM worker error: -12` one second before each segfault, because
 Coder's dynamic KV cache with 8 parallel sequences outgrew the 16 GB card. Coder now runs with
 max_num_seqs 2 (parallel calls queue). Lessons:
+
 - When OVMS dies, look in the kernel log for xe/i915 memory errors before blaming the last request.
 - VRAM planning must count KV-cache growth per parallel sequence, not only the weights.
 - Try unknown requests on a throwaway OVMS first: same image, the model folder mounted read-only,
