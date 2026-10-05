@@ -24,3 +24,8 @@ paths: ["android/**"]
 7. (2026-10-05) Check every APK with `apksigner verify --print-certs` and `aapt2 dump badging`
    (package, target SDK, permissions) before it goes to a phone.
 8. (2026-10-05) Never log push endpoints or cookies; they work like passwords.
+9. (2026-10-05) ntfy from F-Droid (1.25.2) does not answer UnifiedPush's default-distributor link,
+   so `tryUseCurrentOrDefaultDistributor` calls back `false` although ntfy is installed. Fall back
+   to `getDistributors(ctx)` (minus your own package), `saveDistributor`, then `register`.
+   Test push on a real phone: the server log shows the phone's API calls; `push_endpoints` shows
+   whether it registered.
