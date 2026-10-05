@@ -325,7 +325,7 @@ pub async fn guard(State(state): State<AppState>, mut req: Request, next: Next) 
     }
     let open = matches!(
         path.as_str(),
-        "/status" | "/theme.css" | "/logo" | "/setup" | "/login" | "/auth/oidc/start" | "/auth/oidc/callback" | "/pair"
+        "/status" | "/theme.css" | "/logo" | "/mail-logo.png" | "/setup" | "/login" | "/auth/oidc/start" | "/auth/oidc/callback" | "/pair"
     );
 
     if !matches!(*req.method(), Method::GET | Method::HEAD | Method::OPTIONS) {

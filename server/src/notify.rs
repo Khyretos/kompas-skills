@@ -131,7 +131,7 @@ async fn card_html(db: &SqlitePool, c: Card<'_>) -> anyhow::Result<String> {
 
 async fn send(db: &SqlitePool, to: &str, subject_tail: &str, body: &str, card: Option<Card<'_>>) -> anyhow::Result<()> {
     let st = crate::admin::load(db).await?;
-    anyhow::ensure!(!st.smtp_host.is_empty() && st.smtp_from.is_empty(), "mail is not set up");
+    anyhow::ensure!(!st.smtp_host.is_empty() && !st.smtp_from.is_empty(), "mail is not set up");
     let smtp = mail::SmtpSettings {
         host: st.smtp_host,
         port: st.smtp_port,
