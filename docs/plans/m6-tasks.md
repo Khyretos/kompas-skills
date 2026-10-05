@@ -37,7 +37,6 @@ Nothing in M6 is safe without it: two GPUs, many models, and one VRAM mistake fr
 **Depends on:** none
 
 **Steps**
-
 1. List the GPUs: A770 (kireserver, AI), A580 (kireserver, desktop and Jellyfin: protected, never scheduled), RX 9070 XT (soucouyant). Put them in kompanion.toml under [[gpu]] with id, machine, pci slot, vram_gb and `schedulable`.
 2. Per GPU, collect what holds VRAM: OVMS models (GET /v1/config: state per model, plus the per-container VRAM the gpu-helper already sums from fdinfo), ComfyUI (its /system_stats), HeartMuLa and MOSS (their containers), Ollama on soucouyant (GET /api/ps: size_vram per model).
 3. Add a `gpu_ledger` table (gpu_id, holder, kind model|app|job, vram_mb, since, job_id NULL) rebuilt from the probes every 10 s and on every scheduler change; keep the last 24 h of samples for the trace view (M6-04).
@@ -58,7 +57,6 @@ _M6 two-brain game studio, phase A. Planning only: not started._
 **Depends on:** M6-01
 
 **Steps**
-
 1. Model a job: kind (chat | code | asset), what it needs (model or app, VRAM estimate in MB from a per-workflow table, host RAM estimate), allowed GPUs, `tonight` flag, owner task.
 2. Queue per priority (chat > code > asset). A job starts only when its GPU has the VRAM free after reservations, counting every loaded model at its reserved peak (weights plus KV cache for its parallel sequences, M6-01), AND the host has enough MemAvailable (keep 5 GB spare: the 2026-10-04 freeze came from host RAM).
 3. Idle models unload: an OVMS or Ollama model nobody used for N minutes (setting, default 10) may be unloaded to make room for a waiting job, never while a request is running (OVMS: no request for 60 s, as gpu-mode.sh does).
@@ -71,23 +69,22 @@ _M6 two-brain game studio, phase A. Planning only: not started._
 
 _M6 two-brain game studio, phase A. Planning only: not started._
 
-### M6-03 Coder and artist roles: switching a PC safely
+### M6-03 Coder and artist roles: switching kireserver's A770 safely
 
-**Goal:** Each PC is either the coder (the LLM writes and tests game code) or the artist (ComfyUI, music, sound effects). The scheduler switches roles when one side's queue is empty, without killing running work.
+**Goal:** kireserver's A770 is either the coder (OVMS Coder writes and tests game code) or the artist (Coder unloaded, one studio app: ComfyUI, music or sound effects). The scheduler switches it when one side's queue is empty, without killing running work. soucouyant is only ever the artist (Kees, 2026-10-05: all Kompanion work runs on kireserver; soucouyant is for image and audio generation). Approved by Kees 2026-10-05 as automatic switching.
 
-**Machine / role:** kireserver (A770) and soucouyant (RX 9070 XT)
+**Machine / role:** kireserver (A770); soucouyant stays artist
 
 **Depends on:** M6-02
 
 **Steps**
-
 1. kireserver: wrap `Services/ai/gpu-share/gpu-mode.sh` (artist, studio <app>, coder, status) in a small privileged helper like kompanion-gpu-helper: its own system user, a unix socket with a fixed command list, no shell, no arguments beyond the app name. The server never gets Docker access.
-2. soucouyant: artist means Ollama has unloaded its model (`keep_alive: 0` on an empty request) and ComfyUI-ROCm has the GPU; coder means ComfyUI is idle and Ollama may load qwen3.5:9b again. Add runner tools `gpu_role` (status/artist/coder) with a grant `system: gpu`.
+2. soucouyant has no coder role: it stays the artist (ComfyUI-ROCm, music, sound effects) and Kompanion never loads an LLM there. Show it as "artist" in Machines.
 3. Rules from the gpu-studio skill: one studio app at a time on kireserver; `coder` refuses while a studio app is busy; after `coder`, check that Coder answers a real chat request, not only AVAILABLE; restart OVMS if its GPU context broke (CL_INVALID_EVENT in the log).
-4. Swap policy: when the artist queue is empty and code jobs wait, switch that PC to coder (and the other way); never switch during a job; at most one switch per PC per 5 minutes.
+4. Swap policy (kireserver only): when the artist queue is empty and code jobs wait, switch to coder (and the other way); never switch during a job; at most one switch per 5 minutes; respect the containers' 16 GB memory caps and one studio app at a time (2026-10-04 freeze). Undo: `gpu-mode.sh coder`.
 5. Show each PC's role and the last switch in Machines and Capabilities.
 
-**Done when:** With jobs queued on both sides, each PC switches role by itself when its queue empties, a switch never interrupts a running job (log shows none cancelled), and Coder answers within 60 s after every switch back.
+**Done when:** With jobs queued on both sides, kireserver switches role by itself when its queue empties, a switch never interrupts a running job (log shows none cancelled), and Coder answers within 60 s after every switch back.
 
 _M6 two-brain game studio, phase A. Planning only: not started._
 
@@ -100,7 +97,6 @@ _M6 two-brain game studio, phase A. Planning only: not started._
 **Depends on:** M6-01, M6-02
 
 **Steps**
-
 1. Store job start/end, GPU, peak VRAM and errors with the ledger samples (M6-01) and the power the machine stats already report.
 2. Web: a timeline per GPU (last 1 h / 24 h): job bars coloured by kind, a VRAM line, a watts line; a click on a bar opens the job and its task. Palette colours and the Tasks card style; works on a phone (scrolls horizontally).
 3. Live: new samples arrive over SSE; no refresh.
@@ -123,7 +119,6 @@ Saved ComfyUI graphs and audio jobs that the scheduler can run on either GPU.
 **Depends on:** M6-02
 
 **Steps**
-
 1. A folder `studio/workflows/<name>/` in the repo: `graph.json` (ComfyUI API format), `workflow.toml` (title, parameters with types and defaults mapped to node inputs, outputs, vram_mb and ram_mb measured with comfy-bench.sh, models with licence).
 2. A licence list: allowed (Apache-2.0, MIT, BSD, CC0, CC-BY with attribution recorded) and refused (OpenRAIL, non-commercial, unknown). The gpu-studio skill lists today's models: Z-Image Turbo, FLUX.2 klein 4B, HeartMuLa and MOSS are Apache-2.0; SD 1.5/SDXL/Illustrious checkpoints are not OSI and need Kees's yes; Stable Audio Open, AudioLDM2, TangoFlux, MMAudio and MusicGen are non-commercial and stay out.
 3. Run a workflow: fill parameters, POST /prompt to the chosen ComfyUI, follow progress over its websocket, collect outputs to /media/Generated (soucouyant: through comfy-out-mover), record provenance (workflow, parameters, seed, models, licences) per output.
@@ -143,7 +138,6 @@ _M6 two-brain game studio, phase B. Planning only: not started._
 **Depends on:** M6-05
 
 **Steps**
-
 1. Character sheet graph (Z-Image Turbo, 8 steps, VAEDecodeTiled): front, side, back and three poses on one sheet, fixed seed per character, style prompt shared by the game.
 2. Sprites graph: pose frames from the sheet (image-to-image with the sheet as reference), background removed (a FOSS matting model; check its licence), trimmed and packed into a sprite sheet PNG plus a JSON atlas (frame rects, pivot).
 3. Parameters: description, style, size (32-256 px), frame list (idle, run, jump), palette hint.
@@ -163,7 +157,6 @@ _M6 two-brain game studio, phase B. Planning only: not started._
 **Depends on:** M6-05, M6-06
 
 **Steps**
-
 1. Research and pick FOSS models (licence checked per model, Kees asked before anything that is not OSI): a frame interpolation model for 2D loops, an image-to-3D model that fits 16 GB VRAM.
 2. Loop graph: in-between frames for a sprite cycle, loop point checked (first and last frame match), exported as frames + atlas and a preview GIF/WebM.
 3. Image-to-3D graph: one character image to a textured .glb (scale, origin at the feet, under a triangle budget parameter); a preview render.
@@ -182,7 +175,6 @@ _M6 two-brain game studio, phase B. Planning only: not started._
 **Depends on:** M6-02, M6-05
 
 **Steps**
-
 1. Wrap HeartMuLa (POST /music) and MOSS (POST /sfx) as workflow kinds with parameters (tags, seconds; prompt, seconds) and measured VRAM/RAM (MOSS: about 11.2 GiB VRAM and 9 GB host RAM; one studio app at a time on kireserver).
 2. Post-process with ffmpeg: loudness normalise (EBU R128), trim silence, make music loop seamlessly (crossfade the ends), export OGG for the game and WAV for editing.
 3. The scheduler starts the right studio app (`studio heartmula` / `studio moss-sfx`) through the M6-03 helper and switches back when the queue empties.
@@ -201,7 +193,6 @@ _M6 two-brain game studio, phase B. Planning only: not started._
 **Depends on:** M6-05
 
 **Steps**
-
 1. Agree with the asset thread how /media/Generated becomes a library source (a pack per game or per batch, provenance stored next to it); do not change asset tables without them.
 2. Store provenance per output (workflow, parameters, seed, models with licences, which GPU, time) in a sidecar JSON the scan reads.
 3. Generated assets show a "generated" chip and their provenance in the asset detail; they can be attached to a game project (existing project_asset links).
@@ -223,7 +214,6 @@ Describe a game, see code and asset tasks side by side, approve assets, build an
 **Depends on:** none
 
 **Steps**
-
 1. Extend the game project type (project panel, core migration below 0100): repo folder and computer (as programming projects have), engine (kk-engine, or other), build command, headless test command (e.g. kk-engine's headless runner with a test scene), screenshot folder.
 2. Validate commands run under the project's grants only (no new rights); show the last build and test result on the panel.
 3. Playwright test for the settings; server test for validation.
@@ -241,7 +231,6 @@ _M6 two-brain game studio, phase C. Planning only: not started._
 **Depends on:** M6-10, M6-05
 
 **Steps**
-
 1. Planner prompt with the game's settings, the Capabilities summary (models, workflows, PCs) and the project's linked assets: output JSON with code tasks (W2 format: steps with done-when) and asset tasks (workflow + parameters, or "use library asset X").
 2. Prefer existing library assets (asset thread's needs and picks) before generating new ones.
 3. Show the plan for approval before anything runs; Kees can edit, drop or add tasks.
@@ -260,7 +249,6 @@ _M6 two-brain game studio, phase C. Planning only: not started._
 **Depends on:** M6-09, M6-11
 
 **Steps**
-
 1. Studio view in the game project: two columns (code, assets), Tasks card style, live progress over SSE, previews (image, sprite animation, audio player, .glb preview image).
 2. Approve: copy into the repo at the engine's asset path convention, `git add` and commit with provenance in the message (runner tools under the project's grants). Redo: same workflow with a note added to the prompt and a new seed. Reject: removed from the queue, kept in the library.
 3. Optimistic UI, rollback with an error; works on a phone.
@@ -274,12 +262,11 @@ _M6 two-brain game studio, phase C. Planning only: not started._
 
 **Goal:** Every code change is built and run headless; screenshots and the test result go to the reviewer, who can send it back for a fix (up to the W2 round limit).
 
-**Machine / role:** coder PC (W2 on soucouyant by default)
+**Machine / role:** kireserver (W2 runs there; Kees, 2026-10-05)
 
 **Depends on:** M6-10, M6-12
 
 **Steps**
-
 1. Use W2's check step with the game's build and headless test commands; collect screenshots from the screenshot folder.
 2. Reviewer gets the diff, the test output and the screenshots (vision: Coder handles images); findings go back as a fix round.
 3. Show screenshots in the task's chat and the Studio view.
@@ -297,7 +284,6 @@ _M6 two-brain game studio, phase C. Planning only: not started._
 **Depends on:** M6-03, M6-12, M6-13
 
 **Steps**
-
 1. Dispatcher: code tasks to the PC in coder role (W2), asset jobs to the artist PC (scheduler); dependencies from M6-11 respected.
 2. Role swap through M6-03 when a queue empties; nothing is cancelled.
 3. Studio view shows which PC works on what (link to the M6-04 timeline).
@@ -319,7 +305,6 @@ The end-to-end test of the whole milestone.
 **Depends on:** M6-01, M6-02, M6-03, M6-04, M6-05, M6-06, M6-08, M6-09, M6-10, M6-11, M6-12, M6-13, M6-14
 
 **Steps**
-
 1. Create a game project "Fox demo" (kk-engine, repo on soucouyant) with its build and headless test commands.
 2. Describe: "A small 2D platformer level with a fox character, jump sound and background music." Approve the plan.
 3. Let it run; approve or redo assets in the Studio view; watch the timeline.

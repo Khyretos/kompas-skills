@@ -67,18 +67,20 @@ task("M6-02", "A", "Scheduler core: jobs reserve VRAM, priorities, tonight batch
      "With a fake ledger the scheduler never overcommits a GPU in 1,000 random job sequences (property test), and on the real machines two ComfyUI jobs plus a chat in parallel never produce an out-of-memory or device-lost error.",
      )
 
-task("M6-03", "A", "Coder and artist roles: switching a PC safely",
-     "kireserver (A770) and soucouyant (RX 9070 XT)", ["M6-02"],
-     "Each PC is either the coder (the LLM writes and tests game code) or the artist (ComfyUI, music, sound effects). "
-     "The scheduler switches roles when one side's queue is empty, without killing running work.",
+task("M6-03", "A", "Coder and artist roles: switching kireserver's A770 safely",
+     "kireserver (A770); soucouyant stays artist", ["M6-02"],
+     "kireserver's A770 is either the coder (OVMS Coder writes and tests game code) or the artist (Coder unloaded, one studio app: ComfyUI, music or sound effects). "
+     "The scheduler switches it when one side's queue is empty, without killing running work. "
+     "soucouyant is only ever the artist (Kees, 2026-10-05: all Kompanion work runs on kireserver; soucouyant is for image and audio generation). "
+     "Approved by Kees 2026-10-05 as automatic switching.",
      [
          "kireserver: wrap `Services/ai/gpu-share/gpu-mode.sh` (artist, studio <app>, coder, status) in a small privileged helper like kompanion-gpu-helper: its own system user, a unix socket with a fixed command list, no shell, no arguments beyond the app name. The server never gets Docker access.",
-         "soucouyant: artist means Ollama has unloaded its model (`keep_alive: 0` on an empty request) and ComfyUI-ROCm has the GPU; coder means ComfyUI is idle and Ollama may load qwen3.5:9b again. Add runner tools `gpu_role` (status/artist/coder) with a grant `system: gpu`.",
+         "soucouyant has no coder role: it stays the artist (ComfyUI-ROCm, music, sound effects) and Kompanion never loads an LLM there. Show it as \"artist\" in Machines.",
          "Rules from the gpu-studio skill: one studio app at a time on kireserver; `coder` refuses while a studio app is busy; after `coder`, check that Coder answers a real chat request, not only AVAILABLE; restart OVMS if its GPU context broke (CL_INVALID_EVENT in the log).",
-         "Swap policy: when the artist queue is empty and code jobs wait, switch that PC to coder (and the other way); never switch during a job; at most one switch per PC per 5 minutes.",
+         "Swap policy (kireserver only): when the artist queue is empty and code jobs wait, switch to coder (and the other way); never switch during a job; at most one switch per 5 minutes; respect the containers' 16 GB memory caps and one studio app at a time (2026-10-04 freeze). Undo: `gpu-mode.sh coder`.",
          "Show each PC's role and the last switch in Machines and Capabilities.",
      ],
-     "With jobs queued on both sides, each PC switches role by itself when its queue empties, a switch never interrupts a running job (log shows none cancelled), and Coder answers within 60 s after every switch back.",
+     "With jobs queued on both sides, kireserver switches role by itself when its queue empties, a switch never interrupts a running job (log shows none cancelled), and Coder answers within 60 s after every switch back.",
      )
 
 task("M6-04", "A", "Trace timeline per machine: jobs, VRAM, watts",
@@ -192,7 +194,7 @@ task("M6-12", "C", "Studio view: asset cards, approve or redo, commit to the rep
      )
 
 task("M6-13", "C", "Headless build and test with screenshots, review loop",
-     "coder PC (W2 on soucouyant by default)", ["M6-10", "M6-12"],
+     "kireserver (W2 runs there; Kees, 2026-10-05)", ["M6-10", "M6-12"],
      "Every code change is built and run headless; screenshots and the test result go to the reviewer, who can send it back for a fix (up to the W2 round limit).",
      [
          "Use W2's check step with the game's build and headless test commands; collect screenshots from the screenshot folder.",
