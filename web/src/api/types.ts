@@ -67,6 +67,15 @@ export type TaskState =
   | "done"
   | "failed";
 
+/** A hit of the global search (Ctrl+K). The snippet marks the matched words with \u0002 … \u0003. */
+export interface SearchResult {
+  kind: "task" | "chat" | "message" | "project" | "setting";
+  id: string;
+  parent: string | null; // task: its project; message: its chat
+  title: string;
+  snippet: string;
+}
+
 export interface Task {
   id: string;
   projectId: string;

@@ -54,4 +54,12 @@ test.describe("Tasks in an open project", () => {
     await expect(page.locator(".project.open .task-line")).toHaveCount(6);
     expect(loads).toBe(0);
   });
+
+  test("a reply lists its tasks as buttons, not as markup", async ({ page }) => {
+    const taskRef = page.locator("#msg-list .task-ref").first();
+    await expect(taskRef).toBeVisible();
+    await expect(page.locator("#msg-list")).not.toContainText("<li>");
+    await taskRef.click();
+    await expect(page.locator("#right")).toContainText("Add a --vk-validation flag and setting");
+  });
 });

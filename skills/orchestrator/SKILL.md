@@ -40,3 +40,9 @@ Lessons for the orchestrator role. Numbered and dated, newest last.
   to pass. A worker that runs out of tool calls is not a failure: the check and review decide
   (it had made the tests pass, then re-checked until the cap). Demo task, 3 runs in a row: one
   step, 5 approvals, done in round 1, 36–39 s.
+- (2026-10-05) `tools/deploy.sh` builds the working tree, untracked files included: a drafted
+  migration left in the main checkout would have shipped unreviewed. Draft each item in its own
+  worktree (`git worktree add ../kreative-kompanion-<item> -b <item> origin/main`, symlink
+  web/node_modules) and deploy only from the clean main checkout. kireserver has no Playwright
+  browser; browser tests run in CI on soucouyant, which builds main and pull requests only: open
+  the PR without a token with `git push origin HEAD:refs/for/main -o topic=<item>` (AGit).

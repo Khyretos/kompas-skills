@@ -60,6 +60,7 @@ export function renderSidebar(s: AppState): SafeHtml {
       </div>
       <button class="icon-btn only-phone" data-action="pane" data-pane="main" aria-label="Close">${icon("close")}</button>
     </div>
+    <button class="search-field" data-action="search" aria-keyshortcuts="Control+K">${icon("search")}<span>Search</span><kbd>Ctrl K</kbd></button>
     <button class="btn new-chat" data-action="new-chat">${icon("plus")} New chat</button>
     <nav class="nav" aria-label="Projects and chats">
       ${pinned.length ? html`

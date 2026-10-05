@@ -5,7 +5,8 @@ import { initResize } from "./core/resize";
 import { modal, type Modal } from "./core/modal";
 import { MockApi } from "./api/mock";
 import type { KompanionApi, ServerEvent } from "./api/client";
-import type { AdminSettings, Project, Role, Server, TaskState, ThemeChoice } from "./api/types";
+import type { AdminSettings, Project, Role, Server, TaskState, ThemeChoice, SearchResult } from "./api/types";
+import { openSearch } from "./views/search";
 import { renderMarkdown } from "./core/markdown";
 import { onCodeAction } from "./core/codeblocks";
 import { activeProject, store, type AppState } from "./state";
@@ -134,6 +135,78 @@ async function start(server: Server): Promise<void> {
     store.set({ openTaskId: linked, rightTab: "tasks", pane: "right" });
     $(".shell").dispatchEvent(new CustomEvent("kk-expand", { detail: "right" }));
     history.replaceState(null, "", location.pathname + location.search);
+  }
+}
+
+/** Settings sections the global search finds by name (their headings in Settings). */
+const SETTINGS_SECTIONS = ["Appearance", "General", "Mail", "Logo", "Colours", "Notifications", "Connections", "Roles", "Voice", "Card colours", "Connected models"];
+
+/** Runs `f` on the next frames until it returns true (at most 40 frames): the item appears after a render or a load. */
+function whenShown(f: () => boolean, tries = 40): void {
+  if (!f() && tries > 0) requestAnimationFrame(() => whenShown(f, tries - 1));
+}
+
+function openSearchPalette(opener?: HTMLElement | null): void {
+  openSearch({ search: (q) => api.search(q), settings: SETTINGS_SECTIONS, go: (r) => void goTo(r) }, opener);
+}
+
+/** Opens a search hit: the exact task, chat, message, project or Settings section. */
+async function goTo(r: SearchResult): Promise<void> {
+  switch (r.kind) {
+    case "task":
+      store.set({ openTaskId: r.id, rightTab: "tasks", pane: "right", section: "chat" });
+      $(".shell").dispatchEvent(new CustomEvent("kk-expand", { detail: "right" }));
+      return;
+    case "chat":
+      await openChat(r.id);
+      return;
+    case "message": {
+      await openChat(r.parent ?? undefined);
+      whenShown(() => {
+        const el = document.getElementById(`msg-${r.id}`);
+        if (el) {
+          el.scrollIntoView({ block: "center" });
+          el.classList.add("search-hit");
+          setTimeout(() => el.classList.remove("search-hit"), 2500);
+          return true;
+        }
+        return false;
+      });
+      return;
+    }
+    case "project": {
+      const expanded = new Set(store.get().expandedProjects);
+      expanded.add(r.id);
+      store.set({ expandedProjects: expanded, activeProjectId: r.id, taskScope: "project", section: "chat", pane: "left" });
+      whenShown(() => {
+        const el = document.querySelector<HTMLElement>(`[data-action="project"][data-id="${CSS.escape(r.id)}"]`);
+        if (el) {
+          el.scrollIntoView({ block: "nearest" });
+          el.focus();
+          return true;
+        }
+        return false;
+      });
+      return;
+    }
+    case "setting": {
+      if (!store.get().settingsOpen) {
+        document.querySelector<HTMLElement>('[data-action="settings"]')?.click();
+      }
+      whenShown(() => {
+        const h = [...document.querySelectorAll<HTMLElement>("#settings h3")].find(
+          (x) => x.textContent.trim() === r.title
+        );
+        if (h) {
+          h.scrollIntoView({ block: "start" });
+          h.classList.add("search-hit");
+          setTimeout(() => h.classList.remove("search-hit"), 2500);
+          return true;
+        }
+        return false;
+      });
+      return;
+    }
   }
 }
 
@@ -655,6 +728,7 @@ function wire(shell: HTMLElement): void {
       if (c && confirm(`Delete "${c.title}" and its messages? This can't be undone.`)) removeChat(c.id);
       else store.set({ chatMenuId: undefined });
     },
+    search: (el) => openSearchPalette(el),
     // Opens the task detail from anywhere (sidebar, chat, task list): back to the chat
     // section, Tasks tab, and the right panel shown even when it was collapsed.
     "open-task": (el) => {
@@ -850,6 +924,13 @@ function wire(shell: HTMLElement): void {
     store.set({ roles: await api.listRoles() });
   });
 
+  // Ctrl+K (Cmd+K on a Mac) opens the global search from anywhere.
+  document.addEventListener("keydown", (ev) => {
+    if ((ev.ctrlKey || ev.metaKey) && !ev.altKey && ev.key.toLowerCase() === "k") {
+      ev.preventDefault();
+      openSearchPalette(document.activeElement as HTMLElement | null);
+    }
+  });
   document.addEventListener("keydown", (ev) => {
     if (ev.key !== "Escape") return;
     const s = store.get();
