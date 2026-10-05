@@ -156,3 +156,11 @@ Details: ~/Docker/docs/ai-capability/assets-previews-2026-10.md.
   (answer printed to stdout instead of the socket, `Instant < Duration` comparisons, panics on
   every error). Pure decision logic (role_policy.rs) came out right on the first try, only its
   tests borrowed temporaries. Give Coder the pure part; write small I/O glue yourself.
+- (2026-10-05, README refresh) Docs from a long spec: Coder followed a 6-part structure, 15
+  image/caption pairs and three "keep word for word" sections exactly, but dropped one sentence
+  that was asked for in passing inside a longer item ("Keep the banner sentence that follows
+  now"). Put every must-keep sentence in its own numbered item and quote it in full, and diff
+  the kept sections against the old file. A follow-up patch job fixed it on the first try.
+- (2026-10-05) Markdown answers come back without a wrapping fence. `pipeline.py` used to take
+  the first fence inside the README (a ```sh block) as the start of the answer and cut 70 lines;
+  `strip()` now keeps an unwrapped `.md` answer whole. Check the line count of every docs draft.

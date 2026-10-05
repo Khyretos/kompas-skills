@@ -64,11 +64,16 @@ def ask(system, user, max_tokens):
         raise RuntimeError(f"answer cut off at the context limit ({v.get('usage', {})})")
     return choice["message"]["content"], time.time() - t, v.get("usage", {}).get("completion_tokens", 0)
 
-def strip(text):
+def strip(text, out=""):
     """The code from an answer: from the first opening fence to the LAST closing
     one (code can contain fences itself, e.g. a ```toml example in a doc
-    comment); an answer without fences is taken as it is."""
+    comment); an answer without fences is taken as it is.
+    Markdown files contain fences of their own: an .md answer counts as wrapped
+    only when it starts with a fence (2026-10-05: an unwrapped README draft lost
+    everything above its first ```sh block)."""
     text = text.strip()
+    if out.endswith(".md") and not text.startswith("```"):
+        return text + "\n"
     m = re.search(r"^```[a-zA-Z0-9_+-]*[ \t]*\n", text, re.M)
     if not m:
         return text + "\n"
@@ -166,19 +171,19 @@ def run_job(job, log):
       if (len(system) + len(job["prompt"]) + 2 * len(draft)) / 4 > 13000 or not job.get("review", True):
           out = os.path.join(REPO, job["out"])
           os.makedirs(os.path.dirname(out), exist_ok=True)
-          open(out, "w").write(drop_path_line(strip(draft), job["out"]))
+          open(out, "w").write(drop_path_line(strip(draft, job["out"]), job["out"]))
           rec = {"name": job["name"], "out": job["out"], "gpu_seconds": round(s1, 1), "tokens": t1,
-                 "lines": strip(draft).count("\n"), "review": "skipped", "model": getattr(LANE, "model", ""), "at": time.strftime("%Y-%m-%dT%H:%M:%S")}
+                 "lines": strip(draft, job["out"]).count("\n"), "review": "skipped", "model": getattr(LANE, "model", ""), "at": time.strftime("%Y-%m-%dT%H:%M:%S")}
           log.write(json.dumps(rec) + "\n"); log.flush(); print(json.dumps(rec), flush=True)
           return
       review_prompt = ("Review the code below against every rule above and the task. Fix every problem you find. "
-                       "Output ONLY the corrected complete file, nothing else.\n\nTask:\n" + job["prompt"] + "\n\nCode:\n" + strip(draft))
+                       "Output ONLY the corrected complete file, nothing else.\n\nTask:\n" + job["prompt"] + "\n\nCode:\n" + strip(draft, job["out"]))
       final, s2, t2 = ask(system, review_prompt, job.get("max_tokens", 4000))
       out = os.path.join(REPO, job["out"])
       os.makedirs(os.path.dirname(out), exist_ok=True)
-      open(out, "w").write(drop_path_line(strip(final), job["out"]))
+      open(out, "w").write(drop_path_line(strip(final, job["out"]), job["out"]))
       rec = {"name": job["name"], "out": job["out"], "gpu_seconds": round(s1 + s2, 1), "tokens": t1 + t2,
-             "lines": strip(final).count("\n"), "model": getattr(LANE, "model", ""), "at": time.strftime("%Y-%m-%dT%H:%M:%S")}
+             "lines": strip(final, job["out"]).count("\n"), "model": getattr(LANE, "model", ""), "at": time.strftime("%Y-%m-%dT%H:%M:%S")}
       log.write(json.dumps(rec) + "\n"); log.flush()
       print(json.dumps(rec), flush=True)
     except RuntimeError as e:
