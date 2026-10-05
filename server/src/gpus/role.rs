@@ -43,7 +43,9 @@ static STATE: LazyLock<Mutex<RoleState>> = LazyLock::new(|| Mutex::new(RoleState
 fn gpu_id() -> Option<String> { std::env::var("GPU_ROLE_GPU").ok().filter(|g| !g.is_empty()) }
 
 async fn helper(cmd: &str, timeout: Duration) -> Result<(bool, String)> {
-    let mut stream = tokio::net::UnixStream::connect(SOCKET)
+    // GPU_ROLE_SOCKET: the host path, for `kompanion-server gpu-role` outside the container.
+    let path = std::env::var("GPU_ROLE_SOCKET").unwrap_or_else(|_| SOCKET.to_string());
+    let mut stream = tokio::net::UnixStream::connect(&path)
         .await
         .context("kompanion-gpu-role is not running")?;
     
