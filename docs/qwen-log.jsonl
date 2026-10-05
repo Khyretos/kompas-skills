@@ -245,6 +245,7 @@
 {"name": "role-chip", "out": "web/src/views/capabilities.ts", "mode": "patch", "gpu_seconds": 55.3, "tokens": 1464, "lines": 3, "attempts": 1, "model": "Coder", "at": "2026-10-05T08:18:02"}
 {"name": "contrast-test", "out": "web/tests/contrast.spec.ts", "gpu_seconds": 266.1, "tokens": 6343, "lines": 279, "model": "Coder", "at": "2026-10-05T07:48:25"}
 {"name": "chat-report-per-run", "out": "server/src/runs.rs", "mode": "patch", "gpu_seconds": 89.4, "tokens": 1833, "lines": 3, "attempts": 1, "model": "Coder", "at": "2026-10-05T07:55:04"}
+{"name": "pwa-sw", "out": "web/pwa/sw.js", "gpu_seconds": 37.6, "tokens": 995, "lines": 47, "model": "Coder", "at": "2026-10-05T08:55:24"}
 {"name": "gpu-timeline-api", "out": "server/src/gpus/timeline.rs", "gpu_seconds": 132.2, "tokens": 3535, "lines": 172, "model": "Coder", "at": "2026-10-05T08:33:36"}
 {"name": "gpu-timeline-view", "out": "web/src/views/gputimeline.ts", "gpu_seconds": 165.4, "tokens": 4495, "lines": 213, "model": "Coder", "at": "2026-10-05T08:38:41"}
 {"name": "gpu-timeline-view-2", "out": "web/src/views/gputimeline.ts", "gpu_seconds": 133.1, "tokens": 3636, "lines": 114, "model": "Coder", "at": "2026-10-05T08:59:45"}

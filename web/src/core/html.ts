@@ -40,7 +40,17 @@ export function html(strings: TemplateStringsArray, ...values: Value[]): SafeHtm
 // construction, so this policy is the one place that vouches for them.
 type TTPolicy = { createHTML(s: string): unknown };
 const tt = (globalThis as { trustedTypes?: { createPolicy(n: string, r: { createHTML(s: string): string }): TTPolicy } }).trustedTypes;
-const policy: TTPolicy | undefined = tt?.createPolicy("app", { createHTML: (s) => s });
+const policy: TTPolicy | undefined = tt?.createPolicy("app", {
+  createHTML: (s) => s,
+  // The one script URL the app loads itself: its service worker (Apps 2).
+  createScriptURL: (s: string) => { if (s !== "sw.js") throw new Error(`script URL not allowed: ${s}`); return s; },
+} as { createHTML(s: string): string });
+
+/** The service worker's URL as a TrustedScriptURL where Trusted Types are on. */
+export function swUrl(): string {
+  const p = policy as unknown as { createScriptURL?(s: string): string } | undefined;
+  return p?.createScriptURL ? p.createScriptURL("sw.js") : "sw.js";
+}
 
 /** Replace an element's content with a template. */
 export function mount(el: Element, content: SafeHtml): void {
