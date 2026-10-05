@@ -103,8 +103,7 @@ pub async fn timeline(State(s): State<AppState>, Query(r): Query<Range>) -> ApiR
     Ok(Json(out))
 }
 
-// Called by the M6-03 role switch (gpus/role.rs) once that is merged.
-#[allow(dead_code)]
+/// Records something that explains the timeline (a role switch, an OVMS restart).
 pub async fn event(s: &AppState, gpu: &str, kind: &str, detail: &str) {
     let _ = sqlx::query(
         "INSERT INTO gpu_event (gpu_id, at, kind, detail) VALUES (?, ?, ?, ?)"

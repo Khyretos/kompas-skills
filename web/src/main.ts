@@ -8,6 +8,7 @@ import type { KompanionApi, ServerEvent } from "./api/client";
 import type { AdminSettings, Project, Role, Server, TaskState, ThemeChoice, SearchResult } from "./api/types";
 import { openSearch } from "./views/search";
 import { renderMarkdown } from "./core/markdown";
+import * as deskNotify from "./core/desknotify";
 import { onCodeAction } from "./core/codeblocks";
 import { activeProject, store, type AppState } from "./state";
 import { showConnect } from "./views/connect";
@@ -211,6 +212,12 @@ async function goTo(r: SearchResult): Promise<void> {
   }
 }
 
+/** Opens a task's detail from outside the task list (a notification click). */
+function openTaskById(id: string): void {
+  store.set({ openTaskId: id, rightTab: "tasks", pane: "right", section: "chat" });
+  $(".shell").dispatchEvent(new CustomEvent("kk-expand", { detail: "right" }));
+}
+
 async function openChat(chatId?: string): Promise<void> {
   const messages = chatId ? await api.listMessages(chatId) : [];
   store.set({ activeChatId: chatId, messages, openTaskId: undefined, pane: "main", section: "chat" });
@@ -372,6 +379,8 @@ function applyEvent(ev: ServerEvent): void {
   const s = store.get();
   if (ev.type === "task") {
     const exists = s.tasks.some((t) => t.id === ev.task.id);
+    // Apps 1: a desktop notification when one of my tasks needs me, failed or is done.
+    deskNotify.onTaskUpdate(s.tasks.find((t) => t.id === ev.task.id), ev.task, openTaskById);
     store.set({ tasks: exists ? s.tasks.map((t) => (t.id === ev.task.id ? ev.task : t)) : [ev.task, ...s.tasks] });
     // Attach new tasks to the message that created them.
     if (!exists) {
@@ -885,6 +894,14 @@ function wire(shell: HTMLElement): void {
   });
   shell.addEventListener("change", async (ev) => {
     const fid = (ev.target as HTMLElement).id;
+    if (fid === "desk-notify") {
+      const box = ev.target as HTMLInputElement;
+      const r = await deskNotify.enable(box.checked);
+      box.checked = r === "on";
+      const msg = document.getElementById("desk-notify-msg");
+      if (msg) msg.textContent = r === "on" ? "On for this device." : r === "off" ? "Off for this device." : "Notifications are blocked: allow them for this site in the browser's settings.";
+      return;
+    }
     const runField = (ev.target as HTMLElement).closest("form.task-run") as HTMLFormElement | null;
     if (runField && ["machine", "folder"].includes((ev.target as HTMLInputElement).name)) {
       const id = runField.dataset.id ?? "";

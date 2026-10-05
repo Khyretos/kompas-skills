@@ -55,9 +55,12 @@ export interface CapSkill {
 
 export interface CapHolding { name: string; kind: string; nowMib: number; peakMib: number; busy: boolean }
 export interface CapGpu { id: string; machine: string; totalMib: number; usedMib: number | null; reservedMib: number; otherMib: number; freeMib: number; schedulable: boolean; holdings: CapHolding[] }
+export interface CapSwitch { from: string; to: string; by: string; startedAt: string; seconds: number; ok: boolean; coderAnswerS: number | null; error: string | null }
+export interface CapRole { gpu: string | null; mode: string; app: string | null; switching: string | null; last: CapSwitch | null }
 
 export interface Capabilities {
   gpus?: CapGpu[];
+  gpuRole?: CapRole | null;
   models: CapModel[];
   computers: CapComputer[];
   tools: CapTool[];
@@ -176,14 +179,17 @@ function skillCard(s: CapSkill): SafeHtml {
 const gb = (mib: number) => `${(mib / 1024).toFixed(1)} GB`;
 
 /** M6-01: what each GPU holds (at its peak: weights plus KV cache), what else uses it, what is free. */
-function gpuCard(g: CapGpu): SafeHtml {
+function gpuCard(g: CapGpu, role?: CapRole | null): SafeHtml {
+  const r = role && role.gpu === g.id ? role : null;
+  const roleText = r ? (r.switching ? `switching to ${r.switching}…` : r.mode === "artist" && r.app ? `artist (${r.app})` : r.mode) : "";
+  const last = r?.last ? `last switch ${r.last.startedAt.slice(11, 16)}: ${r.last.from} → ${r.last.to}, ${Math.round(r.last.seconds)} s${r.last.coderAnswerS !== null ? `, Coder answered in ${Math.round(r.last.coderAnswerS)} s` : ""}${r.last.ok ? "" : ` (failed: ${r.last.error ?? "unknown"})`}` : "";
   const state = !g.schedulable ? "queued" : g.freeMib < 1024 ? "needs_input" : "done";
   const label = !g.schedulable ? "protected" : `${gb(g.freeMib)} free`;
   const pct = (mib: number) => `${Math.min(100, Math.round((mib / Math.max(1, g.totalMib)) * 100))}%`;
   return html`
     <li class="task cap s-${state}">
       <div class="task-main">
-        <span class="task-top"><span class="chip state">${label}</span><span class="muted small">${g.machine}</span></span>
+        <span class="task-top"><span class="chip state">${label}</span><span class="muted small">${g.machine}</span>${r ? html`<span class="chip role" title="Coder (OVMS) or one studio app; switches by itself (M6-03)">${roleText}</span>` : ""}</span>
         <span class="task-title">${g.id} · ${gb(g.totalMib)}</span>
         <span class="vram-bar" role="img" aria-label="${`${gb(g.reservedMib)} reserved, ${gb(g.otherMib)} other, ${gb(g.freeMib)} free`}">
           <span class="vb-res" style="width:${pct(g.reservedMib)}"></span><span class="vb-other" style="width:${pct(g.otherMib)}"></span>
@@ -192,6 +198,7 @@ function gpuCard(g: CapGpu): SafeHtml {
           ? g.holdings.map((h) => `${h.name} ${gb(Math.max(h.nowMib, h.peakMib))}${h.busy ? " (busy)" : ""}`).join(" · ")
           : "Nothing loaded"}</span>
         <span class="task-meta">${icon("spark")} reserved ${gb(g.reservedMib)} · other ${gb(g.otherMib)}${g.usedMib === null ? "" : ` · measured ${gb(g.usedMib)}`}</span>
+        ${last ? html`<span class="task-meta">${last}</span>` : ""}
       </div>
     </li>`;
 }
@@ -235,7 +242,7 @@ export function renderCapabilities(c: Capabilities | undefined, timeline?: TlGpu
           <p class="muted">What Kompanion can use right now. Updates live.</p>
         </div>
       </header>
-      ${group("gpus", "GPUs", (c.gpus ?? []).map((g) => gpuCard(g)), "No GPUs configured (kompanion.toml [[gpu]]).")}
+      ${group("gpus", "GPUs", (c.gpus ?? []).map((g) => gpuCard(g, c.gpuRole)), "No GPUs configured (kompanion.toml [[gpu]]).")}
       ${(c.gpus ?? []).length ? renderTimeline(timeline, range, Object.fromEntries((c.gpus ?? []).map((g) => [g.id, g.totalMib]))) : ""}
       ${group("models", "Models", models, "No model providers are configured.")}
       ${group("computers", "Computers", computers, "No computer is paired yet.")}

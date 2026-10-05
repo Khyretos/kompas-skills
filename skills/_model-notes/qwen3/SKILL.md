@@ -152,3 +152,7 @@ Details: ~/Docker/docs/ai-capability/assets-previews-2026-10.md.
   walkthrough correctly. Use it as a check, not as the only gate.
 - Plain JS asked for, TypeScript written: a `.mjs` draft came back with type annotations twice.
   Say "plain JavaScript, no type annotations" and run `node --check` on every draft.
+- (2026-10-05, M6-03) Rust with std only (a unix-socket helper): two drafts that did not compile
+  (answer printed to stdout instead of the socket, `Instant < Duration` comparisons, panics on
+  every error). Pure decision logic (role_policy.rs) came out right on the first try, only its
+  tests borrowed temporaries. Give Coder the pure part; write small I/O glue yourself.

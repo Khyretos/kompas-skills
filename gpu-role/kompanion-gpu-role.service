@@ -1,0 +1,17 @@
+# kompanion-gpu-role: switches kireserver's A770 between coder and artist (M6-03).
+# A systemd USER service of khyretos: that account already owns the OVMS model config
+# and runs Docker, so the helper adds no new power; the socket takes only a fixed list
+# of commands (see src/main.rs). Install: ./install-user.sh
+[Unit]
+Description=Kompanion GPU role helper (A770 coder/artist switch, fixed commands)
+After=default.target
+
+[Service]
+ExecStart=%h/.local/bin/kompanion-gpu-role %h/.local/run/kompanion-gpu-role/role.sock
+Restart=on-failure
+RestartSec=5
+UMask=0007
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=default.target

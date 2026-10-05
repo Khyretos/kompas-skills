@@ -96,6 +96,15 @@ async fn main() -> anyhow::Result<()> {
         )
         .init();
 
+    // `kompanion-server gpu-role <coder|comfyui|heartmula|moss-sfx>`: one A770 switch through
+    // kompanion-gpu-role, printed with its timings (M6-03 live test; no config or database needed, so it runs before both load).
+    if std::env::args().nth(1).as_deref() == Some("gpu-role") {
+        let target = std::env::args().nth(2).and_then(|t| gpus::role::target_of(&t))
+            .context("usage: kompanion-server gpu-role <coder|comfyui|heartmula|moss-sfx>")?;
+        let sw = gpus::role::perform(&reqwest::Client::new(), &target, "cli".into(), "cli".into()).await;
+        println!("{}", serde_json::to_string_pretty(&sw)?);
+        return Ok(());
+    }
     let config = config::Config::load()?;
     // sqlite-vec (asset "similar" search) for every connection the pool opens.
     assets::register_sqlite_extensions();
@@ -229,6 +238,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/machines/{id}/folder", post(folders::api))
         .route("/gpus", get(gpus::list))
         .route("/gpus/jobs", get(gpus::jobs::list))
+        .route("/gpus/role", get(gpus::role::get).post(gpus::role::set))
         .route("/gpus/timeline", get(gpus::timeline::timeline))
         .route("/capabilities", get(capabilities::list))
         .route("/capabilities/skill", get(capabilities::skill))
