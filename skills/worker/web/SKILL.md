@@ -131,3 +131,13 @@
     `details.open = true` in `page.evaluate` before the screenshot.
 41. (2026-10-05) The demo needs `/?demo` plus a click on `button.found-server`; the dev server
     takes `PORT=<n>` (default 5173, often taken by another session).
+42. (2026-10-04) Never mutate store items in place, even when it looks harmless: replace the
+    object (`items.map((x) => x.id === id ? { ...x, done: true } : x)`), or keyed updates miss it.
+43. (2026-10-04) Union-typed fields in helper return types: use `Pick<Type, "a" | "b">`, not `string`.
+44. (2026-10-04) CSS that looks fine in review but is wrong on screen: a conic-gradient checkerboard
+    needs hard stops, `box-shadow: inset 0 0 0 0` is invisible, an icon button needs `fill`.
+45. (2026-10-03) DOM: insert the wrapper before the node, then move the node in; `appendChild(pre)`
+    followed by `replaceChild(..., pre)` throws.
+46. (2026-10-04) Boolean attributes in `html` templates: `${x ? "selected" : ""}`, never `${String(x)}`.
+    Use only icon names that exist in `views/icons.ts`. One small function per template branch.
+47. (2026-10-05) "Plain JavaScript" means no type annotations; run `node --check` on every `.mjs`.

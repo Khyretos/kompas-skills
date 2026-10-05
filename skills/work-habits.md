@@ -3,6 +3,7 @@
 * Look before you change: read the target, check it ends with a newline, know how to undo (backup, git, the old value).
 * Check inputs first: arguments, tools and free RAM before a slow step, so a typo fails in a second, not after a build.
 * Smallest change that does the job; one file, one change, one check at a time.
+* Comments say why, never repeat the instructions or step list you were given.
 * After every draft, check it yourself: line count against what you expected, syntax check (`sh -n`, `node --check`, `cargo check`, `tsc`), then the real test.
 * Proof is evidence you looked at: the command's output, the test result, the screenshot opened and read. "The process is running" or "it said OK" is not proof.
 * When something fails, read the whole error and find the cause before you retry. Never send the same attempt twice.

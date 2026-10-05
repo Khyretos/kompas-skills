@@ -100,3 +100,11 @@
     thousand; above that, newest first (`ORDER BY rowid DESC`).
 43. (2026-10-05) Anything a mail links to (logo, images) must be a public route (add it to the
     auth guard's open list) and a PNG/JPEG: Gmail and Outlook show no SVG and send no cookie.
+44. (2026-10-03) Annotate tuple rows: `let rows: Vec<(String, String)> = sqlx::query_as(...)`, and
+    read them as `row.0`, never `row.field`.
+45. (2026-10-03) Process and pipe plumbing: never box an `Option` as `Box<dyn Read>`, keep the result
+    of `take()`, keep every parameter of the signature you were given (`cwd`).
+46. (2026-10-05) `Instant` and `Duration` don't compare: use `start.elapsed() < limit`. Socket helpers
+    write answers to the socket, not stdout, and return errors instead of panicking.
+47. (2026-10-04) Binary formats (WAV and similar): take the byte offsets from the spec in the prompt
+    and test against a real file, not only a fixture you wrote with the same offsets.

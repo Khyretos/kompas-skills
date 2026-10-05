@@ -67,7 +67,3 @@ Lessons for the orchestrator role. Numbered and dated, newest last.
   shared docs/qwen-log.jsonl conflicted on almost every merge. Never `git add -A` a folder in a
   worktree: it committed the worktree's web/node_modules symlink into main (#29). Run tools
   from the main checkout's node_modules instead of symlinking.
-- (2026-10-05) When you build a job prompt in a shell heredoc, quote the delimiter (`<<'EOF'`)
-  and pass paths through the environment. An unquoted heredoc runs every backtick in the
-  prompt as a command: a README patch prompt lost all its `code` spans before Coder saw it, and
-  Coder faithfully wrote the gaps into the file.

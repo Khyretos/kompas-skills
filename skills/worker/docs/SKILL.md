@@ -13,3 +13,5 @@
 6. (2026-10-05) Output the whole file only, with no prose before or after it.
 7. (2026-10-05) "Keep X" inside a longer instruction is still an instruction: before you
    answer, list every sentence you were told to keep and check each one is in your output.
+8. (2026-10-05) Mermaid: one edge syntax per diagram (`-->`, `-- text -->`), quote every label
+   with `/` or `()`, and render it before posting.
