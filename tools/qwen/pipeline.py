@@ -14,8 +14,11 @@ Writes the final code to each job's "out" and one log line per job
 import json, os, re, sys, time, urllib.request
 
 OVMS = os.environ.get("OVMS_URL", "http://172.16.1.25:8000/v3/chat/completions")  # direct: the proxy cuts long answers at 60 s
-OVMS_MODEL = "Coder"  # Qwen3.5-9B int8 on the A770, same family
-NOTES = "qwen3"  # skills/_model-notes/<NOTES>
+OVMS_MODEL = os.environ.get("OVMS_MODEL", "Coder")  # served name; today Qwen3.5-9B int8 on the A770
+# Only quirks of one model family live in skills/_model-notes/<NOTES>; every general rule is in
+# the role skills and work-habits.md, so a bigger model loaded later (MODEL_NOTES=gemma4, ...)
+# reads the same lessons (Kees, 2026-10-05).
+NOTES = os.environ.get("MODEL_NOTES", "qwen3")
 
 import threading
 LANE = threading.local()  # .model: the model the last call used
@@ -36,13 +39,29 @@ def ovms_url():
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-def skills(role):
+def card(rel):
+    """A skill card without its front matter (the header is for the loader, not the model)."""
+    text = open(rel).read()
+    if text.startswith("---\n"):
+        end = text.find("\n---\n", 4)
+        if end != -1:
+            text = text[end + 5:]
+    return text.strip()
+
+def skills(role, extra=()):
+    """work-habits + the role's core + the cards the job names (job["skills"], e.g.
+    ["shared/colour-themes"]) + this model's quirks. Until the smart loader exists,
+    the orchestrator picks the cards per job."""
     parts = []
     # Only the role's lessons and the model's notes, to keep prompts small.
-    for rel in [f"skills/{role}/SKILL.md", f"skills/_model-notes/{NOTES}/SKILL.md"]:
+    # work-habits.md: how the reviewer works, for every role (also in ai-skills/_shared).
+    rels = ["skills/work-habits.md", f"skills/{role}/SKILL.md"] + [f"skills/{c}.md" for c in extra] + [f"skills/_model-notes/{NOTES}/SKILL.md"]
+    for rel in rels:
         p = os.path.join(REPO, rel)
         if os.path.exists(p):
-            parts.append(open(p).read())
+            parts.append(card(p))
+        elif rel.startswith("skills/") and rel[7:-3] in extra:
+            raise RuntimeError(f"unknown skill card {rel}")
     return "\n\n".join(parts)
 
 def ask(system, user, max_tokens):
@@ -124,7 +143,7 @@ def patch_job(job, log):
     a block that doesn't apply goes back to the model once with the error."""
     out = os.path.join(REPO, job["out"])
     text = open(out).read()
-    system = "You edit code in this repository with exact, compiling changes. Follow these rules strictly:\n\n" + skills(job["role"])
+    system = "You edit code in this repository with exact, compiling changes. Follow these rules strictly:\n\n" + skills(job["role"], job.get("skills", ()))
     ctx = "".join(f"\n--- {c} ---\n{open(os.path.join(REPO, c)).read()}" for c in job.get("context", []) if c != job["out"])
     shown = text
     if job.get("focus"):
@@ -162,7 +181,7 @@ def run_job(job, log):
       if job.get("mode") == "patch":
           patch_job(job, log)
           return
-      rules = skills(job["role"])
+      rules = skills(job["role"], job.get("skills", ()))
       ctx = "".join(f"\n--- {c} ---\n{open(os.path.join(REPO, c)).read()}" for c in job.get("context", []))
       system = "You write exact, compiling code for this repository. Follow these rules strictly:\n\n" + rules
       draft, s1, t1 = ask(system, job["prompt"] + ("\n\nRelevant files:" + ctx if ctx else ""), job.get("max_tokens", 4000))
