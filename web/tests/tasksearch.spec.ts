@@ -20,6 +20,17 @@ test.describe("Task search", () => {
     await expect(page.locator("#right .tasks .task-title")).toHaveCount(7);
   });
 
+  test("the clear button empties the search and keeps the focus there", async ({ page }) => {
+    const filter = page.locator("#task-filter");
+    await filter.pressSequentially("shdr");
+    await expect(page.locator(".search-clear")).toBeVisible();
+    await page.locator(".search-clear").click();
+    await expect(filter).toHaveValue("");
+    await expect(filter).toBeFocused();
+    await expect(page.locator(".search-clear")).toHaveCount(0);
+    await expect(page.locator("#right .tasks .task-title")).toHaveCount(7);
+  });
+
   test("a group closes, keeps its count, and stays closed after a reload", async ({ page }) => {
     const group = page.locator('#right details.group[data-group="Up next"]');
     await expect(group).toHaveAttribute("open", "");

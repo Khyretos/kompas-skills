@@ -239,7 +239,21 @@ input[type="url"]:focus, select:focus, textarea:focus { outline: none; border-co
   padding: 0.55rem 0.7rem; color: var(--fg); font: inherit;
 }
 .task-editor textarea { font-family: var(--mono); font-size: 0.85rem; resize: vertical; }
-.project-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding: 0.5rem 0.75rem; }
+.project-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; padding: 0.6rem 0.75rem; }
+.project-bar .btn { flex: none; }
+/* A search field with a leading icon and a clear (×) button; looks like the panel's selects. */
+.search-input { position: relative; flex: 1 1 10rem; min-width: 0; display: flex; align-items: center; }
+.search-input > svg { position: absolute; left: 0.6rem; width: 16px; height: 16px; color: var(--muted); pointer-events: none; }
+.search-input input {
+  width: 100%; min-width: 0; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 0.4rem 2rem 0.4rem 2rem; color: var(--fg); font-size: 0.85rem; line-height: 1.4;
+}
+.search-input input::placeholder { color: var(--muted); }
+.search-input input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.search-input input::-webkit-search-cancel-button { display: none; }
+.search-clear { position: absolute; right: 0.2rem; width: 1.6rem; height: 1.6rem; display: grid; place-items: center; color: var(--muted); }
+.search-clear:hover { color: var(--fg); }
+.search-clear svg { width: 14px; height: 14px; }
 /* Project settings at the top of a project's Tasks tab: type, repo (programming), assets (game). */
 .project-panel { display: grid; gap: 0.6rem; padding: 0.6rem 0.75rem 0.75rem; border-bottom: 1px solid var(--line); }
 .project-type { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; }
