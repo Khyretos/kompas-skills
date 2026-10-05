@@ -171,13 +171,23 @@ async fn store(s: &AppState, ledgers: &[GpuLedger]) {
     let _ = sqlx::query("DELETE FROM gpu_event WHERE at < ?").bind(util::minutes_ago(24 * 60)).execute(&s.db).await;
 }
 
+/// The GPU area's API routes (TEN-02: main.rs merges them only when the area is on).
+pub fn routes() -> axum::Router<AppState> {
+    use axum::routing::get;
+    axum::Router::new()
+        .route("/gpus", get(list))
+        .route("/gpus/jobs", get(jobs::list))
+        .route("/gpus/role", get(role::get).post(role::set))
+        .route("/gpus/timeline", get(timeline::timeline))
+}
+
 /// Every 10 s (and at once when a GPU job is queued or ends): probe, keep a sample, run a
 /// scheduling round, and tell open apps when something changed.
 pub fn spawn(s: AppState) {
     if s.config.gpus.is_empty() {
         return;
     }
-    tokio::spawn(async move {
+    crate::util::supervise("gpus", move || { let s = s.clone(); async move {
         let mut tick = tokio::time::interval(SAMPLE_EVERY);
         loop {
             let sampled = tokio::select! {
@@ -202,7 +212,7 @@ pub fn spawn(s: AppState) {
                 s.bus.send_all(Event::Changed { what: "gpus", machine_id: None });
             }
         }
-    });
+    } });
 }
 
 fn same(a: &[GpuLedger], b: &[GpuLedger]) -> bool {

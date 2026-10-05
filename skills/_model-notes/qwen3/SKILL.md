@@ -42,3 +42,4 @@ Full history with evidence: `docs/model-notes/qwen3-history-2026-10.md`.
   not, and the same bug comes back after a review names it once. Pure logic, markup and CSS are good.
 - Places a "first line" next to related lines instead of first; say exactly which existing line it
   goes before.
+- Asked to remove lines, it may comment them out instead; say "delete them entirely".

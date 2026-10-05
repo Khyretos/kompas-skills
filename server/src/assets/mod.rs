@@ -75,7 +75,7 @@ pub fn spawn(state: AppState) {
     preview::spawn(state.db.clone(), state.bus.clone(), root.clone(), preview::dir(&state.config.database));
     // Off until an admin turns it on in the Assets header.
     ai::spawn(state.db.clone(), state.bus.clone(), ai::Ai::from_env(crate::llm::http_client()), preview::dir(&state.config.database));
-    tokio::spawn(async move {
+    crate::util::supervise("asset-games", move || { let state = state.clone(); let root = root.clone(); async move {
         tokio::time::sleep(Duration::from_secs(60)).await;
         loop {
             match games::discover(&state.db).await {
@@ -94,7 +94,7 @@ pub fn spawn(state: AppState) {
             }
             tokio::time::sleep(Duration::from_secs(3600)).await;
         }
-    });
+    } });
 }
 
 /// "Used in" from the game repos' scenes, after the library changed.

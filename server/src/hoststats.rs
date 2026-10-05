@@ -290,7 +290,7 @@ impl HostStats {
 
     /// Every second, while anyone watches live: sample and push to them.
     pub fn spawn_live(state: AppState) {
-        tokio::spawn(async move {
+        crate::util::supervise("machine-stats", move || { let state = state.clone(); async move {
             let mut tick = tokio::time::interval(MIN_INTERVAL);
             loop {
                 tick.tick().await;
@@ -305,7 +305,7 @@ impl HostStats {
                     }
                 }
             }
-        });
+        } });
     }
 }
 

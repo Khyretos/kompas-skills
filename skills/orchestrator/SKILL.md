@@ -71,3 +71,6 @@ Lessons for the orchestrator role. Numbered and dated, newest last.
   (KOMPANION_CONFIG, else the repo root, else the main checkout for worktrees). When you change
   the pipeline itself, run its jobs with `KOMPANION_CONFIG=<main checkout>/kompanion.toml` so a
   half-finished change cannot stop the job that finishes it.
+- (2026-10-05) Mechanical code changes (wrap a call, rename, renumber, move a line) are cheaper and
+  safer as a small script than as a model draft: `tools/refactor/supervise_sites.py` wraps a
+  `tokio::spawn` body by matching braces. Give models the logic; give scripts the shapes.

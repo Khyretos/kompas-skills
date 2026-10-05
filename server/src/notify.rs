@@ -213,7 +213,7 @@ pub fn task_changed(db: SqlitePool, user_id: String, task_id: String, title: Str
 
 /// Daily summary at or after 08:00 UTC, once per day per user.
 pub fn spawn_daily(db: SqlitePool) {
-    tokio::spawn(async move {
+    crate::util::supervise("daily-summary", move || { let db = db.clone(); async move {
         loop {
             tokio::time::sleep(Duration::from_secs(900)).await;
             let now = util::now();
@@ -260,7 +260,7 @@ pub fn spawn_daily(db: SqlitePool) {
                     .await;
             }
         }
-    });
+    } });
 }
 
 /// `kompanion-server test-mail <address>`: a sample "needs you" mail through the configured

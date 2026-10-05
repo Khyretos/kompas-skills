@@ -300,7 +300,9 @@ export class MockApi implements KompanionApi {
     return { url: clean, name: new URL(clean).hostname, version: "0.1.0" };
   }
   async status() {
-    return { name: "Kreative Kompanion (demo)", version: "0.1.0", setupNeeded: false, user: "Kees", admin: true, theme: "system" as const };
+    const off = (globalThis as { __kkDemoFeatures?: Partial<import("./types").Features> }).__kkDemoFeatures ?? {};
+    return { name: "Kreative Kompanion (demo)", version: "0.1.0", setupNeeded: false, user: "Kees", admin: true, theme: "system" as const,
+      features: { assets: true, gpus: true, voice: true, windshift: true, ...off } };
   }
   async setup() {}
   async logout() { return null; }
