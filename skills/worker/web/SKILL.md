@@ -37,7 +37,7 @@
 16. `null` is not `undefined`. A field typed `string | null` needs a truthiness check (`!!a.result`)
     or `?? ""`, never `!== undefined`; otherwise a string function gets `null` and the whole
     render throws, so nothing shows.
-17. `html``…`` drops `false`: `aria-pressed="${x === y}"` renders `aria-pressed=""` when false.
+17. `html``…`` drops`false`:`aria-pressed="${x === y}"` renders `aria-pressed=""` when false.
     Write `aria-pressed="${String(x === y)}"` for every true/false attribute (Assets chips, 2026-10-04).
 18. A CSS file pulled in with `@import` comes before every rule of the file that imports it. With
     equal specificity the later `.pane { display: flex }` beat `.assets-pane { display: none }`, so

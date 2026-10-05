@@ -17,6 +17,7 @@ Benchmarked 2026-10-03 against qwen3:14b, qwen3.5:9b, gpt-oss:20b and qwen3.6:35
   first assumed `&[&str]` were file paths. Say "each element is file content" and give the parsing line.
 
 As translation judge (kk-localize, 2026-10-03), replacing qwen3:14b:
+
 - Calibrate before switching judges: on the same 40 strings it scored German 0.23 lower and Japanese 0.17 higher than qwen3:14b (82% and 55% exact agreement), so every language was re-judged with it rather than mixing judges.
 - Stricter than qwen3:14b on German style and grammar, with fair reasons ("Beweis" is too literal for "proof"; a German sentence without a main verb); milder on short Japanese captions.
 - About 0.4-0.55 s per score through the OpenAI endpoint with `reasoning_effort: "none"`.
