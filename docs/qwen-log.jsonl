@@ -231,3 +231,4 @@
 {"name": "search-wire", "out": "web/src/main.ts", "mode": "patch", "gpu_seconds": 45.9, "tokens": 1082, "lines": 4, "attempts": 1, "model": "Coder", "at": "2026-10-05T05:21:28"}
 {"name": "search-e2e", "out": "web/tests/globalsearch.spec.ts", "gpu_seconds": 58.6, "tokens": 1319, "lines": 64, "model": "Coder", "at": "2026-10-05T05:23:11"}
 {"name": "search-css", "out": "web/src/search.css", "gpu_seconds": 100.3, "tokens": 2457, "lines": 193, "model": "Coder", "at": "2026-10-05T05:23:53"}
+{"name": "taskref-test", "out": "web/tests/projects.spec.ts", "mode": "patch", "gpu_seconds": 24.3, "tokens": 605, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T05:30:59"}

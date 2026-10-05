@@ -151,7 +151,7 @@ export function renderMessage({ m, tasks, steps, machines }: MessageView): SafeH
           <li><button class="task-ref" data-action="open-task" data-id="${t.id}">
             <span class="state-dot s-${t.state}" aria-hidden="true"></span>${t.title}
             <span class="muted">${stateLabel(t.state)}</span>
-          </button></li>`).join("")}</ul>` : ""}
+          </button></li>`)}</ul>` : ""}
     </article>`;
 }
 
