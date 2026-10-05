@@ -9,6 +9,7 @@ mod contrast;
 mod error;
 mod events;
 mod folders;
+mod forge;
 mod gpus;
 mod live;
 mod pairing;
@@ -253,6 +254,7 @@ async fn main() -> anyhow::Result<()> {
         )
         .route("/me/notifications", get(notify::get_prefs).put(notify::put_prefs))
         .route("/push/register", post(push::register).delete(push::unregister))
+        .route("/forge/webhook", post(forge::webhook).layer(axum::extract::DefaultBodyLimit::max(1024 * 1024)))
         .route("/me/prefs", axum::routing::put(admin::set_prefs))
         .route("/events", get(api::events))
         .merge(if state.config.features.assets { assets::routes() } else { Router::new() })

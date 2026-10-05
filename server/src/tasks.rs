@@ -87,7 +87,7 @@ async fn one(db: &SqlitePool, id: &str, user_id: &str) -> ApiResult<Row> {
         .ok_or(ApiError::NotFound)
 }
 
-async fn history(db: &SqlitePool, task_id: &str, user_id: &str, kind: &str, detail: Value) -> sqlx::Result<()> {
+pub(crate) async fn history(db: &SqlitePool, task_id: &str, user_id: &str, kind: &str, detail: Value) -> sqlx::Result<()> {
     sqlx::query("INSERT INTO task_events (task_id, user_id, at, kind, detail) VALUES (?, ?, ?, ?, ?)")
         .bind(task_id)
         .bind(user_id)
@@ -100,7 +100,7 @@ async fn history(db: &SqlitePool, task_id: &str, user_id: &str, kind: &str, deta
 }
 
 /// Marks a task of a Windshift project as changed here, for the sync adapter.
-async fn mark_dirty(db: &SqlitePool, task_id: &str) -> sqlx::Result<()> {
+pub(crate) async fn mark_dirty(db: &SqlitePool, task_id: &str) -> sqlx::Result<()> {
     sqlx::query(
         "UPDATE tasks SET sync_dirty = 1 WHERE id = ?
            AND project_id IN (SELECT id FROM projects WHERE kind = 'windshift')",

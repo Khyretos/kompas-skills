@@ -1313,6 +1313,7 @@ dependencies = [
  "base64 0.22.1",
  "flate2",
  "futures",
+ "hmac",
  "lettre",
  "libsqlite3-sys",
  "machine-stats",
