@@ -245,6 +245,11 @@ pub async fn step(s: &AppState, ledgers: &[GpuLedger]) {
     }
 }
 
+/// The role state for Capabilities (None while switching is off).
+pub fn current() -> Option<RoleState> {
+    gpu_id().map(|_| STATE.lock().unwrap().clone())
+}
+
 pub async fn get(State(_s): State<AppState>) -> Json<RoleState> {
     Json(STATE.lock().unwrap().clone())
 }
