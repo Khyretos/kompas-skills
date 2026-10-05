@@ -201,9 +201,15 @@ export interface ServerStatus {
   windshift?: "connected" | "not configured";
   windshiftWarning?: string | null;
   logoVersion?: string | null; // set when an admin uploaded a logo
+  /** Areas switched on in the server's [features]; absent on older servers (all on). */
+  features?: Features;
   /** How people can sign in; absent on older servers (password only). */
   signIn?: { password: boolean; oidc: string | null };
 }
+
+/** The server's [features] switches (TEN-02). */
+export interface Features { assets: boolean; gpus: boolean; voice: boolean; windshift: boolean }
+export const ALL_FEATURES: Features = { assets: true, gpus: true, voice: true, windshift: true };
 
 export type ThemeChoice = "system" | "light" | "dark";
 

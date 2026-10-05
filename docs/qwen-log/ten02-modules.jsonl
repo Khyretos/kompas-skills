@@ -6,3 +6,10 @@
 {"name": "ten02-example-features", "out": "server/kompanion.example.toml", "mode": "patch", "gpu_seconds": 8.2, "tokens": 231, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T15:35:51"}
 {"name": "ten02-main-fix", "out": "server/src/main.rs", "mode": "patch", "gpu_seconds": 15.4, "tokens": 458, "lines": 2, "attempts": 1, "model": "Coder", "at": "2026-10-05T15:36:47"}
 {"name": "ten02-api-404", "out": "server/src/main.rs", "mode": "patch", "gpu_seconds": 5.8, "tokens": 155, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T15:37:53"}
+{"name": "ten02-web-types", "out": "web/src/api/types.ts", "mode": "patch", "gpu_seconds": 9.9, "tokens": 255, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T15:41:36"}
+{"name": "ten02-web-state", "out": "web/src/state.ts", "mode": "patch", "gpu_seconds": 6.0, "tokens": 172, "lines": 2, "attempts": 1, "model": "Coder", "at": "2026-10-05T15:41:42"}
+{"name": "ten02-web-main", "out": "web/src/main.ts", "mode": "patch", "gpu_seconds": 16.1, "tokens": 474, "lines": 3, "attempts": 1, "model": "Coder", "at": "2026-10-05T15:41:58"}
+{"name": "ten02-web-sidebar", "out": "web/src/views/sidebar.ts", "mode": "patch", "gpu_seconds": 5.2, "tokens": 146, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T15:42:03"}
+{"name": "ten02-web-caps", "out": "web/src/views/capabilities.ts", "mode": "patch", "gpu_seconds": 9.3, "tokens": 275, "lines": 2, "attempts": 1, "model": "Coder", "at": "2026-10-05T15:42:13"}
+{"name": "ten02-web-mock", "out": "web/src/api/mock.ts", "mode": "patch", "gpu_seconds": 6.2, "tokens": 175, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T15:42:19"}
+{"name": "ten02-web-test", "out": "web/tests/features.spec.ts", "gpu_seconds": 13.0, "tokens": 361, "lines": 26, "review": "skipped", "model": "Coder", "at": "2026-10-05T15:42:32"}

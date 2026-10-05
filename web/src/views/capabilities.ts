@@ -212,7 +212,7 @@ function group(key: string, title: string, items: SafeHtml[], empty: string): Sa
   `;
 }
 
-export function renderCapabilities(c: Capabilities | undefined, timeline?: TlGpu[], range: 1 | 24 = 1): SafeHtml {
+export function renderCapabilities(c: Capabilities | undefined, timeline?: TlGpu[], range: 1 | 24 = 1, gpus = true): SafeHtml {
   if (c === undefined) {
     return html`
       <div class="caps">
@@ -242,8 +242,8 @@ export function renderCapabilities(c: Capabilities | undefined, timeline?: TlGpu
           <p class="muted">What Kompanion can use right now. Updates live.</p>
         </div>
       </header>
-      ${group("gpus", "GPUs", (c.gpus ?? []).map((g) => gpuCard(g, c.gpuRole)), "No GPUs configured (kompanion.toml [[gpu]]).")}
-      ${(c.gpus ?? []).length ? renderTimeline(timeline, range, Object.fromEntries((c.gpus ?? []).map((g) => [g.id, g.totalMib]))) : ""}
+      ${gpus ? group("gpus", "GPUs", (c.gpus ?? []).map((g) => gpuCard(g, c.gpuRole)), "No GPUs configured (kompanion.toml [[gpu]]).") : ""}
+      ${gpus && (c.gpus ?? []).length ? renderTimeline(timeline, range, Object.fromEntries((c.gpus ?? []).map((g) => [g.id, g.totalMib]))) : ""}
       ${group("models", "Models", models, "No model providers are configured.")}
       ${group("computers", "Computers", computers, "No computer is paired yet.")}
       ${group("tools", "Tools", tools, "No tools found.")}

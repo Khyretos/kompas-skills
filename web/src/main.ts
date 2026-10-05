@@ -24,6 +24,7 @@ import { HttpAssets, type AssetsApi } from "./api/assets";
 import { MockAssets } from "./api/assets-mock";
 import { renderActivity } from "./views/activity";
 import { renderCapabilities } from "./views/capabilities";
+import { ALL_FEATURES } from "./api/types";
 import { Reader, Recorder, saveVoicePrefs, type VoicePrefs } from "./core/voice";
 
 let settingsModal: Modal | undefined;
@@ -128,7 +129,7 @@ async function start(server: Server): Promise<void> {
   store.set({
     server: { ...server, name: status.name || server.name }, projects, chats, tasks, providers, roles, machines, today,
     userName: status.user ?? undefined, isAdmin: !!status.admin, theme: status.theme ?? "system",
-    machinesRefresh: status.machinesRefresh ?? 5, gpuPins: status.gpuPins ?? [], cardStyle: status.cardStyle ?? {}, windshift: status.windshift, windshiftWarning: status.windshiftWarning, logoVersion: status.logoVersion,
+    machinesRefresh: status.machinesRefresh ?? 5, gpuPins: status.gpuPins ?? [], cardStyle: status.cardStyle ?? {}, windshift: status.windshift, windshiftWarning: status.windshiftWarning, features: { ...ALL_FEATURES, ...(status.features ?? {}) }, logoVersion: status.logoVersion,
   });
   setStepCardStyle(status.cardStyle ?? {});
   applyTheme(status.theme ?? "system");
@@ -285,7 +286,7 @@ function render(s: AppState, prev: AppState): void {
   shell.dataset.section = s.section;
   if (s.section === "assets" && (s.section !== prev.section || firstRender)) assetsView?.show();
   if (s.section !== prev.section || firstRender) watchCapabilities(s.section === "capabilities");
-  if (s.section === "capabilities" && changed(s, prev, ["capabilities", "section", "gpuTimeline", "gpuRange"])) mount($("#caps"), renderCapabilities(s.capabilities, s.gpuTimeline, s.gpuRange));
+  if (s.section === "capabilities" && changed(s, prev, ["capabilities", "section", "gpuTimeline", "gpuRange", "features"])) mount($("#caps"), renderCapabilities(s.capabilities, s.gpuTimeline, s.gpuRange, s.features.gpus));
 
   if (changed(s, prev, ["chats", "projects", "tasks", "activeChatId", "activeProjectId", "expandedProjects",
     "chatMenuId", "movingChatId", "renamingChatId", "server", "userName", "logoVersion", "section", "allTasksShown", "openTaskId"])) {

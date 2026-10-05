@@ -12,6 +12,7 @@ export interface AppState {
   notifications?: NotificationPrefs; // loaded when Settings opens
   windshiftWarning?: string | null;
   windshift?: string; // "connected" | "not configured" (set in the server's compose file only)
+  features: import("./api/types").Features; // areas on in the server's [features]
   theme: ThemeChoice;
   machinesRefresh: number; // seconds between Machines updates; 1 = live
   gpuOpen: Set<string>; // GPU panels expanded (this session)
@@ -86,6 +87,7 @@ export const store = new Store<AppState>({
   isAdmin: false,
   theme: "system",
   machinesRefresh: 5,
+  features: { assets: true, gpus: true, voice: true, windshift: true },
   grants: {},
   pcActions: [],
   activity: [],
