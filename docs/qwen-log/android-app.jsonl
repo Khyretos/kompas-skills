@@ -18,3 +18,4 @@
 {"name": "android-pushservice-java-fix", "out": "android/app/src/main/java/com/kreativekompas/kompanion/PushServiceImpl.java", "gpu_seconds": 26.2, "tokens": 814, "lines": 112, "review": "skipped", "model": "Coder", "at": "2026-10-05T12:32:42"}
 {"name": "android-build-sh-cache", "out": "android/build.sh", "mode": "patch", "gpu_seconds": 13.6, "tokens": 373, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T12:34:21"}
 {"name": "android-dockerfile-bt", "out": "android/Dockerfile.build", "mode": "patch", "gpu_seconds": 3.8, "tokens": 98, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T12:35:01"}
+{"name": "android-pick-distributor", "out": "android/app/src/main/java/com/kreativekompas/kompanion/MainActivity.java", "gpu_seconds": 31.1, "tokens": 951, "lines": 139, "review": "skipped", "model": "Coder", "at": "2026-10-05T12:41:13"}

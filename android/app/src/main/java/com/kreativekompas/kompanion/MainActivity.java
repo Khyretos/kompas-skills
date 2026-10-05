@@ -76,12 +76,28 @@ public class MainActivity extends Activity {
 
         UnifiedPush.tryUseCurrentOrDefaultDistributor(this, ok -> {
             if (ok) {
-                UnifiedPush.register(MainActivity.this, "default", getString(R.string.app_name), null);
+                registerPush();
             } else {
-                runOnUiThread(() -> Toast.makeText(MainActivity.this, R.string.no_distributor, Toast.LENGTH_LONG).show());
+                runOnUiThread(this::pickInstalledDistributor);
             }
-            return Unit.INSTANCE;
+            return kotlin.Unit.INSTANCE;
         });
+    }
+
+    private void registerPush() {
+        UnifiedPush.register(this, "default", getString(R.string.app_name), null);
+    }
+
+    /** No default distributor answered: use the first installed one that is not this app (usually ntfy). */
+    private void pickInstalledDistributor() {
+        for (String d : UnifiedPush.getDistributors(this)) {
+            if (!d.equals(getPackageName())) {
+                UnifiedPush.saveDistributor(this, d);
+                registerPush();
+                return;
+            }
+        }
+        Toast.makeText(this, R.string.no_distributor, Toast.LENGTH_LONG).show();
     }
 
     private String startUrl(Intent i) {
