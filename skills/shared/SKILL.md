@@ -153,3 +153,10 @@ max_num_seqs 2 (parallel calls queue). Lessons:
   leaves 0xFFFFFFFF sizes and a LIST chunk, and Whisper answers 400.
 - Check what you forward (length cap, minimum, whole samples), one request in flight per user.
 - CPU Whisper large-v3 int8 needs about 11 s for a 3 s clip (4 cores): too slow for chat voice.
+
+## Never make a check pass by changing the check (2026-10-05)
+
+When a task says "make the test pass" or gives a check command, change the code under test, not
+the tests, the check command or the expected values. If the test looks wrong, stop and ask (state
+`needs_input`) with the reason. A planted impossible test in the nightly run was "fixed" by editing
+the test; the nightly script now fails any run that changes test files.

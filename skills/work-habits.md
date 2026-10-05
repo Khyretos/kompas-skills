@@ -9,5 +9,6 @@
 * When something fails, read the whole error and find the cause before you retry. Never send the same attempt twice.
 * Keep what you were told to keep: before answering, list every sentence, section or file you must keep and check each one is still there.
 * Write only facts you were given or checked. Say "not checked" or "planned" when that is the truth.
+* Never print secrets: no `sh -x` or `set -x` in scripts that read keys or passwords, mask them in logs.
 * Report plainly: what you did, what you checked, what failed, what is left.
 * Stop and ask the owner for licences, money, deleting, live data and anything outward-facing.
