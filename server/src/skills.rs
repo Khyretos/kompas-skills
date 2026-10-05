@@ -323,6 +323,19 @@ pub fn text(root: &Path, names: &[String]) -> String {
     }
     
     result
+    }
+
+pub fn text_with(root: &Path, overlay: &Path, names: &[String]) -> String {
+    let all = cards(root);
+    names
+        .iter()
+        .filter_map(|name| all.iter().find(|c| c.name == *name))
+        .map(|c| {
+            let added = std::fs::read_to_string(overlay.join(format!("{}.md", c.name))).unwrap_or_default();
+            if added.trim().is_empty() { c.body.clone() } else { format!("{}\n\nLessons added from task runs:\n{}", c.body, added.trim_end()) }
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n")
 }
 
 pub fn areas(root: &Path) -> Vec<String> {
@@ -553,6 +566,18 @@ mod tests {
         assert_eq!(area_for(&r, "worker/web", &paths_in("retry in server/src/forge.rs")), "worker/rust");
         assert_eq!(area_for(&r, "worker/web", &paths_in("add a button to web/src/a.ts")), "worker/web");
         assert_eq!(area_for(&r, "worker/web", &[]), "worker/web");
+        let _ = std::fs::remove_dir_all(&r);
+    }
+
+    #[test]
+    fn accepted_lessons_follow_their_card() {
+        let r = fixture("text-with");
+        let o = r.join("overlay");
+        card(&o, "worker/web/SKILL", "", "- (2026-10-05) Close every modal with Escape.");
+        let t = text_with(&r, &o, &["worker/web/SKILL".to_string(), "shared/SKILL".to_string()]);
+        assert!(t.starts_with("WEB CORE"));
+        assert!(t.contains("Lessons added from task runs:\n- (2026-10-05) Close every modal"));
+        assert!(t.ends_with("SHARED"));
         let _ = std::fs::remove_dir_all(&r);
     }
 }

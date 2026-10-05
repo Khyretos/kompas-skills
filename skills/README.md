@@ -52,5 +52,11 @@ These files grow with every review, so models get only what a job needs, and eve
   step, and the reviewer gets `reviewer/SKILL` plus every card the steps used. The server reads the
   folder from `KOMPANION_SKILLS` (default `/app/skills`, which the image contains) and the budget
   from `[skills] budget_tokens`, a number or a table per model name with an optional `default`.
+- After a review with findings, the reviewer drafts up to 3 lessons for the cards the steps used and
+  proposes each in the project thread. Nothing becomes a rule until the user accepts it there (the
+  text can be edited first) or dismisses it. Accepted lessons are appended to
+  `<data>/skills/<card>.md` (next to the database, or `KOMPANION_SKILLS_DATA`), one line each with
+  the date, and to `<data>/skills/lessons-learned.md`. The next run's worker and reviewer get them
+  after that card's text. The skills folder in the image stays read-only.
 - Every review finding: a lesson in the right card or core, and a row in
   `docs/lessons-learned.md` (in this repo).

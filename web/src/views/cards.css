@@ -9,6 +9,9 @@
 .pc-action .card-kind .need { font-weight: 600; text-transform: none; color: var(--fg-strong); background: transparent; border: 1px solid var(--kind); border-radius: 999px; padding: 0.05rem 0.55rem; }
 .pc-action h4, .pc-action .summary, .pc-action > strong { color: var(--fg-strong); }
 .pc-action .chip { color: var(--fg-strong); }
+/* Lesson proposals (SK-02): the accent colour, and a text box that fills the card. */
+.pc-action.lesson { --kind: var(--accent); }
+.pc-action.lesson textarea { width: 100%; box-sizing: border-box; font: inherit; resize: vertical; }
 .kind-tag { display: inline-block; padding: 0.05rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; white-space: nowrap;
   color: var(--fg-strong); background: color-mix(in srgb, var(--kind) var(--kind-mix), var(--surface)); border: 1px solid var(--kind); }
 .card-kinds { list-style: none; margin: 0.5rem 0; padding: 0; display: grid; gap: 0.4rem; }

@@ -19,6 +19,7 @@ export interface AppState {
   gpuPins: string[]; // pinned GPU bars, saved per user
   pcMachineId?: string; // the computer picked in the composer: answers may use its tools
   pcActions: import("./api/client").PcAction[]; // approval cards of the open chat
+  lessons: import("./api/client").Lesson[]; // lessons proposed in the open chat (the project thread)
   pairing?: { code: string; expiresAt: string; name: string }; // the one-line install command, until done
   admin?: { settings: AdminSettings; smtpPasswordSet: boolean }; // loaded when an admin opens settings
   projects: Project[];
@@ -92,6 +93,7 @@ export const store = new Store<AppState>({
   features: { assets: true, gpus: true, voice: true, windshift: true },
   grants: {},
   pcActions: [],
+  lessons: [],
   activity: [],
   activityFilter: {},
   accessHistory: [],

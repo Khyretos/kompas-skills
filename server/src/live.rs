@@ -15,6 +15,7 @@ pub fn what_changed(method: &Method, path: &str) -> Option<(&'static str, Option
         ["tasks", ..] => Some(("tasks", None)),
         ["projects", ..] => Some(("projects", None)),
         ["chats", ..] => Some(("chats", None)),
+        ["lessons", ..] => Some(("lessons", None)),
         ["machines", id, "grants", ..] => Some(("access", Some(id.to_string()))),
         ["machines", _, "stats" | "results" | "jobs", ..] => None,
         ["machines", "live"] => None,
@@ -83,5 +84,10 @@ mod tests {
     fn test_what_changed_post_logout() {
         let result = what_changed(&Method::POST, "/logout");
         assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_what_changed_post_lessons() {
+        assert_eq!(what_changed(&Method::POST, "/lessons/l1"), Some(("lessons", None)));
     }
 }

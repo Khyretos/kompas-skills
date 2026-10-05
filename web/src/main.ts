@@ -19,6 +19,7 @@ import { paneTabs, renderTasks, setAssetThumbs } from "./views/tasks";
 import { renderMachines, REFRESH_STEPS, setGpuView } from "./views/machines";
 import { grantFromForm, renderAccess, type GrantView } from "./views/access";
 import { renderPcActions, renderPcPicker } from "./views/pcactions";
+import { renderLessons } from "./views/lessons";
 import { AssetsView } from "./views/assets";
 import { HttpAssets, type AssetsApi } from "./api/assets";
 import { MockAssets } from "./api/assets-mock";
@@ -113,7 +114,7 @@ async function start(server: Server): Promise<void> {
           <div class="empty-slot" id="empty-slot"></div>
           <div class="msg-list" id="msg-list" role="log" aria-live="polite"></div>
         </div>
-        <div class="composer-wrap"><div id="pc-actions"></div><div id="pc-slot"></div>${composer()}</div>
+        <div class="composer-wrap"><div id="lessons"></div><div id="pc-actions"></div><div id="pc-slot"></div>${composer()}</div>
       </main>
       <section class="pane assets-pane" id="assets" aria-label="Assets"></section>
       <section class="pane caps-pane" id="caps" aria-label="Capabilities"></section>
@@ -238,6 +239,7 @@ async function openChat(chatId?: string): Promise<void> {
   const prompt = document.getElementById("prompt") as HTMLTextAreaElement | null;
   if (prompt && window.matchMedia("(pointer: fine)").matches) prompt.focus();
   store.set({ pcActions: chatId ? await api.listActions(chatId).catch(() => []) : [] });
+  store.set({ lessons: chatId ? await api.listLessons(chatId).catch(() => []) : [] });
 }
 
 let messageList: KeyedList<MessageView> | undefined;
@@ -315,6 +317,7 @@ function render(s: AppState, prev: AppState): void {
   if (firstRender || pcKey !== lastPcKey || s.pcMachineId !== prev.pcMachineId) {
     mount($("#pc-slot"), renderPcPicker(s.machines.filter((m) => m.id !== "server"), s.pcMachineId));
   }
+  if (firstRender || s.lessons !== prev.lessons) mount($("#lessons"), renderLessons(s.lessons));
   if (firstRender || s.pcActions !== prev.pcActions || pcKey !== lastPcKey || s.cardStyle !== prev.cardStyle) {
     const box = $("#messages");
     const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
@@ -594,6 +597,7 @@ function refetch(what: string): void {
       else if (what === "projects") store.set({ projects: await api.listProjects(), tasks: await api.listTasks() });
       else if (what === "chats") store.set({ chats: await api.listChats() });
       else if (what === "machines") store.set({ machines: await api.listMachines() });
+      else if (what === "lessons" && s.activeChatId) store.set({ lessons: await api.listLessons(s.activeChatId) });
       else if (what === "access") await loadAccess();
       if ((what === "access" || what === "machines" || what === "gpus") && store.get().section === "capabilities") loadCapabilities();
       if (what === "project-assets") for (const id of Object.keys(store.get().projectAssets)) void loadProjectAssets(id);
@@ -735,6 +739,19 @@ function wire(shell: HTMLElement): void {
       const open = !(d ? d.open : openSteps.has(id));
       if (open) openSteps.add(id); else openSteps.delete(id);
       if (d) d.open = open;
+    },
+    "lesson-accept": (el) => {
+      const id = el.dataset.id ?? "";
+      const text = (document.getElementById(`lesson-${id}`) as HTMLTextAreaElement | null)?.value.trim();
+      const before = store.get().lessons;
+      store.set({ lessons: before.map((l) => (l.id === id ? { ...l, state: "accepted" as const, text: text || l.text } : l)) });
+      return api.decideLesson(id, "accept", text).catch((e) => { store.set({ lessons: before }); showError(e); });
+    },
+    "lesson-dismiss": (el) => {
+      const id = el.dataset.id ?? "";
+      const before = store.get().lessons;
+      store.set({ lessons: before.map((l) => (l.id === id ? { ...l, state: "dismissed" as const } : l)) });
+      return api.decideLesson(id, "dismiss").catch((e) => { store.set({ lessons: before }); showError(e); });
     },
     "pc-decide": (el) => {
       const id = el.dataset.id ?? "";

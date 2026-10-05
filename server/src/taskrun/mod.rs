@@ -247,6 +247,38 @@ async fn ask_model(s: &AppState, r: &Run, role: &RoleAssignment, reason: &str, s
     Ok(msg["content"].as_str().unwrap_or("").to_string())
 }
 
+/// After a review with findings: the reviewer turns them into lessons for the cards the steps
+/// used, and each is proposed in the project thread (the user accepts, edits or dismisses it).
+async fn propose_lessons(s: &AppState, r: &Run, findings: &[String], cards: &[String]) {
+    if findings.is_empty() || cards.is_empty() {
+        return;
+    }
+    let project: Option<(String,)> = sqlx::query_as("SELECT project_id FROM tasks WHERE id = ?")
+        .bind(&r.task_id)
+        .fetch_optional(&s.db)
+        .await
+        .unwrap_or(None);
+    let Some((project_id,)) = project else { return };
+    let system = format!(
+        "You turn review findings into lessons for a future worker model. Answer only with a JSON array of at most 3 \
+         objects {{\"card\": \"...\", \"lesson\": \"...\", \"finding\": \"...\"}}. card is one of: {}. lesson is one short \
+         imperative rule that would have prevented the finding, general enough for other tasks; finding is the finding it comes from. \
+         Leave out findings that only concern this one task.",
+        cards.join(", ")
+    );
+    let user = format!("Task: {}\n\nFindings:\n{}", r.title, findings.iter().map(|f| format!("- {f}")).collect::<Vec<_>>().join("\n"));
+    let Ok(answer) = ask_model(s, r, &r.reviewer, "Draft lessons from the findings.", &system, &user).await else { return };
+    let Some(serde_json::Value::Array(items)) = parse::json_in(&answer) else { return };
+    for item in items.iter().take(3) {
+        let field = |k: &str| item.get(k).and_then(serde_json::Value::as_str).unwrap_or("").trim().to_string();
+        let card = field("card");
+        if !cards.contains(&card) {
+            continue;
+        }
+        crate::lessons::propose(s, &r.user_id, &project_id, &r.run_id, &r.task_id, &card, &field("lesson"), &field("finding")).await;
+    }
+}
+
 fn worker_prompt(r: &Run) -> String {
     format!(
         "You are Kreative Kompanion's worker on {}. Work only inside {}. Use the tools; steps outside your \
@@ -360,6 +392,7 @@ async fn run(s: AppState, r: Run) {
     // 1. Plan.
     let skills_root = crate::skills::dir();
     let areas = crate::skills::areas(&skills_root);
+    let lessons_dir = crate::lessons::data_dir(&s);
     let plan_user = format!(
         "Task: {}\n\n{}\n\nWork in the folder {} on {}.\n\nWhat Kompanion has (for planning only):\n{}",
         r.title,
@@ -432,7 +465,7 @@ async fn run(s: AppState, r: Run) {
             return;
         }
         progress(&s, &r, i as f64 / n as f64 * 0.8, &format!("Step {}/{n}: {}", i + 1, step.what)).await;
-        match work_with(&s, &r, 12, step_instruction(&r.description, i, n, step, &plan_list), &crate::skills::text(&skills_root, &picked[i])).await {
+        match work_with(&s, &r, 12, step_instruction(&r.description, i, n, step, &plan_list), &crate::skills::text_with(&skills_root, &lessons_dir, &picked[i])).await {
             Ok(line) => {
                 note(&s, &r, &format!("Step {}: {line}", i + 1)).await;
                 crate::thread::post_run(&s, &r.run_id, &format!("**{}**, step {}/{n} done: {line}", r.title, i + 1)).await;
@@ -456,8 +489,8 @@ async fn run(s: AppState, r: Run) {
             used.push(name.clone());
         }
     }
-    let fix_skills = crate::skills::text(&skills_root, &used);
-    let review_skills = crate::skills::text(&skills_root, &[vec!["reviewer/SKILL".to_string()], used].concat());
+    let fix_skills = crate::skills::text_with(&skills_root, &lessons_dir, &used);
+    let review_skills = crate::skills::text_with(&skills_root, &lessons_dir, &[vec!["reviewer/SKILL".to_string()], used.clone()].concat());
     // 3. Check and review, with fix rounds.
     for round in 1..=ROUNDS {
         if stopped_here(&s, &r).await {
@@ -516,6 +549,7 @@ async fn run(s: AppState, r: Run) {
         let findings = review.findings.iter().map(|f| format!("- {f}")).collect::<Vec<_>>().join("\n");
         note(&s, &r, &format!("Review, round {round}:\n{findings}")).await;
         crate::thread::post_run(&s, &r.run_id, &format!("**{}**, review round {round}: {} finding(s). [Open the task](#task={})", r.title, review.findings.len(), r.task_id)).await;
+        propose_lessons(&s, &r, &review.findings, &used).await;
         if round == ROUNDS {
             note(&s, &r, "Still not right after 3 rounds; it needs you.").await;
             return finish(&s, &r, "needs_input", "review failed 3 times").await;

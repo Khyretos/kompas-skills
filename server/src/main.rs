@@ -20,6 +20,7 @@ mod activity;
 mod taskrun;
 mod hoststats;
 mod import;
+mod lessons;
 mod llm;
 mod mail;
 mod mailhtml;
@@ -244,6 +245,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/machines/{id}/ask", post(cli::ask))
         .route("/machines/{id}/ask/{chat}", get(cli::poll))
         .route("/chats/{id}/actions", get(pcagent::list))
+        .route("/chats/{id}/lessons", get(lessons::list))
+        .route("/lessons/{id}", post(lessons::decide))
         .route("/actions/{id}/decide", post(pcagent::decide))
         .route("/machines/{id}", axum::routing::delete(hoststats::delete))
         .route("/machines/{id}/results", post(access::results).layer(axum::extract::DefaultBodyLimit::max(128 * 1024)))
