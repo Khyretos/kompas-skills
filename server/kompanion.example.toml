@@ -48,6 +48,24 @@ orchestrator = { provider = "ollama", model = "qwen3.5:9b" }
 worker = { provider = "ollama", model = "qwen3.5:9b" }
 reviewer = { provider = "ollama", model = "qwen3.5:9b" }
 
+# The asset library's AI (tags, captions, search). Without this section it uses the worker role's model.
+# [assets]
+# chat_url = "http://ovms:8000/v3"
+# model = "Coder"
+# embed_url = "http://ovms-cpu:8000/v3"   # /embeddings and /rerank for search by meaning
+# embed_model = "Embedder"
+# rerank_model = "Reranker"
+# audio_model = "Whisper"                 # writes down voice lines in sound files
+# api_key_env = "OVMS_API_KEY"
+
+# Voice in the app (push-to-talk and replies read aloud). Off until a URL is set.
+# [voice]
+# stt_url = "http://ovms:8000/v3"         # speech to text (/audio/transcriptions, e.g. Whisper)
+# stt_model = "Whisper"
+# tts_url = "http://ovms-cpu:8000/v3"     # text to speech (/audio/speech, e.g. Kokoro)
+# tts_model = "Voice"
+# api_key_env = "OVMS_API_KEY"
+
 # GPU scheduling (optional): list your GPUs so Kompanion knows what each one holds and has free.
 # [[gpu]]
 # id = "gpu0"

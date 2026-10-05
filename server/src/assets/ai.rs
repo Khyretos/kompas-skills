@@ -1,4 +1,4 @@
-//! AI tags and captions for the asset library, on the A770 OVMS only (never the A580):
+//! AI tags and captions for the asset library, through the models set in `[assets]` (kompanion.toml):
 //! `Coder` looks at a picture's preview (PNG) or reads sound and model names with their
 //! probe numbers, `Whisper` writes down voice lines, `Embedder` (ovms-cpu) turns each
 //! description into a vector for "similar" and "by meaning" search (sqlite-vec).
@@ -177,32 +177,57 @@ pub async fn vector_of(db: &SqlitePool, id: i64) -> Result<Option<Vec<f32>>> {
 
 // ---------- OVMS client ----------
 
+/// The asset AI settings from `[assets]` in kompanion.toml, set once at start (main.rs).
+pub static CONFIG: std::sync::OnceLock<crate::config::AssetsConfig> = std::sync::OnceLock::new();
+
+/// `[assets]` with the worker role's provider and model filling what is not set.
+pub fn settings_from(c: &crate::config::Config) -> crate::config::AssetsConfig {
+    let mut a = c.assets.clone();
+    if let Some(w) = c.roles.get("worker") {
+        if let Some(p) = c.provider(&w.provider) {
+            if a.chat_url.is_none() { a.chat_url = Some(p.base_url.clone()); }
+            if a.api_key_env.is_none() { a.api_key_env = p.api_key_env.clone(); }
+        }
+        if a.model.is_none() { a.model = Some(w.model.clone()); }
+    }
+    a
+}
+
 pub struct Ai {
     http: reqwest::Client,
     chat_url: String,
     embed_url: String,
     key: Option<String>,
     pub model: String,
+    embed_model: String,
+    rerank_model: String,
+    audio_model: String,
 }
 
 impl Ai {
-    /// From the environment: ASSET_AI_URL (http://ovms:8000/v3), ASSET_EMBED_URL
-    /// (http://ovms-cpu:8000/v3), OVMS_API_KEY, ASSET_AI_MODEL (Coder).
+    /// Environment first (ASSET_AI_URL, ASSET_AI_MODEL, ASSET_EMBED_URL, ASSET_AI_KEY_ENV), then
+    /// `[assets]` (see `CONFIG`), then OVMS's model names as a last default.
     pub fn from_env(http: reqwest::Client) -> Self {
-        let env = |k: &str, d: &str| std::env::var(k).ok().filter(|v| !v.is_empty()).unwrap_or_else(|| d.to_string());
+        let s = CONFIG.get().cloned().unwrap_or_default();
+        let env = |k: &str| std::env::var(k).ok().filter(|v| !v.is_empty());
+        let chat_url = env("ASSET_AI_URL").or(s.chat_url).unwrap_or_default();
+        let key_env = env("ASSET_AI_KEY_ENV").or(s.api_key_env).unwrap_or_else(|| "OVMS_API_KEY".to_string());
         Ai {
             http,
-            chat_url: env("ASSET_AI_URL", "http://ovms:8000/v3"),
-            embed_url: env("ASSET_EMBED_URL", "http://ovms-cpu:8000/v3"),
-            key: std::env::var("OVMS_API_KEY").ok().filter(|k| !k.is_empty()),
-            model: env("ASSET_AI_MODEL", "Coder"),
+            embed_url: env("ASSET_EMBED_URL").or(s.embed_url).unwrap_or_else(|| chat_url.clone()),
+            chat_url,
+            key: std::env::var(&key_env).ok().filter(|k| !k.is_empty()),
+            model: env("ASSET_AI_MODEL").or(s.model).unwrap_or_default(),
+            embed_model: s.embed_model.unwrap_or_else(|| "Embedder".to_string()),
+            rerank_model: s.rerank_model.unwrap_or_else(|| "Reranker".to_string()),
+            audio_model: s.audio_model.unwrap_or_else(|| "Whisper".to_string()),
         }
     }
 
     /// An OVMS stand-in for tests (chat and embeddings at the same URL).
     #[cfg(test)]
     pub fn fake(url: &str) -> Self {
-        Ai { http: reqwest::Client::new(), chat_url: url.into(), embed_url: url.into(), key: None, model: "Fake".into() }
+        Ai { http: reqwest::Client::new(), chat_url: url.into(), embed_url: url.into(), key: None, model: "Fake".into(), embed_model: "Fake".into(), rerank_model: "Fake".into(), audio_model: "Fake".into() }
     }
 
     fn auth(&self, r: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
@@ -234,7 +259,7 @@ impl Ai {
 
     pub async fn transcribe(&self, wav: Vec<u8>) -> Result<String> {
         let form = reqwest::multipart::Form::new()
-            .text("model", "Whisper")
+            .text("model", self.audio_model.clone())
             .part("file", reqwest::multipart::Part::bytes(wav).file_name("clip.wav").mime_str("audio/wav")?);
         let r = self.auth(self.http.post(format!("{}/audio/transcriptions", self.chat_url)).multipart(form)).send().await?;
         Ok(Self::ok_json(r).await?["text"].as_str().unwrap_or_default().trim().to_string())
@@ -242,7 +267,7 @@ impl Ai {
 
     pub async fn embed(&self, texts: &[String]) -> Result<Vec<Vec<f32>>> {
         let r = self
-            .auth(self.http.post(format!("{}/embeddings", self.embed_url)).json(&json!({ "model": "Embedder", "input": texts })))
+            .auth(self.http.post(format!("{}/embeddings", self.embed_url)).json(&json!({ "model": self.embed_model, "input": texts })))
             .send()
             .await?;
         let v = Self::ok_json(r).await?;
@@ -256,7 +281,7 @@ impl Ai {
     /// Orders documents by how well they answer the query (`Reranker` on ovms-cpu):
     /// (index into `docs`, score), best first.
     pub async fn rerank(&self, query: &str, docs: &[String]) -> Result<Vec<(usize, f64)>> {
-        let body = json!({ "model": "Reranker", "query": query, "documents": docs, "top_n": docs.len() });
+        let body = json!({ "model": self.rerank_model, "query": query, "documents": docs, "top_n": docs.len() });
         let r = self.auth(self.http.post(format!("{}/rerank", self.embed_url)).json(&body)).send().await?;
         let v = Self::ok_json(r).await?;
         let results = v["results"].as_array().context("no results in the rerank answer")?;
@@ -759,6 +784,23 @@ mod tests {
     use super::*;
 
     #[test]
+    fn assets_settings_fall_back_to_the_worker_role() {
+        let none: crate::config::Config = toml::from_str(
+            "[[provider]]\nid = \"local\"\nname = \"L\"\nkind = \"openai-compatible\"\nbase_url = \"http://m:1/v1\"\napi_key_env = \"K\"\n[roles]\nworker = { provider = \"local\", model = \"small\" }\n",
+        ).unwrap();
+        let s = settings_from(&none);
+        assert_eq!(s.chat_url.as_deref(), Some("http://m:1/v1"));
+        assert_eq!(s.model.as_deref(), Some("small"));
+        assert_eq!(s.api_key_env.as_deref(), Some("K"));
+        let set: crate::config::Config = toml::from_str(
+            "[roles]\nworker = { provider = \"x\", model = \"small\" }\n[assets]\nchat_url = \"http://a:2/v3\"\nmodel = \"Tagger\"\n",
+        ).unwrap();
+        let s = settings_from(&set);
+        assert_eq!(s.chat_url.as_deref(), Some("http://a:2/v3"));
+        assert_eq!(s.model.as_deref(), Some("Tagger"));
+    }
+
+    #[test]
     fn answers_are_checked_against_the_lists() {
         let v = json_in("Sure!\n```json\n{\"category\": \"Sprite\", \"style\": [\"Pixel Art\", \"vaporwave\", \"flat\", \"cartoon\"],\
             \"mood\": \"calm, epic\", \"setting\": [\"ui\"], \"subject\": \"health icon\", \"caption\": \"A red cross health icon.\"}\n```")
@@ -861,7 +903,7 @@ mod tests {
             sqlx::query("INSERT INTO asset (id, pack_id, container, path, name, ext, size, category, rule, duration_s) VALUES (?, 1, 'Medieval Vol. 2.zip', ?, ?, 'x', 10, ?, 'test', 95.0)")
                 .bind(id).bind(path).bind(path.rsplit('/').next().unwrap()).bind(cat).execute(&db).await.unwrap();
         }
-        let ai = Ai { http: reqwest::Client::new(), chat_url: url.clone(), embed_url: url, key: None, model: "Fake".into() };
+        let ai = Ai { http: reqwest::Client::new(), chat_url: url.clone(), embed_url: url, key: None, model: "Fake".into(), embed_model: "Fake".into(), rerank_model: "Fake".into(), audio_model: "Fake".into() };
         let bus = Bus::new();
         let dir = std::env::temp_dir();
         assert_eq!(step(&db, &bus, &ai, &dir).await.unwrap(), 2, "the two sounds go in one batch");

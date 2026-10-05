@@ -22,16 +22,26 @@ impl Drop for Slot {
     }
 }
 
+/// `[voice]` from kompanion.toml, set once at start (main.rs).
+pub static SETTINGS: std::sync::OnceLock<crate::config::VoiceConfig> = std::sync::OnceLock::new();
+
+fn setting(f: fn(&crate::config::VoiceConfig) -> Option<String>) -> String {
+    SETTINGS.get().and_then(f).unwrap_or_default()
+}
+
 fn env(k: &str, d: &str) -> String {
     std::env::var(k).ok().filter(|v| !v.is_empty()).unwrap_or_else(|| d.to_string())
 }
 
+/// On when a speech URL is set (environment or `[voice]`) and VOICE is not "off".
 fn enabled() -> bool {
-    env("VOICE", "on") != "off"
+    env("VOICE", "on") != "off" && !(env("VOICE_STT_URL", &setting(|v| v.stt_url.clone())).is_empty() && env("VOICE_TTS_URL", &setting(|v| v.tts_url.clone())).is_empty())
 }
 
+/// The API key named by VOICE_KEY_ENV or `[voice] api_key_env` (default OVMS_API_KEY).
 fn authed(r: reqwest::RequestBuilder) -> reqwest::RequestBuilder {
-    match std::env::var("OVMS_API_KEY").ok().filter(|k| !k.is_empty()) {
+    let key_env = env("VOICE_KEY_ENV", &setting(|v| v.api_key_env.clone().or(Some("OVMS_API_KEY".into()))));
+    match std::env::var(&key_env).ok().filter(|k| !k.is_empty()) {
         Some(k) => r.bearer_auth(k),
         None => r,
     }
@@ -133,14 +143,14 @@ pub async fn transcribe(State(s): State<AppState>, axum::Extension(u): axum::Ext
         ApiError::BadRequest("That recording could not be used (empty, under 0.2 s or not audio). Try again.".into())
     })?;
     let mut form = reqwest::multipart::Form::new()
-        .text("model", env("VOICE_STT_MODEL", "Whisper"))
+        .text("model", env("VOICE_STT_MODEL", &setting(|v| v.stt_model.clone().or(Some("Whisper".into())))))
         .part("file", reqwest::multipart::Part::bytes(wav).file_name("speech.wav").mime_str("audio/wav").map_err(|e| ApiError::Internal(e.into()))?);
     // A language hint: without it Whisper heard short Spanish as Portuguese. (Checked on a
     // separate OVMS first; the 2026-10-04 crashes were the A770 running out of VRAM.)
     if let Some(lang) = q.lang.filter(|l| ["en", "es", "nl"].contains(&l.as_str())) {
         form = form.text("language", lang);
     }
-    let url = format!("{}/audio/transcriptions", env("VOICE_STT_URL", "http://ovms:8000/v3"));
+    let url = format!("{}/audio/transcriptions", env("VOICE_STT_URL", &setting(|v| v.stt_url.clone())));
     let r = authed(s.http.post(url)).multipart(form).timeout(Duration::from_secs(60)).send().await.map_err(|e| ApiError::Internal(e.into()))?;
     if !r.status().is_success() {
         return Err(ApiError::BadRequest(format!("Speech to text failed: {}", r.status())));
@@ -167,8 +177,8 @@ pub async fn speak(State(s): State<AppState>, Json(b): Json<SpeakBody>) -> ApiRe
     if text.chars().count() > 600 {
         return Err(ApiError::BadRequest("Read at most 600 characters at a time.".into()));
     }
-    let url = format!("{}/audio/speech", env("VOICE_TTS_URL", "http://ovms-cpu:8000/v3"));
-    let body = json!({ "model": env("VOICE_TTS_MODEL", "Voice"), "input": text, "voice": voice_or_default(&b.voice) });
+    let url = format!("{}/audio/speech", env("VOICE_TTS_URL", &setting(|v| v.tts_url.clone())));
+    let body = json!({ "model": env("VOICE_TTS_MODEL", &setting(|v| v.tts_model.clone().or(Some("Voice".into())))), "input": text, "voice": voice_or_default(&b.voice) });
     let r = authed(s.http.post(url)).json(&body).timeout(Duration::from_secs(60)).send().await.map_err(|e| ApiError::Internal(e.into()))?;
     if !r.status().is_success() {
         return Err(ApiError::BadRequest(format!("Text to speech failed: {}", r.status())));

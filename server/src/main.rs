@@ -168,6 +168,8 @@ async fn main() -> anyhow::Result<()> {
     hoststats::HostStats::spawn_live(state.clone());
     notify::spawn_daily(state.db.clone());
     let _ = push::SERVERS.set(state.config.push.servers.clone());
+    let _ = assets::ai::CONFIG.set(assets::ai::settings_from(&state.config));
+    let _ = voice::SETTINGS.set(state.config.voice.clone());
     assets::spawn(state.clone());
     import::watch(state.clone());
     // Links in mails go to the first public (https) address the app is served from.

@@ -39,6 +39,12 @@ pub struct Config {
     /// UnifiedPush servers the Android app may register endpoints on (`[push] servers = [...]`).
     #[serde(default)]
     pub push: PushConfig,
+    /// `[assets]`: the models the asset library uses for tags and search; empty = the worker role's provider and model.
+    #[serde(default)]
+    pub assets: AssetsConfig,
+    /// `[voice]`: speech to text and text to speech; off when neither URL is set.
+    #[serde(default)]
+    pub voice: VoiceConfig,
 }
 
 /// `[push]`: where phones may receive pushes (an ntfy server); empty = push off.
@@ -46,6 +52,46 @@ pub struct Config {
 pub struct PushConfig {
     #[serde(default)]
     pub servers: Vec<String>,
+}
+
+/// `[assets]`. Every field is optional; environment variables (ASSET_AI_URL, ASSET_AI_MODEL,
+/// ASSET_EMBED_URL) still win, so older deploys keep working.
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct AssetsConfig {
+    /// OpenAI-compatible base URL for tagging, e.g. "http://ovms:8000/v3".
+    #[serde(default)]
+    pub chat_url: Option<String>,
+    #[serde(default)]
+    pub model: Option<String>,
+    /// Base URL with /embeddings and /rerank for search; none = the chat URL.
+    #[serde(default)]
+    pub embed_url: Option<String>,
+    #[serde(default)]
+    pub embed_model: Option<String>,
+    #[serde(default)]
+    pub rerank_model: Option<String>,
+    /// Model for describing audio files (speech to text).
+    #[serde(default)]
+    pub audio_model: Option<String>,
+    /// Environment variable with the API key, e.g. "OVMS_API_KEY".
+    #[serde(default)]
+    pub api_key_env: Option<String>,
+}
+
+/// `[voice]`. Environment variables (VOICE_STT_URL, VOICE_STT_MODEL, VOICE_TTS_URL,
+/// VOICE_TTS_MODEL) still win.
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct VoiceConfig {
+    #[serde(default)]
+    pub stt_url: Option<String>,
+    #[serde(default)]
+    pub stt_model: Option<String>,
+    #[serde(default)]
+    pub tts_url: Option<String>,
+    #[serde(default)]
+    pub tts_model: Option<String>,
+    #[serde(default)]
+    pub api_key_env: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
