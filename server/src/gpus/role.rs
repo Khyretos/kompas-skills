@@ -81,8 +81,8 @@ pub fn mode_of(l: &GpuLedger) -> (Mode, Option<String>) {
     }
 }
 
-async fn coder_answers(s: &AppState, within: Duration) -> Option<f64> {
-    let ai = crate::assets::ai::Ai::from_env(s.http.clone());
+async fn coder_answers(http: &reqwest::Client, within: Duration) -> Option<f64> {
+    let ai = crate::assets::ai::Ai::from_env(http.clone());
     let start = Instant::now();
     
     loop {
@@ -100,82 +100,87 @@ async fn coder_answers(s: &AppState, within: Duration) -> Option<f64> {
     }
 }
 
-pub async fn switch(s: AppState, target: Target, by: String) -> Switch {
-    let to = match &target {
+/// Runs one switch through the helper and checks Coder afterwards; no shared state.
+/// Used by the scheduler (through `switch`) and by `kompanion-server gpu-role <target>`.
+pub async fn perform(http: &reqwest::Client, target: &Target, from: String, by: String) -> Switch {
+    let to = match target {
         Target::Coder => "coder".to_string(),
-        Target::Studio(app) => format!("artist ({})", app),
+        Target::Studio(app) => format!("artist ({app})"),
     };
-    // Locks stay in blocks: a std MutexGuard must not live across an await.
-    let from = {
-        let mut state = STATE.lock().unwrap();
-        state.switching = Some(to.clone());
-        if state.mode == "artist" {
-            state.app.as_ref().map(|a| format!("artist ({})", a)).unwrap_or_else(|| "artist".to_string())
-        } else {
-            state.mode.clone()
-        }
-    };
-    let started_at = util::now();
-    let t0 = Instant::now();
-    
-    s.bus.send_all(Event::Changed { what: "gpus", machine_id: None });
-    
-    let cmd = match &target {
+    let cmd = match target {
         Target::Coder => "coder".to_string(),
         Target::Studio(app) => format!("studio {app}"),
     };
-
+    let started_at = util::now();
+    let t0 = Instant::now();
     let (ok, output) = helper(&cmd, Duration::from_secs(3900)).await.unwrap_or_else(|e| (false, e.to_string()));
-    
     let mut coder_answer_s = None;
     let mut error = None;
-    
-    if ok {
-        if matches!(target, Target::Coder) {
-            coder_answer_s = coder_answers(&s, Duration::from_secs(60)).await;
-            
+    if !ok {
+        let n = output.chars().count();
+        error = Some(output.chars().skip(n.saturating_sub(500)).collect());
+    } else if matches!(target, Target::Coder) {
+        coder_answer_s = coder_answers(http, Duration::from_secs(60)).await;
+        if coder_answer_s.is_none() {
+            // Coder is loaded but silent: a broken GPU context (CL_INVALID_EVENT) needs an
+            // OVMS restart; restart in any case, then give it two more minutes.
+            let broken = helper("ovms-log", Duration::from_secs(70)).await
+                .is_ok_and(|(_, log)| log.contains("CL_INVALID_EVENT"));
+            tracing::warn!(broken_context = broken, "Coder silent after switching back; restarting OVMS");
+            let _ = helper("restart-ovms", Duration::from_secs(330)).await;
+            coder_answer_s = coder_answers(http, Duration::from_secs(120)).await;
             if coder_answer_s.is_none() {
-                // Coder is loaded but silent: a broken GPU context (CL_INVALID_EVENT) needs an
-                // OVMS restart; restart in any case, then give it two more minutes.
-                let broken = helper("ovms-log", Duration::from_secs(70)).await
-                    .is_ok_and(|(_, log)| log.contains("CL_INVALID_EVENT"));
-                tracing::warn!(broken_context = broken, "Coder silent after switching back; restarting OVMS");
-                let _ = helper("restart-ovms", Duration::from_secs(330)).await;
-                coder_answer_s = coder_answers(&s, Duration::from_secs(120)).await;
-                if coder_answer_s.is_none() {
-                    error = Some("Coder did not answer within 60 s after switching back, nor after an OVMS restart".to_string());
-                }
+                error = Some("Coder did not answer within 60 s after switching back, nor after an OVMS restart".to_string());
             }
         }
-    } else {
-        error = Some(output.chars().take(500).collect());
     }
-    
-    let elapsed = t0.elapsed().as_secs_f64();
-    let seconds = (elapsed * 10.0).round() / 10.0;
-    
     let sw = Switch {
         from,
         to,
         by,
         started_at,
-        seconds,
+        seconds: (t0.elapsed().as_secs_f64() * 10.0).round() / 10.0,
         ok: ok && error.is_none(),
-        coder_answer_s,
+        coder_answer_s: coder_answer_s.map(|s| (s * 10.0).round() / 10.0),
         error,
     };
-    
-    tracing::info!(from = %sw.from, to = %sw.to, seconds = %sw.seconds, ok = %sw.ok, coder_answer_s = ?sw.coder_answer_s, "gpu role switch");
+    tracing::info!(from = %sw.from, to = %sw.to, seconds = sw.seconds, ok = sw.ok, coder_answer_s = ?sw.coder_answer_s, "gpu role switch");
+    sw
+}
+
+/// A switch from the scheduler or an admin: marks it in the shared state, tells open apps.
+pub async fn switch(s: AppState, target: Target, by: String) -> Switch {
+    // Locks stay in blocks: a std MutexGuard must not live across an await.
+    let from = {
+        let mut state = STATE.lock().unwrap();
+        state.switching = Some(match &target {
+            Target::Coder => "coder".to_string(),
+            Target::Studio(app) => format!("artist ({app})"),
+        });
+        match (&state.mode[..], &state.app) {
+            ("artist", Some(app)) => format!("artist ({app})"),
+            (mode, _) => mode.to_string(),
+        }
+    };
+    s.bus.send_all(Event::Changed { what: "gpus", machine_id: None });
+    let sw = perform(&s.http, &target, from, by).await;
     {
         let mut state = STATE.lock().unwrap();
         state.last = Some(sw.clone());
         state.last_at = Some(Instant::now());
         state.switching = None;
     }
-    
     s.bus.send_all(Event::Changed { what: "gpus", machine_id: None });
-    
     sw
+}
+
+/// The target named by `coder`, `comfyui`, `heartmula` or `moss-sfx`.
+pub fn target_of(name: &str) -> Option<Target> {
+    match name {
+        "coder" => Some(Target::Coder),
+        t if role_policy::STUDIO_APPS.contains(&t) => Some(Target::Studio(t.to_string())),
+        _ => None,
+    }
 }
 
 pub async fn step(s: &AppState, ledgers: &[GpuLedger]) {
@@ -258,10 +263,8 @@ pub async fn set(State(s): State<AppState>, Extension(u): Extension<User>, Json(
         return Err(ApiError::BadRequest("GPU switching is off".into()));
     }
     
-    let target = match w.target.as_str() {
-        "coder" => Target::Coder,
-        t if role_policy::STUDIO_APPS.contains(&t) => Target::Studio(t.to_string()),
-        _ => return Err(ApiError::BadRequest("Pick coder, comfyui, heartmula or moss-sfx.".into())),
+    let Some(target) = target_of(&w.target) else {
+        return Err(ApiError::BadRequest("Pick coder, comfyui, heartmula or moss-sfx.".into()));
     };
     
     let (running,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM gpu_job WHERE state = 'running' AND gpu = ?")

@@ -135,6 +135,15 @@ async fn main() -> anyhow::Result<()> {
         }
         return Ok(());
     }
+    // `kompanion-server gpu-role <coder|comfyui|heartmula|moss-sfx>`: one A770 switch through
+    // kompanion-gpu-role, printed with its timings (M6-03 live test; the server is not involved).
+    if args.get(1).map(String::as_str) == Some("gpu-role") {
+        let target = args.get(2).and_then(|t| gpus::role::target_of(t))
+            .context("usage: kompanion-server gpu-role <coder|comfyui|heartmula|moss-sfx>")?;
+        let sw = gpus::role::perform(&reqwest::Client::new(), &target, "cli".into(), "cli".into()).await;
+        println!("{}", serde_json::to_string_pretty(&sw)?);
+        return Ok(());
+    }
     if args.get(1).map(String::as_str) == Some("import") {
         let path = args
             .get(2)
