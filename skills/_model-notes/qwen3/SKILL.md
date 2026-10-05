@@ -43,3 +43,5 @@ Full history with evidence: `docs/model-notes/qwen3-history-2026-10.md`.
 - Places a "first line" next to related lines instead of first; say exactly which existing line it
   goes before.
 - Asked to remove lines, it may comment them out instead; say "delete them entirely".
+- Adds filters or options the spec did not ask for (a `--task` filter that matched nothing); check
+  every condition in a draft against the spec.

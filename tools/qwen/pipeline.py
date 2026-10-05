@@ -109,6 +109,7 @@ def ask(system, user, max_tokens):
     if choice.get("finish_reason") == "length":
         # Never write a cut-off answer over a file.
         raise RuntimeError(f"answer cut off at the context limit ({v.get('usage', {})})")
+    LANE.prompt = getattr(LANE, "prompt", 0) + v.get("usage", {}).get("prompt_tokens", 0)
     return choice["message"]["content"], time.time() - t, v.get("usage", {}).get("completion_tokens", 0)
 
 def strip(text, out=""):
@@ -190,6 +191,7 @@ def patch_job(job, log):
         shown = "\n".join(out_lines) + "\n// ...\n"
     prompt = job["prompt"] + "\n\n" + PATCH_RULES + (("\n\nOther files, for reference only:" + ctx) if ctx else "") + f"\n\nThe file to edit, `{job['out']}`" + (" (excerpts; `// ...` marks skipped lines, never copy it)" if job.get("focus") else "") + f":\n```\n{shown}```"
     secs = toks = 0
+    LANE.prompt = 0
     for attempt in range(2):
         answer, s, t = ask(system, prompt, job.get("max_tokens", 3000))
         secs += s; toks += t
@@ -200,7 +202,7 @@ def patch_job(job, log):
     if err:
         raise RuntimeError(f"patch failed twice: {err[:300]}")
     open(out, "w").write(new)
-    rec = {"name": job["name"], "out": job["out"], "mode": "patch", "gpu_seconds": round(secs, 1), "tokens": toks,
+    rec = {"name": job["name"], "out": job["out"], "mode": "patch", "gpu_seconds": round(secs, 1), "tokens": toks, "prompt_tokens": getattr(LANE, "prompt", 0),
            "lines": len(BLOCK.findall(answer)), "attempts": attempt + 1, "model": getattr(LANE, "model", ""), "at": time.strftime("%Y-%m-%dT%H:%M:%S")}
     log.write(json.dumps(rec) + "\n"); log.flush(); print(json.dumps(rec), flush=True)
 
@@ -209,6 +211,7 @@ def run_job(job, log):
       if job.get("mode") == "patch":
           patch_job(job, log)
           return
+      LANE.prompt = 0
       rules = skills(job["role"], job.get("skills", ()))
       ctx = "".join(f"\n--- {c} ---\n{open(os.path.join(REPO, c)).read()}" for c in job.get("context", []))
       system = "You write exact, compiling code for this repository. Follow these rules strictly:\n\n" + rules
@@ -219,7 +222,7 @@ def run_job(job, log):
           out = os.path.join(REPO, job["out"])
           os.makedirs(os.path.dirname(out), exist_ok=True)
           open(out, "w").write(with_footer(drop_path_line(strip(draft, job["out"]), job["out"]), job))
-          rec = {"name": job["name"], "out": job["out"], "gpu_seconds": round(s1, 1), "tokens": t1,
+          rec = {"name": job["name"], "out": job["out"], "gpu_seconds": round(s1, 1), "tokens": t1, "prompt_tokens": getattr(LANE, "prompt", 0),
                  "lines": strip(draft, job["out"]).count("\n"), "review": "skipped", "model": getattr(LANE, "model", ""), "at": time.strftime("%Y-%m-%dT%H:%M:%S")}
           log.write(json.dumps(rec) + "\n"); log.flush(); print(json.dumps(rec), flush=True)
           return
@@ -229,7 +232,7 @@ def run_job(job, log):
       out = os.path.join(REPO, job["out"])
       os.makedirs(os.path.dirname(out), exist_ok=True)
       open(out, "w").write(with_footer(drop_path_line(strip(final, job["out"]), job["out"]), job))
-      rec = {"name": job["name"], "out": job["out"], "gpu_seconds": round(s1 + s2, 1), "tokens": t1 + t2,
+      rec = {"name": job["name"], "out": job["out"], "gpu_seconds": round(s1 + s2, 1), "tokens": t1 + t2, "prompt_tokens": getattr(LANE, "prompt", 0),
              "lines": strip(final, job["out"]).count("\n"), "model": getattr(LANE, "model", ""), "at": time.strftime("%Y-%m-%dT%H:%M:%S")}
       log.write(json.dumps(rec) + "\n"); log.flush()
       print(json.dumps(rec), flush=True)
