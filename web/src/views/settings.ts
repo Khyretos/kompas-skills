@@ -6,6 +6,7 @@ import type { AdminSettings, Role } from "../api/types";
 import { icon } from "./icons";
 import { renderAdmin } from "./admin";
 import { DEFAULT_STYLE, KINDS, styleOf } from "../core/cardtypes";
+import { enabled as deskNotifyOn } from "../core/desknotify";
 
 const roleInfo: Record<Role, { name: string; text: string }> = {
   orchestrator: { name: "Orchestrator", text: "Talks with you, plans and splits the work." },
@@ -86,6 +87,11 @@ export function renderSettings(s: AppState): SafeHtml {
         <p id="notify-msg" class="small" role="status"></p>
         <button class="btn primary" type="submit">Save</button>
       </form>` : ""}
+      <section class="desk-notify">
+        <h3 class="label">On this device</h3>
+        <label><input type="checkbox" id="desk-notify" ${deskNotifyOn() ? "checked" : ""}> Desktop notifications when a task needs me, failed or is done, while Kompanion is in the background</label>
+        <p id="desk-notify-msg" class="small muted" role="status"></p>
+      </section>
       ${s.isAdmin ? html`<section>
         <h3 class="label">Connections</h3>
         <p>Windshift: <span class="chip ${s.windshift === "connected" ? "good" : ""}">${s.windshift ?? "not configured"}</span></p>
