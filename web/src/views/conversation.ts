@@ -137,9 +137,13 @@ export function messageViews(s: AppState): MessageView[] {
   });
 }
 
+/** The message opened from search: outlined for a moment, also across re-renders. */
+let flashId: string | undefined;
+export function flashMessage(id: string | undefined): void { flashId = id; }
+
 export function renderMessage({ m, tasks, steps, machines }: MessageView): SafeHtml {
   return html`
-    <article class="msg ${m.author}" id="msg-${m.id}">
+    <article class="msg ${m.author}${m.id === flashId ? " search-hit" : ""}" id="msg-${m.id}">
       <header>
         <span class="who">${m.author === "user" ? "You" : "Kompanion"}</span>
         <time datetime="${m.at}">${clock(m.at)}</time>

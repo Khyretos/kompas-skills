@@ -232,3 +232,5 @@
 {"name": "search-e2e", "out": "web/tests/globalsearch.spec.ts", "gpu_seconds": 58.6, "tokens": 1319, "lines": 64, "model": "Coder", "at": "2026-10-05T05:23:11"}
 {"name": "search-css", "out": "web/src/search.css", "gpu_seconds": 100.3, "tokens": 2457, "lines": 193, "model": "Coder", "at": "2026-10-05T05:23:53"}
 {"name": "taskref-test", "out": "web/tests/projects.spec.ts", "mode": "patch", "gpu_seconds": 24.3, "tokens": 605, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T05:30:59"}
+{"name": "flash-conv", "out": "web/src/views/conversation.ts", "mode": "patch", "gpu_seconds": 12.4, "tokens": 137, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T06:00:24"}
+{"name": "flash-main", "out": "web/src/main.ts", "mode": "patch", "gpu_seconds": 21.9, "tokens": 352, "lines": 2, "attempts": 1, "model": "Coder", "at": "2026-10-05T06:00:34"}
