@@ -292,7 +292,6 @@ export function renderTasks(s: AppState): SafeHtml {
         <button data-action="scope" data-scope="project" aria-pressed="${scope === "project"}" ${project ? "" : "disabled"}>Project</button>
         <button data-action="scope" data-scope="all" aria-pressed="${scope === "all"}">All</button>
       </div>
-      ${search}
       <button class="icon-btn only-narrow" data-action="pane" data-pane="main" aria-label="Close tasks">${icon("close")}</button>
     </div>
     <div class="task-groups">
@@ -303,7 +302,13 @@ export function renderTasks(s: AppState): SafeHtml {
           pick: s.assetPick.project === project!.id ? s.assetPick : { q: "", items: [], busy: false },
           thumb,
         })}
-        <div class="project-bar">${search}</div>` : ""}
+        <div class="project-bar">
+          ${search}
+          <button class="btn small" data-action="new-task">${icon("plus")} Add task</button>
+          ${project!.kind === "windshift" ? html`
+            <span class="chip" title="Edits here are written to Windshift and Windshift changes come back">Synced with Windshift</span>
+            <button class="btn small" data-action="make-internal" data-id="${project!.id}">Stop syncing</button>` : ""}
+        </div>` : ""}
       ${scope === "project" ? "" : html`<div class="project-bar">${search}</div>`}
       ${list.length > 0 && shown.length === 0 ? html`<p class="muted pad">No task matches "${s.taskFilter}".</p>` : ""}
       ${list.length === 0 ? html`<p class="muted pad">No tasks yet. Ask the orchestrator for something and its tasks show up here.</p>` : ""}
