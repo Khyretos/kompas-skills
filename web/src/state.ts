@@ -38,6 +38,8 @@ export interface AppState {
   pane: "main" | "left" | "right"; // which pane is visible on a phone
   section: "chat" | "assets" | "capabilities"; // what the middle of the screen shows
   capabilities?: import("./views/capabilities").Capabilities; // loaded when the Capabilities section opens
+  gpuTimeline?: import("./views/gputimeline").TlGpu[]; // M6-04, loaded with Capabilities
+  gpuRange: 1 | 24;
   expandedProjects: Set<string>; // projects open in the sidebar
   allTasksShown: Set<string>; // projects whose sidebar task list shows every task ("N more" pressed)
   voice?: { enabled: boolean; voices: { id: string; label: string }[] }; // what the server offers (W4)
@@ -71,6 +73,7 @@ export const store = new Store<AppState>({
   settingsOpen: false,
   pane: "main",
   section: "chat",
+  gpuRange: 1,
   expandedProjects: new Set(),
   allTasksShown: new Set(),
   taskFilter: "",

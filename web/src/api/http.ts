@@ -135,6 +135,7 @@ export class HttpApi implements KompanionApi {
   }
   listActivity() { return this.request<import("../views/activity").ActivityItem[]>("GET", "/activity"); }
   getCapabilities() { return this.request<import("../views/capabilities").Capabilities>("GET", "/capabilities"); }
+  gpuTimeline(hours: 1 | 24) { return this.request<import("../views/gputimeline").TlGpu[]>("GET", `/gpus/timeline?hours=${hours}`); }
   voiceInfo() { return this.request<{ enabled: boolean; voices: { id: string; label: string }[] }>("GET", "/voice"); }
   async transcribe(audio: Blob, lang: string) {
     return (await this.request<{ text: string }>("POST", `/voice/transcribe${lang ? `?lang=${lang}` : ""}`, audio)).text;
