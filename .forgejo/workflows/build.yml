@@ -13,21 +13,34 @@ jobs:
   server:
     # Same musl image as the Dockerfile, so C dependencies that break on musl fail here
     # (2026-10-04: sqlite-vec built on glibc in CI but not in the deploy).
+    # Cargo runs in a sibling container on soucouyant's Docker (jobs there get the host
+    # socket) so the registry and target dir live in named volumes between runs;
+    # before, every push recompiled every crate.
     runs-on: soucouyant
     container:
-      image: rust:1-alpine
+      image: docker:cli
     env:
-      CFLAGS: "-Du_int8_t=uint8_t -Du_int16_t=uint16_t -Du_int64_t=uint64_t"
+      TOKEN: ${{ github.token }}
+      REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+      SHA: ${{ github.sha }}
     steps:
-      - name: Tools
-        run: apk add --no-cache git musl-dev
-      - name: Check out (plain git; this image has no Node for actions/checkout)
-        run: |
-          git init -q . && git -c http.extraHeader="Authorization: token ${{ github.token }}" fetch -q --depth 1 "${{ github.server_url }}/${{ github.repository }}" "${{ github.sha }}" && git checkout -q FETCH_HEAD
       - name: Test the shared stats crate and the server
         run: |
+          docker run -i --rm --name "kompanion-ci-server-${{ github.run_number }}" \
+            --label kk.ci.repo=${{ github.repository }} --label kk.ci.run=${{ github.run_number }} --label kk.ci.job=server \
+            -e TOKEN -e REPO_URL -e SHA -e CARGO_BUILD_JOBS -e CARGO_TARGET_DIR=/cache/target \
+            -e CFLAGS="-Du_int8_t=uint8_t -Du_int16_t=uint16_t -Du_int64_t=uint64_t" \
+            -v kompanion-cargo-registry:/usr/local/cargo/registry \
+            -v kompanion-target-server:/cache/target \
+            rust:1-alpine sh -eu <<'BUILD'
+          apk add --no-cache -q git musl-dev
+          # Start the target dir over when it passes 8 GB, so the cache can't fill the disk.
+          [ "$(du -sm /cache/target | cut -f1)" -lt 8000 ] || rm -rf /cache/target/*
+          mkdir /src && cd /src && git init -q .
+          git -c http.extraHeader="Authorization: token $TOKEN" fetch -q --depth 1 "$REPO_URL" "$SHA" && git checkout -q FETCH_HEAD
           (cd machine-stats && cargo test)
           (cd server && cargo test --locked)
+          BUILD
 
   web:
     runs-on: soucouyant
@@ -56,22 +69,32 @@ jobs:
           npx playwright test
 
   runner:
+    # Cached the same way as the server job.
     runs-on: soucouyant
     container:
-      image: rust:1-alpine
+      image: docker:cli
+    env:
+      TOKEN: ${{ github.token }}
+      REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+      SHA: ${{ github.sha }}
     steps:
-      - name: Tools
-        run: apk add --no-cache git musl-dev
-      - name: Check out (plain git; this image has no Node for actions/checkout)
+      - name: Build and test the static runner binary
         run: |
-          git init -q . && git -c http.extraHeader="Authorization: token ${{ github.token }}" fetch -q --depth 1 "${{ github.server_url }}/${{ github.repository }}" "${{ github.sha }}" && git checkout -q FETCH_HEAD
-      - name: Build the static runner binary
-        run: |
+          docker run -i --rm --name "kompanion-ci-runner-${{ github.run_number }}" \
+            --label kk.ci.repo=${{ github.repository }} --label kk.ci.run=${{ github.run_number }} --label kk.ci.job=runner \
+            -e TOKEN -e REPO_URL -e SHA -e CARGO_BUILD_JOBS -e CARGO_TARGET_DIR=/cache/target \
+            -v kompanion-cargo-registry:/usr/local/cargo/registry \
+            -v kompanion-target-runner:/cache/target \
+            rust:1-alpine sh -eu <<'BUILD'
+          apk add --no-cache -q git musl-dev
+          # Start the target dir over when it passes 8 GB, so the cache can't fill the disk.
+          [ "$(du -sm /cache/target | cut -f1)" -lt 8000 ] || rm -rf /cache/target/*
+          mkdir /src && cd /src && git init -q .
+          git -c http.extraHeader="Authorization: token $TOKEN" fetch -q --depth 1 "$REPO_URL" "$SHA" && git checkout -q FETCH_HEAD
           cd runner && cargo test && cargo build --release
-          cp target/release/kompanion-runner ../kompanion-runner-x86_64-linux-musl
-      - name: Show the binary
-        # (The job token can't write packages; the binary for PCs is copied by hand.)
-        run: ls -l kompanion-runner-x86_64-linux-musl && sha256sum kompanion-runner-x86_64-linux-musl
+          # (The job token can't write packages; the binary for PCs is copied by hand.)
+          ls -l /cache/target/release/kompanion-runner && sha256sum /cache/target/release/kompanion-runner
+          BUILD
 
 # The container image is built where it is deployed (kireserver): job containers
 # on soucouyant have no Docker daemon, and giving them the host socket would
