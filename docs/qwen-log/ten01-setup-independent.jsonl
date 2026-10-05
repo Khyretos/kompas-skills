@@ -6,3 +6,10 @@
 {"name": "ten01-voice", "out": "server/src/voice.rs", "mode": "patch", "gpu_seconds": 29.9, "tokens": 914, "lines": 5, "attempts": 1, "model": "Coder", "at": "2026-10-05T15:03:38"}
 {"name": "ten01-main-settings", "out": "server/src/main.rs", "mode": "patch", "gpu_seconds": 3.6, "tokens": 92, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T15:03:42"}
 {"name": "ten01-example-assets-voice", "out": "server/kompanion.example.toml", "mode": "patch", "gpu_seconds": 11.1, "tokens": 317, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T15:06:29"}
+{"name": "ten01-gpu-role-main", "out": "gpu-role/src/main.rs", "gpu_seconds": 84.6, "tokens": 2580, "lines": 195, "review": "skipped", "model": "Coder", "at": "2026-10-05T15:12:28"}
+{"name": "ten01-gpu-role-service", "out": "gpu-role/kompanion-gpu-role.service", "mode": "patch", "gpu_seconds": 6.5, "tokens": 146, "lines": 2, "attempts": 1, "model": "Coder", "at": "2026-10-05T15:12:35"}
+{"name": "ten01-gpu-role-install", "out": "gpu-role/install-user.sh", "mode": "patch", "gpu_seconds": 8.0, "tokens": 238, "lines": 2, "attempts": 1, "model": "Coder", "at": "2026-10-05T15:12:43"}
+{"name": "ten01-gpu-role-coder-name", "out": "server/src/gpus/role.rs", "mode": "patch", "gpu_seconds": 5.3, "tokens": 115, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T15:12:48"}
+{"name": "ten01-gpu-role-main-fix", "out": "gpu-role/src/main.rs", "mode": "patch", "gpu_seconds": 18.5, "tokens": 544, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T15:13:21"}
+{"name": "ten01-gpu-role-harden", "out": "gpu-role/src/main.rs", "mode": "patch", "gpu_seconds": 40.3, "tokens": 1191, "lines": 2, "attempts": 1, "model": "Coder", "at": "2026-10-05T15:14:25"}
+{"name": "ten01-gpu-role-readme", "out": "gpu-role/README.md", "gpu_seconds": 19.2, "tokens": 568, "lines": 20, "review": "skipped", "model": "Coder", "at": "2026-10-05T15:15:14"}

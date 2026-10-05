@@ -67,7 +67,8 @@ async fn helper(cmd: &str, timeout: Duration) -> Result<(bool, String)> {
 }
 
 pub fn mode_of(l: &GpuLedger) -> (Mode, Option<String>) {
-    if l.holdings.iter().any(|h| h.name == "Coder" && h.kind == "model" && h.now_mib > 0) {
+    let coder = std::env::var("GPU_ROLE_CODER").ok().filter(|c| !c.is_empty()).unwrap_or_else(|| "Coder".to_string());
+    if l.holdings.iter().any(|h| h.name == coder && h.kind == "model" && h.now_mib > 0) {
         (Mode::Coder, None)
     } else {
         let app = l.holdings.iter()

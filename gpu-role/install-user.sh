@@ -3,12 +3,23 @@
 # The Kompanion container mounts ~/.local/run/kompanion-gpu-role at /host-gpu-role and
 # runs with gid 1000, so the socket (mode 0660) is reachable from it and nobody else.
 set -eu
+# Usage: ./install-user.sh /path/to/gpu-mode.sh [ovms-container]
+# The paths go into ~/.config/kompanion-gpu-role/env; the helper reads them once at start.
+if [ $# -lt 1 ] || [ ! -x "$1" ]; then
+    echo "Usage: $0 /path/to/gpu-mode.sh [ovms-container]  (the script must exist and be executable)" >&2
+    exit 2
+fi
+GPU_MODE=$(realpath "$1")
+OVMS=${2:-ovms}
 cd "$(dirname "$0")"
 cargo build --release -q
 install -Dm755 target/release/kompanion-gpu-role "$HOME/.local/bin/kompanion-gpu-role"
 install -Dm644 kompanion-gpu-role.service "$HOME/.config/systemd/user/kompanion-gpu-role.service"
 mkdir -p "$HOME/.local/run/kompanion-gpu-role"
 chmod 0750 "$HOME/.local/run/kompanion-gpu-role"
+mkdir -p "$HOME/.config/kompanion-gpu-role"
+printf 'KOMPANION_GPU_MODE=%s\nKOMPANION_OVMS_CONTAINER=%s\n' "$GPU_MODE" "$OVMS" > "$HOME/.config/kompanion-gpu-role/env"
+chmod 600 "$HOME/.config/kompanion-gpu-role/env"
 systemctl --user daemon-reload
 systemctl --user enable --now kompanion-gpu-role.service
 systemctl --user restart kompanion-gpu-role.service

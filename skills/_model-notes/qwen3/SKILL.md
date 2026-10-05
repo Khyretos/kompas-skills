@@ -40,3 +40,5 @@ Full history with evidence: `docs/model-notes/qwen3-history-2026-10.md`.
   tool-call cap.
 - Stateful code (object identity, mutexes, event listeners, process pipes) is wrong more often than
   not, and the same bug comes back after a review names it once. Pure logic, markup and CSS are good.
+- Places a "first line" next to related lines instead of first; say exactly which existing line it
+  goes before.
