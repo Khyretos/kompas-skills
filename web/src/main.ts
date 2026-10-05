@@ -201,7 +201,7 @@ function render(s: AppState, prev: AppState): void {
   if (firstRender || pcKey !== lastPcKey || s.pcMachineId !== prev.pcMachineId) {
     mount($("#pc-slot"), renderPcPicker(s.machines.filter((m) => m.id !== "server"), s.pcMachineId));
   }
-  if (firstRender || s.pcActions !== prev.pcActions || pcKey !== lastPcKey) {
+  if (firstRender || s.pcActions !== prev.pcActions || pcKey !== lastPcKey || s.cardStyle !== prev.cardStyle) {
     const box = $("#messages");
     const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
     mount($("#pc-actions"), renderPcActions(s.pcActions.filter((a) => a.state === "pending"), Object.fromEntries(s.machines.map((m) => [m.id, m.name])), s.cardStyle));
