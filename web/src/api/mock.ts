@@ -3,7 +3,7 @@
 import type { AccessEvent, GrantView } from "../views/access";
 import type { KompanionApi, ServerEvent } from "./client";
 import type { PcAction } from "./client";
-import type { TaskState, AdminSettings, DaySummary, MachineStats, Chat, Message, ModelProvider, Project, RoleAssignment, Server, Task } from "./types";
+import type { TaskState, AdminSettings, DaySummary, MachineStats, Chat, Message, ModelProvider, Project, RoleAssignment, SearchResult, Server, Task } from "./types";
 
 const grants: Record<string, GrantView[]> = {
   soucouyant: [{ target: "/home/kees/projects/kompanion", rights: ["read", "write"], grantedBy: "demo", grantedAt: "2026-10-01T10:00:00Z", expires: null }],
@@ -362,6 +362,18 @@ export class MockApi implements KompanionApi {
   }
   async detachAsset(projectId: string, assetId: number) {
     projectAssets[projectId] = (projectAssets[projectId] ?? []).filter((a) => a.id !== assetId);
+  }
+  async search(q: string): Promise<SearchResult[]> {
+    const words = q.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+    if (!words.length) return [];
+    const hit = (text: string) => words.every((w) => new RegExp(`(^|[^\\p{L}\\p{N}])${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "iu").test(text));
+    const mark = (text: string) => text.replace(new RegExp(`(${words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`, "giu"), "\u0002$1\u0003");
+    const out: SearchResult[] = [];
+    for (const t of tasks) { if (hit(t.title + " " + (t.description ?? ""))) out.push({ kind: "task", id: t.id, parent: t.projectId, title: t.title, snippet: mark(t.description ?? "") }); }
+    for (const p of projects) { if (hit(p.name + " " + p.description)) out.push({ kind: "project", id: p.id, parent: null, title: p.name, snippet: mark(p.description) }); }
+    for (const c of chats) { if (hit(c.title)) out.push({ kind: "chat", id: c.id, parent: null, title: c.title, snippet: "" }); }
+    for (const m of messages) { const chat = chats.find((x) => x.id === m.chatId)?.title ?? ""; if (hit(m.text + " " + chat)) out.push({ kind: "message", id: m.id, parent: m.chatId, title: chat, snippet: mark(m.text.slice(0, 160)) }); }
+    return out.slice(0, 25);
   }
   async listChats() {
     return structuredClone([...chats].sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned)));

@@ -26,6 +26,7 @@ mod oidc;
 mod project_ctx;
 mod projects;
 mod runs;
+mod search;
 mod tasks;
 mod util;
 mod voice;
@@ -183,6 +184,7 @@ async fn main() -> anyhow::Result<()> {
                 .layer(axum::extract::DefaultBodyLimit::max(300 * 1024)),
         )
         .route("/logo", get(admin::get_logo))
+        .route("/search", get(search::search))
         .route("/mail-logo.png", get(admin::get_mail_logo))
         .route("/setup", post(auth::setup))
         .route("/login", post(auth::login))

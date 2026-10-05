@@ -82,3 +82,8 @@
 30. (2026-10-05) Remember UI state by the identity of the thing itself, never by its current
     container: step groups were keyed by message id, and the steps moved to the reply message when
     it arrived, so the user's open/closed choice was lost. Key by the first step's id.
+31. (2026-10-05) Search-as-you-type: number every query and drop answers that are not the newest;
+    clear the old list only when the new answer arrives (clearing on each keystroke flickers); keep
+    the shown results in an array and open `shown[index]` (Qwen read a `data-result` it never set).
+    Text from the user or the server goes in with textContent, never innerHTML, also in "Nothing
+    found for ..." lines.

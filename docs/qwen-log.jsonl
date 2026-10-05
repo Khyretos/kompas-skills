@@ -220,3 +220,14 @@
 {"name": "taskfilter-css", "out": "web/src/styles.css", "mode": "patch", "gpu_seconds": 22.8, "tokens": 443, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T05:26:04"}
 {"name": "taskfilter-clear", "out": "web/src/main.ts", "mode": "patch", "gpu_seconds": 10.7, "tokens": 252, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T05:26:05"}
 {"name": "taskfilter-test", "out": "web/tests/tasksearch.spec.ts", "mode": "patch", "gpu_seconds": 11.6, "tokens": 245, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T05:28:44"}
+{"name": "search-handler", "out": "server/src/search.rs", "gpu_seconds": 76.5, "tokens": 1754, "lines": 103, "model": "Coder", "at": "2026-10-05T04:55:35"}
+{"name": "search-migration", "out": "server/migrations/0022_search.sql", "gpu_seconds": 184.3, "tokens": 4497, "lines": 234, "model": "Coder", "at": "2026-10-05T04:57:23"}
+{"name": "search-find-test", "out": "server/src/search.rs", "mode": "patch", "gpu_seconds": 41.6, "tokens": 1010, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T05:06:38"}
+{"name": "search-test", "out": "server/src/search.rs", "mode": "patch", "gpu_seconds": 40.8, "tokens": 1042, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T05:12:56"}
+{"name": "search-rank-guard", "out": "server/src/search.rs", "mode": "patch", "gpu_seconds": 22.4, "tokens": 591, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T05:14:27"}
+{"name": "search-mock", "out": "web/src/api/mock.ts", "mode": "patch", "gpu_seconds": 31.2, "tokens": 580, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T05:16:24"}
+{"name": "search-palette", "out": "web/src/views/search.ts", "gpu_seconds": 125.7, "tokens": 2862, "lines": 155, "model": "Coder", "at": "2026-10-05T05:17:59"}
+{"name": "search-palette-fix", "out": "web/src/views/search.ts", "mode": "patch", "gpu_seconds": 92.8, "tokens": 2167, "lines": 4, "attempts": 1, "model": "Coder", "at": "2026-10-05T05:19:48"}
+{"name": "search-wire", "out": "web/src/main.ts", "mode": "patch", "gpu_seconds": 45.9, "tokens": 1082, "lines": 4, "attempts": 1, "model": "Coder", "at": "2026-10-05T05:21:28"}
+{"name": "search-e2e", "out": "web/tests/globalsearch.spec.ts", "gpu_seconds": 58.6, "tokens": 1319, "lines": 64, "model": "Coder", "at": "2026-10-05T05:23:11"}
+{"name": "search-css", "out": "web/src/search.css", "gpu_seconds": 100.3, "tokens": 2457, "lines": 193, "model": "Coder", "at": "2026-10-05T05:23:53"}

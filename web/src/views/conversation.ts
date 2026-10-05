@@ -139,7 +139,7 @@ export function messageViews(s: AppState): MessageView[] {
 
 export function renderMessage({ m, tasks, steps, machines }: MessageView): SafeHtml {
   return html`
-    <article class="msg ${m.author}">
+    <article class="msg ${m.author}" id="msg-${m.id}">
       <header>
         <span class="who">${m.author === "user" ? "You" : "Kompanion"}</span>
         <time datetime="${m.at}">${clock(m.at)}</time>

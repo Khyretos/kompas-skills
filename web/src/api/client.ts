@@ -1,7 +1,7 @@
 // The app talks to a Kompanion server only through this interface.
 // `MockApi` implements it for the draft; `HttpApi` (next milestone) will call
 // the real server over HTTPS + server-sent events.
-import type { NotificationPrefs, TaskState, AdminSettings, ThemeChoice, DaySummary, MachineStats, ServerStatus, Chat, Message, Project, RoleAssignment, ModelProvider, Server, Task } from "./types";
+import type { NotificationPrefs, TaskState, AdminSettings, ThemeChoice, DaySummary, MachineStats, ServerStatus, Chat, Message, Project, RoleAssignment, ModelProvider, SearchResult, Server, Task } from "./types";
 
 /** A step Kompanion wants to run on a paired computer (F6), waiting for approval. */
 export interface PcAction {
@@ -60,6 +60,8 @@ export interface KompanionApi {
   detachAsset(projectId: string, assetId: number): Promise<void>;
   listChats(): Promise<Chat[]>;
   listMessages(chatId: string): Promise<Message[]>;
+  /** Global search over the user's tasks, chats, messages and projects. */
+  search(q: string): Promise<SearchResult[]>;
   listTasks(projectId?: string): Promise<Task[]>;
   listProviders(): Promise<ModelProvider[]>;
   listMachines(): Promise<MachineStats[]>;

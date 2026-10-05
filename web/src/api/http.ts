@@ -2,7 +2,7 @@
 // a session cookie. Live updates arrive as server-sent events.
 import type { KompanionApi, ServerEvent } from "./client";
 import type {
-  AdminSettings, NotificationPrefs, ThemeChoice, TaskState, Chat, DaySummary, MachineStats, Message, ModelProvider, Project, RoleAssignment, Server, ServerStatus, Task,
+  AdminSettings, NotificationPrefs, ThemeChoice, TaskState, Chat, DaySummary, MachineStats, Message, ModelProvider, Project, RoleAssignment, SearchResult, Server, ServerStatus, Task,
 } from "./types";
 
 export class ApiError extends Error {
@@ -93,6 +93,7 @@ export class HttpApi implements KompanionApi {
     return this.request<void>("DELETE", `/projects/${encodeURIComponent(projectId)}/assets/${assetId}`);
   }
   listChats() { return this.request<Chat[]>("GET", "/chats"); }
+  async search(q: string) { return (await this.request<{ results: SearchResult[] }>("GET", `/search?q=${encodeURIComponent(q)}`)).results; }
   listMessages(chatId: string) { return this.request<Message[]>("GET", `/chats/${encodeURIComponent(chatId)}/messages`); }
   listTasks() { return this.request<Task[]>("GET", "/tasks"); }
   listProviders() { return this.request<ModelProvider[]>("GET", "/providers"); }

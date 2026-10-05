@@ -92,3 +92,11 @@
     (CONTENT_DISPOSITION, format!(..))]`, not a `&str` next to a `String`.
 40. The `time` crate parses RFC 3339 only with its "parsing" feature; `OffsetDateTime::parse` is
     missing otherwise.
+41. (2026-10-05) In SQLite triggers never rely on `INSERT OR IGNORE`: the conflict policy of the
+    statement that fired the trigger wins, so an upsert (`ON CONFLICT DO UPDATE`) made the trigger's
+    insert fail with a UNIQUE error. Write `INSERT ... SELECT ... WHERE NOT EXISTS (...)`.
+42. (2026-10-05) FTS5 ranking costs time per match: `ORDER BY bm25(...) LIMIT 40` over 50,000
+    matches took ~100 ms, without ranking 3 ms. Count the matches first and rank only up to a few
+    thousand; above that, newest first (`ORDER BY rowid DESC`).
+43. (2026-10-05) Anything a mail links to (logo, images) must be a public route (add it to the
+    auth guard's open list) and a PNG/JPEG: Gmail and Outlook show no SVG and send no cookie.
