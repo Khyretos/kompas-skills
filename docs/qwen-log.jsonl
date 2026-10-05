@@ -234,3 +234,6 @@
 {"name": "taskref-test", "out": "web/tests/projects.spec.ts", "mode": "patch", "gpu_seconds": 24.3, "tokens": 605, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T05:30:59"}
 {"name": "flash-conv", "out": "web/src/views/conversation.ts", "mode": "patch", "gpu_seconds": 12.4, "tokens": 137, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T06:00:24"}
 {"name": "flash-main", "out": "web/src/main.ts", "mode": "patch", "gpu_seconds": 21.9, "tokens": 352, "lines": 2, "attempts": 1, "model": "Coder", "at": "2026-10-05T06:00:34"}
+{"name": "voice-timing", "out": "web/src/main.ts", "mode": "patch", "gpu_seconds": 29.4, "tokens": 632, "lines": 5, "attempts": 1, "model": "Coder", "at": "2026-10-05T06:11:09"}
+{"name": "onaction-twin", "out": "web/src/core/html.ts", "mode": "patch", "gpu_seconds": 32.9, "tokens": 730, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T06:11:12"}
+{"name": "lostclick-test", "out": "web/tests/stepgroups.spec.ts", "mode": "patch", "gpu_seconds": 17.7, "tokens": 478, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T06:11:59"}

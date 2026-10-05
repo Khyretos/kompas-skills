@@ -422,13 +422,16 @@ const recorder = new Recorder();
 const reader = new Reader((text) => api.speak(text, store.get().voicePrefs.voice), (speaking) => store.set({ speaking }));
 let pressAt = 0;
 let startedByPress = false;
+let starting: Promise<void> | undefined;
+let releaseAt = 0;
 
 async function startRecording(): Promise<void> {
   if (store.get().recording !== "idle") return;
   reader.stop(); // don't record our own voice
   store.set({ recording: "recording" });
   try {
-    await recorder.start();
+    starting = recorder.start();
+    await starting;
   } catch (e) {
     store.set({ recording: "idle" });
     showError(new Error(`The microphone is not available: ${e instanceof Error ? e.message : String(e)}`));
@@ -439,6 +442,7 @@ async function stopRecording(): Promise<void> {
   if (store.get().recording !== "recording") return;
   store.set({ recording: "transcribing" });
   try {
+    await starting?.catch(() => undefined);
     const audio = await recorder.stop();
     const text = audio.size ? await api.transcribe(audio, store.get().voicePrefs.lang) : "";
     const box = document.getElementById("prompt") as HTMLTextAreaElement | null;
@@ -761,7 +765,7 @@ function wire(shell: HTMLElement): void {
     "voice-mic": () => {
       if (startedByPress) {
         startedByPress = false;
-        if (Date.now() - pressAt > 400) void stopRecording(); // held: let go stops
+        if (releaseAt - pressAt > 400) void stopRecording(); // held: let go stops
         return; // short click: keep listening until the next click
       }
       if (store.get().recording === "recording") void stopRecording(); else void startRecording();
@@ -850,6 +854,9 @@ function wire(shell: HTMLElement): void {
       startedByPress = true;
       void startRecording();
     }
+  });
+  shell.addEventListener("pointerup", (ev) => {
+    if ((ev.target as HTMLElement).closest("#voice-mic")) releaseAt = Date.now();
   });
   shell.addEventListener("change", async (ev) => {
     const fid = (ev.target as HTMLElement).id;
