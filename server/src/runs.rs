@@ -248,7 +248,7 @@ pub struct Dl {
 fn send(v: Value, name: &str, download: bool) -> Response {
     if download {
         let body = serde_json::to_string_pretty(&v).unwrap_or_default();
-        ([(header::CONTENT_TYPE, "application/json"), (header::CONTENT_DISPOSITION, format!("attachment; filename=\"{name}.json\""))], body).into_response()
+        ([(header::CONTENT_TYPE, "application/json".to_string()), (header::CONTENT_DISPOSITION, format!("attachment; filename=\"{name}.json\""))], body).into_response()
     } else {
         Json(v).into_response()
     }
