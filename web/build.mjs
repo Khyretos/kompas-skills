@@ -31,7 +31,7 @@ for (const f of await readdir("pwa")) await copyFile(`pwa/${f}`, `dist/${f}`);
 if (serve) {
   const ctx = await esbuild.context(options);
   await ctx.watch();
-  const { port } = await ctx.serve({ servedir: "dist", port: 5173 });
+  const { port } = await ctx.serve({ servedir: "dist", port: Number(process.env.PORT) || 5173 });
   console.log(`Kompanion dev server: http://localhost:${port}`);
 } else {
   await esbuild.build(options);

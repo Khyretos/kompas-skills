@@ -9,6 +9,7 @@ about). Layout:
 - `worker/rust/`, `worker/web/`: how to write code that passes review here.
 - `worker/cpp-games/`: kk-engine games in C++ (cameras, controllers, assets, testing on soucouyant).
 - `worker/localization/`: translating the website (kk-localize): what to protect, what needs context, what to hold.
+- `worker/docs/`: READMEs, guides and task descriptions: only given facts, keep what you are told to keep.
 - `runner/`: running tools on PCs within the access grants.
 - `shared/`: facts every role needs (house rules, brand, FOSS only).
 - `reviewer/`: what to check, in order.
