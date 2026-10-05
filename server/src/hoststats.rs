@@ -224,13 +224,13 @@ impl HostStats {
 
     /// Measured VRAM per GPU for the M6 ledger: (None for this server or the remote machine
     /// id, PCI slot, used GB, total GB). This server is sampled now if its sample is old.
-    pub fn gpu_vram(&self, state: &AppState) -> Vec<(Option<String>, String, Option<f64>, Option<f64>)> {
+    pub fn gpu_vram(&self, state: &AppState) -> Vec<(Option<String>, String, Option<f64>, Option<f64>, Option<f64>)> {
         let _ = self.local_view(state);
         let mut out: Vec<_> = self.local.lock().unwrap().snap.iter()
-            .flat_map(|s| s.gpus.iter().map(|g| (None, g.pci_slot.clone(), g.vram_used_gb, g.vram_total_gb)))
+            .flat_map(|s| s.gpus.iter().map(|g| (None, g.pci_slot.clone(), g.vram_used_gb, g.vram_total_gb, g.watts)))
             .collect();
         for (id, r) in self.remote.lock().unwrap().iter() {
-            out.extend(r.snap.gpus.iter().map(|g| (Some(id.clone()), g.pci_slot.clone(), g.vram_used_gb, g.vram_total_gb)));
+            out.extend(r.snap.gpus.iter().map(|g| (Some(id.clone()), g.pci_slot.clone(), g.vram_used_gb, g.vram_total_gb, g.watts)));
         }
         out
     }

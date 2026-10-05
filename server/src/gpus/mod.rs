@@ -5,6 +5,7 @@
 pub mod jobs;
 pub mod ledger;
 pub mod sched;
+pub mod timeline;
 
 use std::{collections::HashMap, sync::Mutex, time::Duration};
 
@@ -74,8 +75,8 @@ async fn probe(s: &AppState, h: &HolderConfig) -> Vec<Holding> {
     }
 }
 
-/// A measured GPU: machine name, PCI slot (lower case), used and total MiB.
-type Measured = (String, String, Option<u64>, Option<u64>);
+/// A measured GPU: machine name, PCI slot (lower case), used and total MiB, watts.
+type Measured = (String, String, Option<u64>, Option<u64>, Option<f64>);
 
 /// Measured VRAM of every GPU Kompanion sees (this server and paired computers).
 async fn measured(s: &AppState) -> Vec<Measured> {
@@ -89,13 +90,13 @@ async fn measured(s: &AppState) -> Vec<Measured> {
     s.host
         .gpu_vram(s)
         .into_iter()
-        .filter_map(|(remote, pci, used, total)| {
+        .filter_map(|(remote, pci, used, total, watts)| {
             let machine = match remote {
                 None => local.clone(),
                 Some(id) => names.get(&id)?.clone(),
             };
             let mib = |gb: f64| (gb * 1024.0).round() as u64;
-            Some((machine, pci.to_lowercase(), used.map(mib), total.map(mib)))
+            Some((machine, pci.to_lowercase(), used.map(mib), total.map(mib), watts))
         })
         .collect()
 }
@@ -118,7 +119,9 @@ async fn gpu_ledger(s: &AppState, g: &GpuConfig, all: &[Measured]) -> GpuLedger 
     }
     let total = (g.vram_gb * 1024.0).round() as u64;
     let used_mib = find(g, all).and_then(|m| m.2);
-    ledger::ledger(&g.id, &g.machine, total, used_mib, g.schedulable, holdings)
+    let mut l = ledger::ledger(&g.id, &g.machine, total, used_mib, g.schedulable, holdings);
+    l.watts = find(g, all).and_then(|m| m.4);
+    l
 }
 
 /// The ledger of every configured GPU, probed now.
@@ -150,7 +153,7 @@ async fn store(s: &AppState, ledgers: &[GpuLedger]) {
     let at = util::now();
     for g in ledgers {
         let _ = sqlx::query(
-            "INSERT INTO gpu_sample (gpu_id, at, used_mib, reserved_mib, other_mib, holdings) VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO gpu_sample (gpu_id, at, used_mib, reserved_mib, other_mib, holdings, watts) VALUES (?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(&g.id)
         .bind(&at)
@@ -158,10 +161,12 @@ async fn store(s: &AppState, ledgers: &[GpuLedger]) {
         .bind(g.reserved_mib as i64)
         .bind(g.other_mib as i64)
         .bind(serde_json::to_string(&g.holdings).unwrap_or_default())
+        .bind(g.watts)
         .execute(&s.db)
         .await;
     }
     let _ = sqlx::query("DELETE FROM gpu_sample WHERE at < ?").bind(util::minutes_ago(24 * 60)).execute(&s.db).await;
+    let _ = sqlx::query("DELETE FROM gpu_event WHERE at < ?").bind(util::minutes_ago(24 * 60)).execute(&s.db).await;
 }
 
 /// Every 10 s (and at once when a GPU job is queued or ends): probe, keep a sample, run a
@@ -220,9 +225,9 @@ mod tests {
     #[test]
     fn a_gpu_is_found_by_slot_or_as_the_biggest() {
         let all: Vec<Measured> = vec![
-            ("kireserver".into(), "0000:10:00.0".into(), Some(12000), Some(16384)),
-            ("soucouyant".into(), "0000:0e:00.0".into(), Some(200), Some(512)),
-            ("soucouyant".into(), "0000:03:00.0".into(), Some(8000), Some(16304)),
+            ("kireserver".into(), "0000:10:00.0".into(), Some(12000), Some(16384), None),
+            ("soucouyant".into(), "0000:0e:00.0".into(), Some(200), Some(512), None),
+            ("soucouyant".into(), "0000:03:00.0".into(), Some(8000), Some(16304), None),
         ];
         let g = |machine: &str, pci: &str| GpuConfig {
             id: "x".into(), machine: machine.into(), pci: pci.into(), vram_gb: 16.0, schedulable: true, holders: vec![],
