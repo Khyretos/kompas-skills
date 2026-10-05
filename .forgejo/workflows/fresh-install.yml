@@ -1,0 +1,60 @@
+# TEN-01: a stranger's install. Builds the image from this commit and starts it with ONLY server/kompanion.example.toml, the way docker-compose.yml runs it, and checks that it comes up and offers first-time setup. Runs on soucouyant (its jobs get the host's Docker; image builds are heavy).
+name: fresh-install
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - Dockerfile
+      - docker-compose.yml
+      - 'server/**'
+      - 'web/**'
+      - '.forgejo/workflows/fresh-install.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - Dockerfile
+      - docker-compose.yml
+      - 'server/**'
+      - 'web/**'
+      - '.forgejo/workflows/fresh-install.yml'
+
+jobs:
+  fresh-install:
+    runs-on: soucouyant
+    container: docker:cli
+    env:
+      TOKEN: ${{ github.token }}
+      REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+      SHA: ${{ github.sha }}
+      RUN: ${{ github.run_number }}
+    steps:
+      - name: Build and start with the example config
+        run: |
+          set -eu
+          apk add --no-cache -q git curl
+          N="kk-fresh-$RUN"
+          # Always clean up: container, network, volume and image, also when a check fails.
+          cleanup() { docker rm -f "$N" >/dev/null 2>&1 || true; docker network rm "$N" >/dev/null 2>&1 || true; docker volume rm "$N" "$N-cfg" >/dev/null 2>&1 || true; docker image rm "$N:test" >/dev/null 2>&1 || true; }
+          trap cleanup EXIT
+          mkdir /src && cd /src && git init -q .
+          git -c http.extraHeader="Authorization: token $TOKEN" fetch -q --depth 1 "$REPO_URL" "$SHA" && git checkout -q FETCH_HEAD
+          nice -n 15 docker build -q -t "$N:test" .
+          docker network create "$N" >/dev/null
+          docker volume create "$N" >/dev/null
+          # The config goes into its own volume: the host's Docker cannot see this job container's files.
+          docker volume create "$N-cfg" >/dev/null
+          docker run --rm -i -v "$N-cfg":/c alpine sh -c 'cat > /c/kompanion.toml' < server/kompanion.example.toml
+          docker create --name "$N" --network "$N" --read-only --tmpfs /tmp -v "$N":/data -v "$N-cfg":/config:ro --add-host host.docker.internal:host-gateway --cap-drop ALL --security-opt no-new-privileges:true "$N:test" >/dev/null
+          docker start "$N" >/dev/null
+          ok=""
+          for i in $(seq 1 30); do
+            if docker run --rm --network "$N" curlimages/curl:latest -sf "http://$N:8080/api/status" > /tmp/status.json 2>/dev/null; then ok=1; break; fi
+            sleep 2
+          done
+          docker logs "$N" 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | grep -v 'setup code' | tail -20
+          [ -n "$ok" ] || { echo "the server did not answer /api/status within 60 s"; exit 1; }
+          grep -q '"setupNeeded":true' /tmp/status.json || { echo "a fresh install must offer first-time setup"; cat /tmp/status.json; exit 1; }
+          if docker logs "$N" 2>&1 | grep -E ' ERROR | panicked'; then echo "errors in the log of a fresh install"; exit 1; fi
+          echo "fresh install OK"
