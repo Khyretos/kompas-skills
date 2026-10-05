@@ -1,0 +1,8 @@
+[package]
+name = "kompanion-gpu-role"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+description = "Switches kireserver's A770 between coder and artist through gpu-mode.sh, one fixed command at a time, on a unix socket."
+
+[dependencies]

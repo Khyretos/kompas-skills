@@ -5,6 +5,8 @@
 pub mod jobs;
 pub mod ledger;
 pub mod sched;
+pub mod role_policy;
+pub mod role;
 
 use std::{collections::HashMap, sync::Mutex, time::Duration};
 
@@ -182,6 +184,8 @@ pub fn spawn(s: AppState) {
                 store(&s, &now).await;
             }
             jobs::round(&s, &now).await;
+            // M6-03: coder/artist switch of the A770 (off unless GPU_ROLE_GPU is set).
+            role::step(&s, &now).await;
             let changed = {
                 let mut last = LAST.lock().unwrap();
                 // Small VRAM wobbles (under 64 MiB) are not news.
