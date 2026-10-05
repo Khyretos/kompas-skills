@@ -11,7 +11,7 @@ import { onCodeAction } from "./core/codeblocks";
 import { activeProject, store, type AppState } from "./state";
 import { showConnect } from "./views/connect";
 import { renderSidebar } from "./views/sidebar";
-import { composer, fillMessage, groupChoice, messageViews, openSteps, renderEmpty, renderHeader, renderMessage, type MessageView } from "./views/conversation";
+import { composer, elapsedText, fillMessage, groupChoice, messageViews, openSteps, renderEmpty, renderHeader, renderMessage, type MessageView } from "./views/conversation";
 import { KeyedList } from "./core/keyed";
 import { paneTabs, renderTasks, setAssetThumbs } from "./views/tasks";
 import { renderMachines, REFRESH_STEPS, setGpuView } from "./views/machines";
@@ -424,9 +424,8 @@ function watchCapabilities(on: boolean): void {
 function tickElapsed(): void {
   const now = Date.now();
   for (const el of document.querySelectorAll<HTMLElement>(".elapsed[data-since]")) {
-    const secs = Math.max(0, Math.round((now - Date.parse(el.dataset.since ?? "")) / 1000));
-    if (Number.isNaN(secs)) continue;
-    el.textContent = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
+    const text = elapsedText(el.dataset.since ?? "", now);
+    if (text) el.textContent = text;
   }
 }
 window.setInterval(tickElapsed, 1000);

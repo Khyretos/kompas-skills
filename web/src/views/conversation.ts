@@ -28,6 +28,12 @@ export const openSteps = new Set<string>();
  *  choice a group is open only while one of its steps runs; a choice is never overridden. */
 export const groupChoice = new Map<string, boolean>();
 
+/** "m:ss" since an ISO time (main.ts's ticker keeps it current between renders). */
+export function elapsedText(since: string, now = Date.now()): string {
+  const secs = Math.max(0, Math.round((now - Date.parse(since)) / 1000));
+  return Number.isNaN(secs) ? "" : `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
+}
+
 function renderStep(a: PcAction, machines: Record<string, string>): SafeHtml {
   const busy = ["approved", "always", "granting", "running"].includes(a.state);
   return html`
@@ -36,7 +42,7 @@ function renderStep(a: PcAction, machines: Record<string, string>): SafeHtml {
         ${icon(busy ? "spark" : a.state === "done" ? "terminal" : "close")}
         <span class="step-summary">${a.summary}</span>
         <span class="chip ${a.state}">${STEP_LABEL[a.state] ?? a.state}</span>
-        ${a.state === "running" ? html`<span class="elapsed" data-since="${a.startedAt ?? a.createdAt}"></span>
+        ${a.state === "running" ? html`<span class="elapsed" data-since="${a.startedAt ?? a.createdAt}">${elapsedText(a.startedAt ?? a.createdAt)}</span>
           <button class="btn small danger step-stop" type="button" data-action="step-stop" data-id="${a.id}">Stop</button>` : ""}
       </summary>
       ${a.result ? renderOutput(fromTool(a.tool, a.result, machines[a.machineId])) : ""}
