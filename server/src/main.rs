@@ -24,6 +24,7 @@ mod notify;
 mod oidc;
 mod project_ctx;
 mod projects;
+mod runs;
 mod tasks;
 mod util;
 mod voice;
@@ -186,6 +187,9 @@ async fn main() -> anyhow::Result<()> {
         .route("/tasks/{id}/events", get(tasks::events))
         .route("/tasks/{id}/start", post(taskrun::start))
         .route("/tasks/{id}/stop", post(taskrun::stop))
+        .route("/tasks/{id}/runs", get(runs::of_task))
+        .route("/runs/{id}/report", get(runs::report))
+        .route("/chats/{id}/report", get(runs::chat))
         .route("/actions/{id}/stop", post(pcagent::stop))
         .route("/projects/{id}", patch(tasks::set_project_kind))
         .route("/projects/{id}/settings", patch(projects::settings))

@@ -45,6 +45,7 @@ export interface AppState {
   recording: "idle" | "recording" | "transcribing"; // the microphone button
   speaking: boolean; // a reply is being read aloud
   runCheck?: { taskId: string; machine: string; path: string; busy: boolean; result?: { state: "ok" | "nogrant" | "missing" | "notfolder" | "noanswer"; path: string; folders?: string[]; files?: number; message?: string } }; // the Run form's folder check
+  taskRuns?: { taskId: string; runs: { id: string; startedAt: string; endedAt: string | null; status: string; step: string | null }[] }; // the open task's W2 runs (report, run id)
   projectAssets: Record<string, import("./views/projectpanel").ProjectAsset[]>; // game projects, loaded when shown
   assetPick: { project: string; q: string; items: import("./views/projectpanel").PickResult[]; busy: boolean }; // the picker
   activeProjectId?: string; // project picked in the sidebar (tasks pane, new chats)

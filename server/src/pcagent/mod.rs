@@ -115,7 +115,7 @@ pub async fn run(s: AppState, user_id: String, chat_id: String, machine_id: Stri
         let role = if author == "user" { "user" } else { "assistant" };
         messages.push(json!({ "role": role, "content": text }));
     }
-    let agent = Agent { s: s.clone(), user_id: user_id.clone(), chat_id: chat_id.clone(), machine_id, role, auto: false, max_steps: MAX_STEPS, folder: None, task_id: None };
+    let agent = Agent { s: s.clone(), user_id: user_id.clone(), chat_id: chat_id.clone(), machine_id, role, auto: false, max_steps: MAX_STEPS, folder: None, task_id: None, run_id: None };
     let text = match agent.run(messages).await {
         Ok(t) => t,
         Err(e) => e,
@@ -140,6 +140,8 @@ pub struct Agent {
     pub folder: Option<String>,
     /// W2: the task this agent works for; when the user stops it, the agent stops too.
     pub task_id: Option<String>,
+    /// W2: the run this agent works for (its model calls and steps are recorded with it).
+    pub run_id: Option<String>,
 }
 
 /// Why an edit_file job would break the file, if it would: reads the file through the
@@ -190,9 +192,18 @@ impl Agent {
             return Err("stopped by you".into());
         }
         for _ in 0..self.max_steps {
-            let msg = llm::chat_with_tools(&s.http, p, &self.role.model_id, &messages, &tools)
-                .await
-                .map_err(|e| format!("The model failed: {e:#}"))?;
+            let started = std::time::Instant::now();
+            let answer = llm::chat_with_tools_full(&s.http, p, &self.role.model_id, &messages, &tools).await;
+            let (msg, usage, err) = match answer {
+                Ok((m, u)) => (m, u, None),
+                Err(e) => (Value::Null, Value::Null, Some(format!("The model failed: {e:#}"))),
+            };
+            let request = json!({ "messages": messages.len(), "last": messages.last() });
+            crate::api::log_call(s, &self.user_id, &self.chat_id, self.run_id.as_deref(), &self.role.role, &self.role,
+                "A step on a computer.", &request, &msg, &usage, started.elapsed().as_millis(), err.as_deref()).await;
+            if let Some(e) = err {
+                return Err(e);
+            }
             let calls = msg["tool_calls"].as_array().cloned().unwrap_or_default();
             if calls.is_empty() {
                 let text = msg["content"].as_str().unwrap_or("").trim();
@@ -233,7 +244,7 @@ impl Agent {
                         "Blocked: that file did not exist when you looked. Ask the user before creating a new file.".to_string()
                     }
                     Some(job) => {
-                        let r = step(s, &self.user_id, &self.chat_id, &self.machine_id, &job, self.auto).await;
+                        let r = step(s, &self.user_id, &self.chat_id, &self.machine_id, &job, self.auto, self.run_id.as_deref()).await;
                         if r.contains("no such file") && let Some(p) = job["path"].as_str() {
                             missing.insert(p.to_string());
                         }
@@ -270,9 +281,11 @@ pub async fn covered(s: &AppState, machine_id: &str, job: &Value) -> bool {
 }
 
 async fn set_action(s: &AppState, id: &str, state: &str, result: &str) {
-    let _ = sqlx::query("UPDATE pc_actions SET state = ?, result = ? WHERE id = ?")
+    let _ = sqlx::query("UPDATE pc_actions SET state = ?, result = ?, ended_at = CASE WHEN ? IN ('done', 'failed', 'refused', 'denied', 'stopped') THEN ? ELSE ended_at END WHERE id = ?")
         .bind(state)
         .bind(cut(result, 4000))
+        .bind(state)
+        .bind(util::now())
         .bind(id)
         .execute(&s.db)
         .await;
@@ -280,13 +293,13 @@ async fn set_action(s: &AppState, id: &str, state: &str, result: &str) {
 
 /// One tool call: an approval card, then (if approved) a runner job. Returns the
 /// text the model gets back.
-async fn step(s: &AppState, user_id: &str, chat_id: &str, machine_id: &str, job: &Value, auto: bool) -> String {
+async fn step(s: &AppState, user_id: &str, chat_id: &str, machine_id: &str, job: &Value, auto: bool, run_id: Option<&str>) -> String {
     let id = util::new_id();
     // Under a standing grant (tasks): no card, the step runs right away.
     let preapproved = auto && covered(s, machine_id, job).await;
     let stored = sqlx::query(
-        "INSERT INTO pc_actions (id, chat_id, user_id, machine_id, tool, summary, state, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO pc_actions (id, chat_id, user_id, machine_id, tool, summary, state, created_at, run_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(&id)
     .bind(chat_id)
@@ -296,6 +309,7 @@ async fn step(s: &AppState, user_id: &str, chat_id: &str, machine_id: &str, job:
     .bind(tools::summary(job))
     .bind(if preapproved { "running" } else { "pending" })
     .bind(util::now())
+    .bind(run_id)
     .execute(&s.db)
     .await;
     if let Err(e) = stored {

@@ -195,6 +195,24 @@ function runForm(t: Task, s: AppState): SafeHtml {
     </form>`;
 }
 
+/** The task's W2 runs: status, and per run "Copy run ID" and "Export report" (a JSON file). */
+function runsList(t: Task, s: AppState): SafeHtml {
+  const runs = s.taskRuns?.taskId === t.id ? s.taskRuns.runs : [];
+  if (!runs.length) return html``;
+  return html`
+    <section class="task-runs" aria-label="Runs">
+      <h4 class="label">Runs</h4>
+      <ul>${runs.slice(0, 5).map((r) => html`
+        <li>
+          <span class="chip state s-${r.status}">${r.status.replace("_", " ")}</span>
+          <span class="muted small">${relTime(r.startedAt)}${r.step ? ` · ${r.step}` : ""}</span>
+          <button class="btn small" type="button" data-action="copy-text" data-text="${r.id}">Copy run ID</button>
+          <a class="btn small" href="/api/runs/${encodeURIComponent(r.id)}/report?download=1" download>Export report</a>
+        </li>`)}
+      </ul>
+    </section>`;
+}
+
 function detail(t: Task, s: AppState): SafeHtml {
   const project = s.projects.find((p) => p.id === t.projectId);
   const pct = Math.round(t.progress * 100);
@@ -217,6 +235,7 @@ function detail(t: Task, s: AppState): SafeHtml {
         ${t.state === "running" ? html`<button class="btn small danger" data-action="task-stop" data-id="${t.id}">Stop task</button>` : ""}
         <button class="btn small danger" data-action="delete-task" data-id="${t.id}">${icon("trash")} Delete</button>
       </div>
+      ${runsList(t, s)}
       ${t.description ? html`<div class="task-desc md" data-md-task="${t.id}"></div>`
         : html`<p class="warn">This task has no description yet. <button class="link" data-action="edit-task" data-id="${t.id}">Write one</button>: goal, steps, done when.</p>`}
       <div class="detail-state">

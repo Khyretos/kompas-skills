@@ -750,3 +750,7 @@ button[aria-busy="true"]::after {
 .step .elapsed { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 0.8rem; }
 .step .step-stop { margin-left: auto; min-height: 1.8rem; padding: 0.2rem 0.6rem; }
 .chip.stopped { color: var(--attn); }
+
+/* A task's W2 runs: status, Copy run ID, Export report. */
+.task-runs ul { list-style: none; margin: 0 0 0.75rem; padding: 0; display: grid; gap: 0.35rem; }
+.task-runs li { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }

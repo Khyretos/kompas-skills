@@ -443,8 +443,9 @@ pub async fn report(
         let version = headers.get("x-kompanion-runner").and_then(|v| v.to_str().ok()).map(|v| v.chars().take(20).collect());
         remote.insert(id.clone(), Remote { user_id, snap, at: Instant::now(), at_iso: util::now(), interval, history, version });
     }
-    sqlx::query("UPDATE machines SET last_seen = ? WHERE id = ?")
+    sqlx::query("UPDATE machines SET last_seen = ?, runner_version = COALESCE(?, runner_version) WHERE id = ?")
         .bind(util::now())
+        .bind(version.as_deref())
         .bind(&id)
         .execute(&s.db)
         .await?;

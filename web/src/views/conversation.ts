@@ -75,6 +75,7 @@ export function renderHeader(s: AppState): SafeHtml {
       <h1>${chat?.title ?? "New chat"}</h1>
     </div>
     <span class="chip model" title="Orchestrator model">${orchestrator?.modelId ?? ""}</span>
+    ${chat ? html`<a class="btn small" href="/api/chats/${encodeURIComponent(chat.id)}/report?download=1" download title="Steps and model calls of this chat as JSON">Export report</a>` : ""}
     <button class="icon-btn only-narrow tasks-toggle" data-action="pane" data-pane="right" aria-label="Tasks">
       ${icon("tasks")}${attention ? html`<span class="badge attn">${attention}</span>` : ""}
     </button>`;

@@ -83,6 +83,8 @@ export interface KompanionApi {
   stopAction(id: string): Promise<void>;
   /** Stops a running W2 task (and its running step). */
   stopTask(id: string): Promise<void>;
+  /** A task's W2 runs, newest first (their ids open the report: /api/runs/<id>/report). */
+  taskRuns(taskId: string): Promise<{ id: string; startedAt: string; endedAt: string | null; status: string; step: string | null }[]>;
   /** Does this folder exist on that computer, and which folders are in it (needs a read grant)? */
   checkFolder(machineId: string, path: string): Promise<{ state: "ok" | "nogrant" | "missing" | "notfolder" | "noanswer"; path: string; folders?: string[]; files?: number; message?: string }>;
   listActivity(): Promise<import("../views/activity").ActivityItem[]>;

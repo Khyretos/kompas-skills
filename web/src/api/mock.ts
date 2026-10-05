@@ -485,6 +485,9 @@ export class MockApi implements KompanionApi {
     ];
   }
   async startTask() {}
+  async taskRuns(taskId: string) {
+    return taskId === "t-kk-1" ? [{ id: "run-demo-1", startedAt: ago(30), endedAt: ago(29), status: "needs_input", step: "folder not found" }] : [];
+  }
   async stopAction(actionId: string) {
     const a = actions.find((x) => x.id === actionId);
     if (!a || a.state !== "running") throw new Error("That step isn't running.");

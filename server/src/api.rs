@@ -522,6 +522,45 @@ pub async fn user_role(s: &AppState, user_id: &str, role: &str) -> ApiResult<Opt
     Ok(user_roles(s, user_id).await?.into_iter().find(|r| r.role == role))
 }
 
+/// One model call, recorded in full for the call inspector and the run report.
+#[allow(clippy::too_many_arguments)]
+pub async fn log_call(
+    s: &AppState,
+    user_id: &str,
+    chat_id: &str,
+    run_id: Option<&str>,
+    role: &str,
+    role_assignment: &RoleAssignment,
+    reason: &str,
+    request: &Value,
+    response: &Value,
+    usage: &Value,
+    ms: u128,
+    error: Option<&str>,
+) {
+    let _ = sqlx::query(
+        "INSERT INTO calls (user_id, id, chat_id, role, provider_id, model_id, reason, request, response,
+         tokens_in, tokens_out, ms, error, at, run_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    )
+    .bind(user_id)
+    .bind(util::new_id())
+    .bind(chat_id)
+    .bind(role)
+    .bind(&role_assignment.provider_id)
+    .bind(&role_assignment.model_id)
+    .bind(reason)
+    .bind(request.to_string())
+    .bind(response.to_string())
+    .bind(usage["prompt_tokens"].as_i64())
+    .bind(usage["completion_tokens"].as_i64())
+    .bind(ms as i64)
+    .bind(error)
+    .bind(util::now())
+    .bind(run_id)
+    .execute(&s.db)
+    .await;
+}
+
 /// Whether `id` in `table` (projects, chats or tasks) belongs to this user.
 #[derive(Deserialize)]
 pub struct ChatChange {

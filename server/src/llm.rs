@@ -323,6 +323,17 @@ pub async fn chat_with_tools(
     messages: &[Value],
     tools: &Value,
 ) -> Result<Value> {
+    Ok(chat_with_tools_full(http, p, model, messages, tools).await?.0)
+}
+
+/// Like chat_with_tools, plus the answer's "usage" ({prompt_tokens, completion_tokens}, or null).
+pub async fn chat_with_tools_full(
+    http: &reqwest::Client,
+    p: &ProviderConfig,
+    model: &str,
+    messages: &[Value],
+    tools: &Value,
+) -> Result<(Value, Value)> {
     anyhow::ensure!(matches!(p.kind, ProviderKind::OpenaiCompatible), "this provider can't use tools");
     let mut body = json!({ "model": model, "messages": messages, "max_tokens": 2048 });
     // No tools (plans, reviews): leave the key out; some servers reject an empty list.
@@ -343,7 +354,7 @@ pub async fn chat_with_tools(
     let text = resp.text().await.unwrap_or_default();
     anyhow::ensure!(status.is_success(), "{}", readable_error(&text));
     let v: Value = serde_json::from_str(&text).context("the model's answer is not JSON")?;
-    Ok(v["choices"][0]["message"].clone())
+    Ok((v["choices"][0]["message"].clone(), v["usage"].clone()))
 }
 
 /// A short, readable reason from an error body: never raw HTML, never more

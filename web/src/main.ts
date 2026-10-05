@@ -208,12 +208,17 @@ function render(s: AppState, prev: AppState): void {
   }
   lastPcKey = pcKey;
   const rightKeys: (keyof AppState)[] = s.rightTab === "tasks"
-    ? ["rightTab", "tasks", "projects", "openTaskId", "editingTaskId", "taskScope", "activeProjectId", "activeChatId", "chats", "projectAssets", "assetPick", "runCheck"]
+    ? ["rightTab", "tasks", "projects", "openTaskId", "editingTaskId", "taskScope", "activeProjectId", "activeChatId", "chats", "projectAssets", "assetPick", "runCheck", "taskRuns"]
     : s.rightTab === "access" ? ["rightTab", "grants", "accessHistory", "machines"]
     : s.rightTab === "activity" ? ["rightTab", "activity", "activityFilter"]
     : ["rightTab", "machines", "today", "machinesRefresh", "tasks", "pairing", "gpuOpen", "gpuPins"];
   // Never rebuild the task editor under the user's hands; only when it opens or closes.
   const editing = s.rightTab === "tasks" && s.editingTaskId && s.editingTaskId === prev.editingTaskId && !firstRender;
+  // The open task's W2 runs (for its report): loaded when it opens and when tasks change.
+  if (s.openTaskId && (s.openTaskId !== prev.openTaskId || s.tasks !== prev.tasks)) {
+    const id = s.openTaskId;
+    api.taskRuns(id).then((runs) => { if (store.get().openTaskId === id) store.set({ taskRuns: { taskId: id, runs } }); }, () => undefined);
+  }
   const shownProject = s.rightTab === "tasks" && s.taskScope === "project" ? activeProject(s) : undefined;
   if (shownProject?.type === "game" && !(shownProject.id in s.projectAssets)) void loadProjectAssets(shownProject.id);
   if (!editing && changed(s, prev, rightKeys)) {

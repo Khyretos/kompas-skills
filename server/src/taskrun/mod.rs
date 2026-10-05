@@ -76,6 +76,7 @@ struct Run {
     orchestrator: RoleAssignment,
     worker: RoleAssignment,
     reviewer: RoleAssignment,
+    run_id: String,
 }
 
 async fn role(s: &AppState, user_id: &str, name: &str) -> ApiResult<Option<RoleAssignment>> {
@@ -158,9 +159,23 @@ pub async fn start(
     s.bus.send(&u.id, Event::Changed { what: "tasks", machine_id: None });
     s.bus.send(&u.id, Event::Changed { what: "chats", machine_id: None });
 
+    let run_id = util::new_id();
+    sqlx::query(
+        "INSERT INTO runs (id, task_id, user_id, chat_id, machine_id, folder, check_cmd, started_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+    )
+    .bind(&run_id)
+    .bind(&id)
+    .bind(&u.id)
+    .bind(&chat_id)
+    .bind(&b.machine_id)
+    .bind(&folder)
+    .bind(&check)
+    .bind(util::now())
+    .execute(&s.db)
+    .await?;
     let r = Run {
         user_id: u.id.clone(), task_id: id, title, description, chat_id, machine_id: b.machine_id,
-        machine_name, folder, check, orchestrator, worker, reviewer,
+        machine_name, folder, check, orchestrator, worker, reviewer, run_id,
     };
     tokio::spawn(run(s.clone(), r));
     Ok(StatusCode::ACCEPTED)
@@ -196,19 +211,34 @@ async fn finish(s: &AppState, r: &Run, state: &str, step: &str) {
     .bind(&r.task_id)
     .execute(&s.db)
     .await;
+    let _ = sqlx::query("UPDATE runs SET status = ?, step = ?, ended_at = ? WHERE id = ?")
+        .bind(state)
+        .bind(step)
+        .bind(util::now())
+        .bind(&r.run_id)
+        .execute(&s.db)
+        .await;
     s.bus.send(&r.user_id, Event::Changed { what: "tasks", machine_id: None });
     crate::notify::task_changed(s.db.clone(), r.user_id.clone(), r.task_id.clone(), r.title.clone(), "running".into(), state.into());
 }
 
-/// One answer from a model, without tools (plans and reviews).
-async fn ask_model(s: &AppState, role: &RoleAssignment, system: &str, user: &str) -> Result<String, String> {
+/// One answer from a model, without tools (plans and reviews), recorded with the run.
+async fn ask_model(s: &AppState, r: &Run, role: &RoleAssignment, reason: &str, system: &str, user: &str) -> Result<String, String> {
     let Some(p) = s.config.provider(&role.provider_id) else {
         return Err(format!("The provider {} is not configured.", role.provider_id));
     };
     let messages = [json!({ "role": "system", "content": system }), json!({ "role": "user", "content": user })];
-    let msg = llm::chat_with_tools(&s.http, p, &role.model_id, &messages, &json!([]))
-        .await
-        .map_err(|e| format!("{e:#}"))?;
+    let started = std::time::Instant::now();
+    let answer = llm::chat_with_tools_full(&s.http, p, &role.model_id, &messages, &json!([])).await;
+    let (msg, usage, err) = match answer {
+        Ok((m, u)) => (m, u, None),
+        Err(e) => (Value::Null, Value::Null, Some(format!("{e:#}"))),
+    };
+    api::log_call(s, &r.user_id, &r.chat_id, Some(&r.run_id), &role.role, role, reason, &json!({ "messages": messages }), &msg, &usage,
+        started.elapsed().as_millis(), err.as_deref()).await;
+    if let Some(e) = err {
+        return Err(e);
+    }
     Ok(msg["content"].as_str().unwrap_or("").to_string())
 }
 
@@ -233,6 +263,7 @@ fn agent(s: &AppState, r: &Run, max_steps: usize) -> pcagent::Agent {
         max_steps,
         folder: Some(r.folder.clone()),
         task_id: Some(r.task_id.clone()),
+        run_id: Some(r.run_id.clone()),
     }
 }
 
@@ -315,7 +346,9 @@ async fn run(s: AppState, r: Run) {
     );
     let plan_text = match ask_model(
         &s,
+        &r,
         &r.orchestrator,
+        "Plan the task.",
         "You plan coding and admin tasks on the user's computer. Answer only with a JSON array of 1 to 6 steps, each \
          {\"step\": \"...\", \"done_when\": \"...\"}. A step is one change the user would notice (\"add char_count \
          to textutil.py\"), never only opening, reading or finding something, and never running the tests or the \
@@ -343,6 +376,8 @@ async fn run(s: AppState, r: Run) {
         .collect::<Vec<_>>()
         .join("\n");
     note(&s, &r, &format!("Plan:\n{plan_list}")).await;
+    let plan_json = json!(steps.iter().map(|x| json!({ "step": x.what, "done_when": x.done_when })).collect::<Vec<_>>());
+    let _ = sqlx::query("UPDATE runs SET plan = ? WHERE id = ?").bind(plan_json.to_string()).bind(&r.run_id).execute(&s.db).await;
 
     // 2. The steps.
     let n = steps.len();
@@ -396,7 +431,9 @@ async fn run(s: AppState, r: Run) {
         );
         let review = match ask_model(
             &s,
+            &r,
             &r.reviewer,
+            "Review the result.",
             "You review a finished task. Answer only with JSON: {\"ok\": true|false, \"findings\": [\"...\"]}. \
              ok only when the check passed and the changes do what the task asks, nothing more.",
             &review_user,
@@ -409,6 +446,11 @@ async fn run(s: AppState, r: Run) {
                 return finish(&s, &r, "needs_input", "review failed").await;
             }
         };
+        let _ = sqlx::query("UPDATE runs SET rounds = json_insert(rounds, '$[#]', json(?)) WHERE id = ?")
+            .bind(json!({ "round": round, "ok": review.ok, "findings": review.findings }).to_string())
+            .bind(&r.run_id)
+            .execute(&s.db)
+            .await;
         if review.ok {
             note(&s, &r, "Review: looks good.").await;
             return finish(&s, &r, "done", &format!("done after {round} round(s)")).await;
@@ -447,7 +489,7 @@ mod tests {
         let r = Run {
             user_id: "u".into(), task_id: "t".into(), title: "T".into(), description: "D".into(), chat_id: "c".into(),
             machine_id: "m".into(), machine_name: "soucouyant".into(), folder: "/home/k/app".into(), check: None,
-            orchestrator: role(), worker: role(), reviewer: role(),
+            orchestrator: role(), worker: role(), reviewer: role(), run_id: "r".into(),
         };
         let p = worker_prompt(&r);
         assert!(p.contains("/home/k/app") && p.contains("soucouyant"));

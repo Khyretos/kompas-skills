@@ -171,3 +171,19 @@
 {"name": "ver-hs-view", "out": "server/src/hoststats.rs", "mode": "patch", "gpu_seconds": 7.4, "tokens": 403, "lines": 4, "attempts": 1, "model": "qwen3.5:9b-q8_0", "at": "2026-10-05T02:48:26"}
 {"name": "ver-hs-fns", "out": "server/src/hoststats.rs", "mode": "patch", "gpu_seconds": 9.2, "tokens": 510, "lines": 2, "attempts": 1, "model": "qwen3.5:9b-q8_0", "at": "2026-10-05T02:48:35"}
 {"name": "ver-caps-web", "out": "web/src/views/capabilities.ts", "mode": "patch", "gpu_seconds": 4.4, "tokens": 223, "lines": 2, "attempts": 1, "model": "qwen3.5:9b-q8_0", "at": "2026-10-05T02:49:02"}
+{"name": "runs-migration", "out": "server/migrations/0020_runs.sql", "gpu_seconds": 9.9, "tokens": 208, "lines": 26, "review": "skipped", "model": "Coder", "at": "2026-10-05T02:57:15"}
+{"name": "runs-logcall", "out": "server/src/api.rs", "mode": "patch", "gpu_seconds": 24.9, "tokens": 546, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T02:57:58"}
+{"name": "runs-ver-db", "out": "server/src/hoststats.rs", "mode": "patch", "gpu_seconds": 6.8, "tokens": 124, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T02:59:20"}
+{"name": "runs-agent", "out": "server/src/pcagent/mod.rs", "mode": "patch", "gpu_seconds": 51.1, "tokens": 1420, "lines": 7, "attempts": 1, "model": "Coder", "at": "2026-10-05T03:00:04"}
+{"name": "runs-taskrun-1", "out": "server/src/taskrun/mod.rs", "mode": "patch", "gpu_seconds": 46.5, "tokens": 1265, "lines": 5, "attempts": 1, "model": "Coder", "at": "2026-10-05T03:01:27"}
+{"name": "runs-taskrun-2", "out": "server/src/taskrun/mod.rs", "mode": "patch", "gpu_seconds": 50.4, "tokens": 1431, "lines": 5, "attempts": 1, "model": "Coder", "at": "2026-10-05T03:02:17"}
+{"name": "runs-report", "out": "server/src/runs.rs", "gpu_seconds": 137.0, "tokens": 3820, "lines": 346, "review": "skipped", "model": "Coder", "at": "2026-10-05T03:05:14"}
+{"name": "runs-report-2", "out": "server/src/runs.rs", "gpu_seconds": 266.7, "tokens": 7526, "lines": 345, "model": "Coder", "at": "2026-10-05T03:10:01"}
+{"name": "runs-web-api", "out": "web/src/api/client.ts", "mode": "patch", "gpu_seconds": 9.0, "tokens": 130, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T03:10:59"}
+{"name": "runs-web-http", "out": "web/src/api/http.ts", "mode": "patch", "gpu_seconds": 11.3, "tokens": 172, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T03:11:01"}
+{"name": "runs-web-state", "out": "web/src/state.ts", "mode": "patch", "gpu_seconds": 8.5, "tokens": 211, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T03:11:10"}
+{"name": "runs-web-mock", "out": "web/src/api/mock.ts", "mode": "patch", "gpu_seconds": 12.6, "tokens": 272, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T03:11:12"}
+{"name": "runs-web-detail", "out": "web/src/views/tasks.ts", "mode": "patch", "gpu_seconds": 37.7, "tokens": 1064, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T03:11:48"}
+{"name": "runs-web-header", "out": "web/src/views/conversation.ts", "mode": "patch", "gpu_seconds": 13.3, "tokens": 238, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T03:12:34"}
+{"name": "runs-web-test", "out": "web/tests/runs.spec.ts", "gpu_seconds": 13.5, "tokens": 306, "lines": 24, "review": "skipped", "model": "Coder", "at": "2026-10-05T03:12:48"}
+{"name": "runs-web-main", "out": "web/src/main.ts", "mode": "patch", "gpu_seconds": 35.9, "tokens": 809, "lines": 2, "attempts": 1, "model": "Coder", "at": "2026-10-05T03:12:57"}
