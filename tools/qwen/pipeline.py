@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""Queue drafting jobs to Coder (Qwen3.5 9B int8, OVMS on kireserver's A770), back to back.
+"""Queue drafting jobs to the worker model (kompanion.toml), back to back.
 
-Kees, 2026-10-05: all Kompanion work runs on kireserver; soucouyant is only for image
-and audio generation, so this never calls soucouyant's Ollama.
+The model is the worker role's provider in kompanion.toml (KOMPANION_CONFIG, default ./kompanion.toml at the repo root): its base_url, model, api_key_env and extra_body. A base_url on a Docker container name (http://ovms:8000/v3) is reached through the container's IP, because the reverse proxy cuts long answers at 60 s.
 
 Each job: draft -> self-review against the role's skills -> final file.
 jobs.json: [{"name": "...", "role": "worker/rust"|"worker/web"|..., "prompt": "...",
@@ -11,31 +10,60 @@ Usage: pipeline.py jobs.json [log.jsonl]
 Writes the final code to each job's "out" and one log line per job
 (seconds on the GPU, tokens). Code fences are stripped from the output.
 """
-import json, os, re, sys, time, urllib.request
+import json, os, re, sys, time, tomllib, urllib.request, urllib.parse, socket, threading
 
-OVMS = os.environ.get("OVMS_URL", "http://172.16.1.25:8000/v3/chat/completions")  # direct: the proxy cuts long answers at 60 s
-OVMS_MODEL = os.environ.get("OVMS_MODEL", "Coder")  # served name; today Qwen3.5-9B int8 on the A770
 # Only quirks of one model family live in skills/_model-notes/<NOTES>; every general rule is in
 # the role skills and work-habits.md, so a bigger model loaded later (MODEL_NOTES=gemma4, ...)
 # reads the same lessons (Kees, 2026-10-05).
 NOTES = os.environ.get("MODEL_NOTES", "qwen3")
 
-import threading
 LANE = threading.local()  # .model: the model the last call used
 
-def backend():
-    """Coder on OVMS (A770), thinking off."""
-    env = os.popen("docker inspect ovms --format '{{range .Config.Env}}{{println .}}{{end}}'").read()
-    key = next((l[len("API_KEY="):] for l in env.splitlines() if l.startswith("API_KEY=")), "")
-    return (ovms_url(), OVMS_MODEL, {"chat_template_kwargs": {"enable_thinking": False}}, key)
+def config_path():
+    """KOMPANION_CONFIG, else kompanion.toml at the repo root, else the main checkout's
+    (git worktrees share it: kompanion.toml is not in git)."""
+    if os.environ.get("KOMPANION_CONFIG"):
+        return os.environ["KOMPANION_CONFIG"]
+    repo = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    here = os.path.join(repo, "kompanion.toml")
+    if os.path.exists(here):
+        return here
+    common = os.popen(f"git -C {repo} rev-parse --path-format=absolute --git-common-dir").read().strip()
+    return os.path.join(os.path.dirname(common), "kompanion.toml") if common else here
 
-def ovms_url():
-    """OVMS_URL, else the container's current address: it changes when kireserver
-    reboots (2026-10-04: .25 became .28 and every OVMS job got a 404)."""
-    if "OVMS_URL" in os.environ:
-        return OVMS
-    ip = os.popen("docker inspect ovms --format '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}'").read().split()
-    return f"http://{ip[0]}:8000/v3/chat/completions" if ip else OVMS
+def dotenv(path):
+    """KEY=value lines of a .env file ({} when missing)."""
+    out = {}
+    if os.path.exists(path):
+        for line in open(path):
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, v = line.split("=", 1)
+                out[k.strip()] = v.strip().strip('"')
+    return out
+
+def reachable(url):
+    """The URL itself when its host resolves here, else the same URL on the Docker container's IP."""
+    u = urllib.parse.urlsplit(url)
+    try:
+        socket.gethostbyname(u.hostname)
+        return url
+    except OSError:
+        ip = os.popen(f"docker inspect {u.hostname} --format '{{{{range .NetworkSettings.Networks}}}}{{{{.IPAddress}}}} {{{{end}}}}'").read().split()
+        return urllib.parse.urlunsplit(u._replace(netloc=f"{ip[0]}:{u.port}")) if ip else url
+
+def backend():
+    """(chat completions URL, model, extra body, API key) of the worker role's provider."""
+    path = config_path()
+    cfg = tomllib.load(open(path, "rb"))
+    role = cfg.get("roles", {}).get("worker") or {}
+    prov = next((p for p in cfg.get("provider", []) if p.get("id") == role.get("provider")), None)
+    if not prov:
+        raise RuntimeError(f"no worker role provider in {path}")
+    key_env = prov.get("api_key_env", "")
+    key = os.environ.get(key_env) or dotenv(os.path.join(os.path.dirname(path), ".env")).get(key_env, "") if key_env else ""
+    url = reachable(prov["base_url"].rstrip("/")) + "/chat/completions"
+    return (url, os.environ.get("WORKER_MODEL") or role.get("model"), prov.get("extra_body", {}), key)
 
 REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
