@@ -36,6 +36,16 @@ pub struct Config {
     /// (`kompanion-runner-<version>-x86_64-linux-musl` plus `.sha256`).
     #[serde(default = "default_runner_dir")]
     pub runner_dir: PathBuf,
+    /// UnifiedPush servers the Android app may register endpoints on (`[push] servers = [...]`).
+    #[serde(default)]
+    pub push: PushConfig,
+}
+
+/// `[push]`: where phones may receive pushes (an ntfy server); empty = push off.
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct PushConfig {
+    #[serde(default)]
+    pub servers: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]

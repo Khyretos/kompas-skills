@@ -177,6 +177,8 @@ pub fn task_changed(db: SqlitePool, user_id: String, task_id: String, title: Str
             Err(e) => return tracing::warn!("notification prefs: {e}"),
         };
         let Some(label) = wanted(&p, &to) else { return };
+        let push_link = PUBLIC_URL.get().map(|u| format!("{u}/#task={task_id}")).unwrap_or_default();
+        crate::push::notify(db.clone(), user_id.clone(), title.clone(), label, push_link);
         if p.email.is_empty() {
             return;
         }

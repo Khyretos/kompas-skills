@@ -1,0 +1,7 @@
+{"name": "push-migration", "out": "server/migrations/0024_push.sql", "gpu_seconds": 9.6, "tokens": 226, "lines": 13, "model": "Coder", "at": "2026-10-05T12:09:54"}
+{"name": "push-module", "out": "server/src/push.rs", "gpu_seconds": 128.2, "tokens": 3874, "lines": 192, "model": "Coder", "at": "2026-10-05T12:12:03"}
+{"name": "push-module-fix", "out": "server/src/push.rs", "mode": "patch", "gpu_seconds": 17.4, "tokens": 497, "lines": 2, "attempts": 1, "model": "Coder", "at": "2026-10-05T12:12:39"}
+{"name": "push-config", "out": "server/src/config.rs", "mode": "patch", "gpu_seconds": 17.4, "tokens": 503, "lines": 1, "attempts": 2, "model": "Coder", "at": "2026-10-05T12:13:32"}
+{"name": "push-main", "out": "server/src/main.rs", "mode": "patch", "gpu_seconds": 8.1, "tokens": 229, "lines": 3, "attempts": 1, "model": "Coder", "at": "2026-10-05T12:13:40"}
+{"name": "push-notify", "out": "server/src/notify.rs", "mode": "patch", "gpu_seconds": 4.8, "tokens": 127, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T12:13:45"}
+{"name": "push-example-toml", "out": "server/kompanion.example.toml", "mode": "patch", "gpu_seconds": 6.1, "tokens": 160, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T12:13:51"}

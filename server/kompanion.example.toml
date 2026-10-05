@@ -107,3 +107,8 @@ model = "*"
 name = "ComfyUI (soucouyant)"
 kind = "app"
 probe = "comfyui:http://192.168.178.80:8188"
+
+# Push to the Android app through UnifiedPush (an ntfy server, FOSS). Phones may only
+# register endpoints on these servers. Leave empty to switch push off.
+[push]
+servers = []

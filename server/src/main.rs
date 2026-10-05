@@ -22,6 +22,7 @@ mod llm;
 mod mail;
 mod mailhtml;
 mod notify;
+mod push;
 mod oidc;
 mod project_ctx;
 mod projects;
@@ -166,6 +167,7 @@ async fn main() -> anyhow::Result<()> {
     };
     hoststats::HostStats::spawn_live(state.clone());
     notify::spawn_daily(state.db.clone());
+    let _ = push::SERVERS.set(state.config.push.servers.clone());
     assets::spawn(state.clone());
     import::watch(state.clone());
     // Links in mails go to the first public (https) address the app is served from.
@@ -252,6 +254,7 @@ async fn main() -> anyhow::Result<()> {
             post(hoststats::report).layer(axum::extract::DefaultBodyLimit::max(64 * 1024)),
         )
         .route("/me/notifications", get(notify::get_prefs).put(notify::put_prefs))
+        .route("/push/register", post(push::register).delete(push::unregister))
         .route("/me/prefs", axum::routing::put(admin::set_prefs))
         .route("/events", get(api::events))
         .merge(assets::routes())
