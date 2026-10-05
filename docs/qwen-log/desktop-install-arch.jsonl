@@ -7,3 +7,5 @@
 {"name": "task-skills-loading-fix", "out": "docs/plans/skills-loading.md", "mode": "patch", "gpu_seconds": 15.6, "tokens": 427, "lines": 2, "attempts": 2, "model": "Coder", "at": "2026-10-05T11:26:26"}
 {"name": "task-orchestrator-thread-fix", "out": "docs/plans/orchestrator-thread.md", "mode": "patch", "gpu_seconds": 3.6, "tokens": 101, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T11:26:30"}
 {"name": "task-effort", "out": "docs/plans/effort-setting.md", "gpu_seconds": 45.9, "tokens": 1370, "lines": 24, "model": "Coder", "at": "2026-10-05T11:27:16"}
+{"name": "task-skills-layers", "out": "docs/plans/skills-layers.md", "gpu_seconds": 43.9, "tokens": 1356, "lines": 20, "model": "Coder", "at": "2026-10-05T11:39:17"}
+{"name": "task-skills-layers-fix", "out": "docs/plans/skills-layers.md", "mode": "patch", "gpu_seconds": 8.7, "tokens": 249, "lines": 2, "attempts": 1, "model": "Coder", "at": "2026-10-05T11:39:44"}

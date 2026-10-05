@@ -190,7 +190,7 @@ def run_job(job, log):
       if (len(system) + len(job["prompt"]) + 2 * len(draft)) / 4 > 13000 or not job.get("review", True):
           out = os.path.join(REPO, job["out"])
           os.makedirs(os.path.dirname(out), exist_ok=True)
-          open(out, "w").write(drop_path_line(strip(draft, job["out"]), job["out"]))
+          open(out, "w").write(with_footer(drop_path_line(strip(draft, job["out"]), job["out"]), job))
           rec = {"name": job["name"], "out": job["out"], "gpu_seconds": round(s1, 1), "tokens": t1,
                  "lines": strip(draft, job["out"]).count("\n"), "review": "skipped", "model": getattr(LANE, "model", ""), "at": time.strftime("%Y-%m-%dT%H:%M:%S")}
           log.write(json.dumps(rec) + "\n"); log.flush(); print(json.dumps(rec), flush=True)
@@ -200,13 +200,21 @@ def run_job(job, log):
       final, s2, t2 = ask(system, review_prompt, job.get("max_tokens", 4000))
       out = os.path.join(REPO, job["out"])
       os.makedirs(os.path.dirname(out), exist_ok=True)
-      open(out, "w").write(drop_path_line(strip(final, job["out"]), job["out"]))
+      open(out, "w").write(with_footer(drop_path_line(strip(final, job["out"]), job["out"]), job))
       rec = {"name": job["name"], "out": job["out"], "gpu_seconds": round(s1 + s2, 1), "tokens": t1 + t2,
              "lines": strip(final, job["out"]).count("\n"), "model": getattr(LANE, "model", ""), "at": time.strftime("%Y-%m-%dT%H:%M:%S")}
       log.write(json.dumps(rec) + "\n"); log.flush()
       print(json.dumps(rec), flush=True)
     except RuntimeError as e:
       print(json.dumps({"name": job["name"], "error": str(e)}), flush=True)
+
+def with_footer(text, job):
+    """Fixed boilerplate (a sign-off line, a licence header) is appended in code: models
+    drop it even when the prompt shows it (2026-10-05, twice in one day)."""
+    footer = job.get("footer")
+    if not footer or text.rstrip().endswith(footer.strip()):
+        return text
+    return text.rstrip("\n") + "\n\n" + footer.strip() + "\n"
 
 def drop_path_line(code, path):
     """The model sometimes puts the file's path on the first line; drop it."""
