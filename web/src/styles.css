@@ -13,7 +13,9 @@
   --surface-2: #2c1f3f;   /* kk-plum-2 */
   --line: #3a2b52;
   --fg: #f4eefc;          /* kk-mist */
-  --muted: #a39cbc;       /* kk-muted-dark */
+  --muted: #c8c4d8;       /* secondary text: 9-11:1 on the dark surfaces (Kees: "do not make me squint") */
+  --fg-strong: #f5f3ff;   /* card headers, titles, badges */
+  --kind-mix: 22%;        /* card header tint: kind colour over the surface */
   --link: var(--accent-strong); /* links and highlighted text */
   --accent: #f3941f;      /* kk-orange: focus rings, active markers, icons */
   --accent-strong: #f3941f; /* orange text on dark: 6.6-8.5:1 */
@@ -28,6 +30,7 @@
   --bad: #ff8a9a;
   --user-bubble: #2c1f3f;
   --scrim: rgb(12 9 23 / 0.6);
+  --danger-text: #ffb3bf; /* Deny/Stop text: 7:1 or more on the card surfaces */
 
   --font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, "Cascadia Code", Menlo, monospace;
@@ -40,7 +43,7 @@
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
     --bg: #ffffff; --surface: #f4eefc; --surface-2: #ebe2f8; --line: #dccdf0;
-    --fg: #1c1329; --muted: #5e5873; --link: #8f4700; --accent: #b35a00;
+    --fg: #1c1329; --muted: #5e5873; --link: #8f4700; --accent: #b35a00; --fg-strong: #1c1329; --kind-mix: 14%; --danger-text: #8f1d30; --fg-strong: #1c1329; --kind-mix: 14%; --danger-text: #8f1d30;
     --accent-strong: #8f4700; --accent-soft: rgb(243 148 31 / 0.16);
     --brand: #5c398e; --on-brand: #ffffff; --cta: #f3941f; --on-cta: #1c1329;
     --attn: #8a5a00; --good: #1f7a4d; --bad: #b3263c; --user-bubble: #ebe2f8;
@@ -93,8 +96,9 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
   background: var(--surface-2); border: 1px solid var(--line); font-weight: 500;
 }
 .btn:hover:not(:disabled) { border-color: var(--link); }
-.btn.primary { background: var(--cta); border-color: var(--cta); color: var(--on-accent); font-weight: 600; }
-.btn.primary:hover:not(:disabled) { background: #ffa94a; border-color: #ffa94a; }
+/* Bright text on buttons (Kees, 2026-10-05): violet with white text, 8.6:1; orange stays the accent. */
+.btn.primary { background: var(--brand); border-color: var(--brand); color: var(--on-brand); font-weight: 600; }
+.btn.primary:hover:not(:disabled) { background: #4e2f7a; border-color: var(--accent); }
 .btn small { opacity: 0.8; font-weight: 400; }
 .icon-btn {
   position: relative; display: inline-grid; place-items: center; width: 2.5rem; height: 2.5rem;
@@ -618,8 +622,9 @@ button[aria-busy="true"]::after {
   vertical-align: -0.1em; border: 2px solid currentColor; border-right-color: transparent;
   border-radius: 50%; animation: kk-spin 0.7s linear infinite;
 }
-/* Rows the computer hasn't confirmed yet. */
-.pending { opacity: 0.6; }
+/* Grant rows the computer hasn't confirmed yet. Only those: a bare .pending also faded the
+   approval cards waiting for Kees to 60 % (2026-10-05). */
+.grant-row.pending { opacity: 0.6; }
 @media (prefers-reduced-motion: reduce) { button[aria-busy="true"]::after { animation-duration: 2.4s; } }
 
 /* Side panels: the header wraps instead of clipping; narrow panels put the
@@ -770,3 +775,5 @@ button[aria-busy="true"]::after {
 /* A task's W2 runs: status, Copy run ID, Export report. */
 .task-runs ul { list-style: none; margin: 0 0 0.75rem; padding: 0; display: grid; gap: 0.35rem; }
 .task-runs li { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+
+.btn.danger { color: var(--danger-text); }

@@ -8,7 +8,7 @@ import type { PcAction } from "../api/client";
 import { icon } from "./icons";
 import { stateLabel } from "./tasks";
 import { fromTool, renderOutput } from "../core/output";
-import { kindOf, styleOf, textOn, type CardStyle } from "../core/cardtypes";
+import { kindOf, styleOf, type CardStyle } from "../core/cardtypes";
 
 /** Card colours per action type, set by main.ts from the user's Settings. */
 let cardStyle: CardStyle | undefined;
@@ -47,7 +47,7 @@ function renderStep(a: PcAction, machines: Record<string, string>): SafeHtml {
     <details class="step ${a.state}" data-step="${a.id}" data-state="${a.state}" ${busy || openSteps.has(a.id) ? "open" : ""}>
       <summary data-action="step-toggle" data-id="${a.id}">
         ${icon(busy ? "spark" : a.state === "done" ? "terminal" : "close")}
-        <span class="kind-tag" style="background:${styleOf(kindOf(a.tool), cardStyle).color};color:${textOn(styleOf(kindOf(a.tool), cardStyle).color)}">${styleOf(kindOf(a.tool), cardStyle).label}</span>
+        <span class="kind-tag" style="--kind:${styleOf(kindOf(a.tool), cardStyle).color}">${styleOf(kindOf(a.tool), cardStyle).label}</span>
         <span class="step-summary">${a.summary}</span>
         <span class="chip ${a.state}">${STEP_LABEL[a.state] ?? a.state}</span>
         ${a.state === "running" ? html`<span class="elapsed" data-since="${a.startedAt ?? a.createdAt}">${elapsedText(a.startedAt ?? a.createdAt)}</span>

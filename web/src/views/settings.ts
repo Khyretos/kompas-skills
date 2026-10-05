@@ -5,7 +5,7 @@ import type { AppState } from "../state";
 import type { AdminSettings, Role } from "../api/types";
 import { icon } from "./icons";
 import { renderAdmin } from "./admin";
-import { DEFAULT_STYLE, KINDS, styleOf, textOn } from "../core/cardtypes";
+import { DEFAULT_STYLE, KINDS, styleOf } from "../core/cardtypes";
 
 const roleInfo: Record<Role, { name: string; text: string }> = {
   orchestrator: { name: "Orchestrator", text: "Talks with you, plans and splits the work." },
@@ -24,11 +24,11 @@ const LANGS: [string, string][] = [["", "Detect"], ["en", "English"], ["es", "Sp
 function cardSection(s: AppState): SafeHtml {
   return html`<section class="card-settings">
     <h3 class="label">Card colours</h3>
-    <p class="muted small">Steps and approval cards get a coloured header by what they do. Text colour is picked for contrast.</p>
+    <p class="muted small">Steps and approval cards get a header tinted with this colour and a coloured edge; the text stays bright, whatever colour you pick.</p>
     <ul class="card-kinds">${KINDS.map((k) => {
       const st = styleOf(k, s.cardStyle);
       return html`<li>
-        <span class="kind-tag" style="background:${st.color};color:${textOn(st.color)}">${st.label}</span>
+        <span class="kind-tag" style="--kind:${st.color}">${st.label}</span>
         <label class="sr-only" for="card-label-${k}">Label for ${DEFAULT_STYLE[k].label}</label>
         <input id="card-label-${k}" data-kind="${k}" class="card-label" value="${st.label}" maxlength="30">
         <label class="sr-only" for="card-color-${k}">Colour for ${DEFAULT_STYLE[k].label}</label>
