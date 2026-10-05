@@ -86,3 +86,9 @@
     `"mode": "patch"` (search/replace blocks) for such files.
 37. (2026-10-04) `tools/qwen/pipeline.py` finds OVMS by the container's current address; a fixed IP
     broke after a reboot (every OVMS job got a 404). Never hard-code a container IP.
+38. (2026-10-05) A query flag like `?download=1` doesn't deserialize into `bool` (serde wants
+    "true"/"false"; axum answers 400). Use `Option<String>` and `.is_some()`.
+39. Array-of-tuple headers in a response must have one value type: `[(CONTENT_TYPE, "a".to_string()),
+    (CONTENT_DISPOSITION, format!(..))]`, not a `&str` next to a `String`.
+40. The `time` crate parses RFC 3339 only with its "parsing" feature; `OffsetDateTime::parse` is
+    missing otherwise.

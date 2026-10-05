@@ -240,8 +240,9 @@ pub async fn chat_report(s: &AppState, user_id: &str, chat_id: &str) -> ApiResul
 
 #[derive(Deserialize)]
 pub struct Dl {
+    /// Any value (?download=1) asks for a file instead of JSON in the page.
     #[serde(default)]
-    download: bool
+    download: Option<String>,
 }
 
 /// Sends a JSON response, optionally as a file download.
@@ -257,13 +258,13 @@ fn send(v: Value, name: &str, download: bool) -> Response {
 /// Handler to get a run report.
 pub async fn report(State(s): State<AppState>, Extension(u): Extension<User>, Path(id): Path<String>, Query(q): Query<Dl>) -> ApiResult<Response> {
     let v = run_report(&s, &u.id, &id).await?;
-    Ok(send(v, &format!("run-{id}"), q.download))
+    Ok(send(v, &format!("run-{id}"), q.download.is_some()))
 }
 
 /// Handler to get a chat report.
 pub async fn chat(State(s): State<AppState>, Extension(u): Extension<User>, Path(id): Path<String>, Query(q): Query<Dl>) -> ApiResult<Response> {
     let v = chat_report(&s, &u.id, &id).await?;
-    Ok(send(v, &format!("chat-{id}"), q.download))
+    Ok(send(v, &format!("chat-{id}"), q.download.is_some()))
 }
 
 /// Lists recent runs for a task.
