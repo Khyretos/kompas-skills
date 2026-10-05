@@ -1,0 +1,3 @@
+{"name": "ten01-example-config", "out": "server/kompanion.example.toml", "gpu_seconds": 48.5, "tokens": 1496, "lines": 63, "model": "Coder", "at": "2026-10-05T14:59:10"}
+{"name": "ten01-compose-host", "out": "docker-compose.yml", "mode": "patch", "gpu_seconds": 4.1, "tokens": 115, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T14:59:28"}
+{"name": "ten01-env-optional", "out": "docker-compose.yml", "mode": "patch", "gpu_seconds": 2.0, "tokens": 44, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T15:00:01"}
