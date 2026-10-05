@@ -42,3 +42,11 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
     that mentions an import outside it made Coder put the `// ...` marker into its SEARCH, and the
     patch failed twice. After a fix round, count the edit blocks against the numbered findings
     (5 findings came back as 4 blocks: one was skipped silently) and check each finding in the diff.
+19. (2026-10-05) A patch can delete code next to its target: adding tests at the end of a module
+    removed the last existing test. Compare `cargo test` name lists (or the diff's `-` lines)
+    before and after every patch job, and count edit blocks against the edits asked (2 for 3,
+    1 for "function plus tests" were both silent skips). Before asking to add to a test module,
+    check that one exists; to append at the end of a file, have a script do it.
+20. (2026-10-05) A small planner's labels are hints, not facts: Coder put a step on
+    `server/src/forge.rs` under worker/cpp-games. Let facts in the step (the files it names,
+    matched against each area core's `paths` globs) override the label, in code.

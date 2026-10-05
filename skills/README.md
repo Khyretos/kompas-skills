@@ -45,5 +45,12 @@ These files grow with every review, so models get only what a job needs, and eve
   first, within `[skills] budget_tokens` in kompanion.toml (default 1500). Each drafting-log line
   lists the files a job got. `tools/skills/index.py` writes `skills/index.json`; with `--check`
   (in CI) it fails on a file without a header.
+- Task runs (SK-02) use the same rules in the server (`server/src/skills.rs`, a port of load.py).
+  The planner names an area per step (one of the `worker/<x>` folders with a SKILL.md); files the
+  step names override it when they match another area core's `paths` globs. Each step's cards are
+  listed in the plan note and stored with the run; the worker gets exactly those cards for that
+  step, and the reviewer gets `reviewer/SKILL` plus every card the steps used. The server reads the
+  folder from `KOMPANION_SKILLS` (default `/app/skills`, which the image contains) and the budget
+  from `[skills] budget_tokens`, a number or a table per model name with an optional `default`.
 - Every review finding: a lesson in the right card or core, and a row in
   `docs/lessons-learned.md` (in this repo).

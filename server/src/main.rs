@@ -30,6 +30,7 @@ mod project_ctx;
 mod projects;
 mod runs;
 mod search;
+mod skills;
 mod tasks;
 mod thread;
 mod util;

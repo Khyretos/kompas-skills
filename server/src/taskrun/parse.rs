@@ -1,9 +1,11 @@
 use serde_json::Value;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct PlanStep {
     pub what: String,
     pub done_when: String,
+    /// The area of work ("worker/web"); empty when the planner gave none.
+    pub area: String,
 }
 
 /// Extracts the first JSON value from text.
@@ -123,12 +125,12 @@ fn extract_raw_substring(text: &str) -> Option<Value> {
 /// "done_when"/"doneWhen"/"done". None when the step text is empty.
 fn plan_item(v: &Value) -> Option<PlanStep> {
     let field = |keys: &[&str]| keys.iter().find_map(|k| v.get(*k).and_then(Value::as_str)).unwrap_or("").trim().to_string();
-    let (what, done_when) = match v {
-        Value::String(s) => (s.trim().to_string(), String::new()),
-        Value::Object(_) => (field(&["step", "title"]), field(&["done_when", "doneWhen", "done"])),
+    let (what, done_when, area) = match v {
+        Value::String(s) => (s.trim().to_string(), String::new(), String::new()),
+        Value::Object(_) => (field(&["step", "title"]), field(&["done_when", "doneWhen", "done"]), field(&["area"])),
         _ => return None,
     };
-    (!what.is_empty()).then_some(PlanStep { what, done_when })
+    (!what.is_empty()).then_some(PlanStep { what, done_when, area })
 }
 
 /// Returns true if the step only looks at something; the worker does that anyway.
@@ -161,7 +163,7 @@ pub fn plan(text: &str) -> Vec<PlanStep> {
             Some(Value::Array(arr)) => arr.iter().filter_map(plan_item).take(8).collect(),
             _ => Vec::new(),
         },
-        _ => fallback_plan(text).into_iter().map(|what| PlanStep { what, done_when: String::new() }).take(8).collect(),
+        _ => fallback_plan(text).into_iter().map(|what| PlanStep { what, ..Default::default() }).take(8).collect(),
     };
     let real: Vec<PlanStep> = steps.iter().filter(|s| !look_only(&s.what)).cloned().collect();
     if real.is_empty() { steps } else { real }
@@ -276,35 +278,35 @@ More text."#;
     fn test_plan_array() {
         let text = r#"["a", "b"]"#;
         let plan = plan(text);
-        assert_eq!(plan, vec![PlanStep { what: "a".to_string(), done_when: String::new() }, PlanStep { what: "b".to_string(), done_when: String::new() }]);
+        assert_eq!(plan, vec![PlanStep { what: "a".to_string(), done_when: String::new(), ..Default::default() }, PlanStep { what: "b".to_string(), done_when: String::new(), ..Default::default() }]);
     }
 
     #[test]
     fn test_plan_object_steps() {
         let text = r#"{"steps":[{"step":"x"},{"step":"y"}]}"#;
         let plan = plan(text);
-        assert_eq!(plan, vec![PlanStep { what: "x".to_string(), done_when: String::new() }, PlanStep { what: "y".to_string(), done_when: String::new() }]);
+        assert_eq!(plan, vec![PlanStep { what: "x".to_string(), done_when: String::new(), ..Default::default() }, PlanStep { what: "y".to_string(), done_when: String::new(), ..Default::default() }]);
     }
 
     #[test]
     fn test_plan_numbered_list() {
         let text = "1. one\n2. two\n3. three";
         let plan = plan(text);
-        assert_eq!(plan, vec![PlanStep { what: "one".to_string(), done_when: String::new() }, PlanStep { what: "two".to_string(), done_when: String::new() }, PlanStep { what: "three".to_string(), done_when: String::new() }]);
+        assert_eq!(plan, vec![PlanStep { what: "one".to_string(), done_when: String::new(), ..Default::default() }, PlanStep { what: "two".to_string(), done_when: String::new(), ..Default::default() }, PlanStep { what: "three".to_string(), done_when: String::new(), ..Default::default() }]);
     }
 
     #[test]
     fn test_plan_with_done_when() {
         let text = r#"[{"step":"add char_count","done_when":"char_count(\"a b\") == 2"}]"#;
         let plan = plan(text);
-        assert_eq!(plan, vec![PlanStep { what: "add char_count".to_string(), done_when: "char_count(\"a b\") == 2".to_string() }]);
+        assert_eq!(plan, vec![PlanStep { what: "add char_count".to_string(), done_when: "char_count(\"a b\") == 2".to_string(), ..Default::default() }]);
     }
 
     #[test]
     fn test_plan_alternate_done_when_keys() {
         let text = r#"{"steps":[{"title":"x","doneWhen":"y"}]}"#;
         let plan = plan(text);
-        assert_eq!(plan, vec![PlanStep { what: "x".to_string(), done_when: "y".to_string() }]);
+        assert_eq!(plan, vec![PlanStep { what: "x".to_string(), done_when: "y".to_string(), ..Default::default() }]);
     }
 
     #[test]
@@ -326,7 +328,7 @@ More text."#;
     fn test_plan_skip_empty_steps() {
         let text = r#"["a", {"step":"  "}, "b"]"#;
         let plan = plan(text);
-        assert_eq!(plan, vec![PlanStep { what: "a".to_string(), done_when: String::new() }, PlanStep { what: "b".to_string(), done_when: String::new() }]);
+        assert_eq!(plan, vec![PlanStep { what: "a".to_string(), done_when: String::new(), ..Default::default() }, PlanStep { what: "b".to_string(), done_when: String::new(), ..Default::default() }]);
     }
 
     #[test]
@@ -351,5 +353,12 @@ More text."#;
         let rev = review(text);
         assert!(rev.ok);
         assert!(rev.findings.is_empty());
+    }
+
+    #[test]
+    fn a_plan_step_keeps_its_area() {
+        let plan = plan(r#"[{"step": "add the button", "done_when": "the button shows", "area": "worker/web"}, "write the docs"]"#);
+        assert_eq!(plan[0].area, "worker/web");
+        assert_eq!(plan[1].area, "");
     }
 }
