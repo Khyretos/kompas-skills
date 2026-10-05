@@ -265,7 +265,7 @@ mod tests {
             title: "Task",
             intro: "Intro",
             rows: &[],
-            button: None,
+            button: Some(("Open", "https://k.example/")),
         };
         let html = render(&m);
         assert!(html.contains("background:#5c398e;"));
@@ -282,7 +282,7 @@ mod tests {
             title: "Task",
             intro: "Intro",
             rows: &[],
-            button: None,
+            button: Some(("Open", "https://k.example/")),
         };
         let html = render(&m);
         assert!(html.contains("background:#123abc;"));
