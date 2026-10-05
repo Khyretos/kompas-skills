@@ -516,6 +516,12 @@ export class MockApi implements KompanionApi {
     ];
   }
   async startTask() {}
+  async taskCosts(taskId: string) {
+    return taskId === "t-kk-1"
+      ? { coder: { jobs: 6, output: 6446, prompt: 18801, gpu_seconds: 216.3, lines: 330 }, claude: { answers: 46, output: 38592, input: 92, cache_read: 33617601, cache_write: 735453 }, output_share_coder: 0.14 }
+      : null;
+  }
+  async weeklyCosts() { return { tasks: 5, coderOutput: 53100, claudeOutput: 301600, coderShare: 0.15 }; }
   async taskRuns(taskId: string) {
     return taskId === "t-kk-1" ? [{ id: "run-demo-1", startedAt: ago(30), endedAt: ago(29), status: "needs_input", step: "folder not found" }] : [];
   }

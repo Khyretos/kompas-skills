@@ -214,6 +214,19 @@ function runsList(t: Task, s: AppState): SafeHtml {
     </section>`;
 }
 
+/** TEN-05: what the task cost, Coder (local model) versus Claude, in output tokens. */
+function costBox(t: Task, s: AppState): SafeHtml {
+  const c = s.taskCosts?.taskId === t.id ? s.taskCosts.cost : null;
+  if (!c) return html``;
+  const k = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
+  return html`
+    <section class="task-costs" aria-label="Cost">
+      <h4 class="label">Cost</h4>
+      <p>Coder wrote ${k(c.coder.output)} tokens (${c.coder.lines} lines, ${Math.round(c.coder.gpu_seconds)} s on the GPU); Claude ${k(c.claude.output)}.
+        Coder's share: <strong>${Math.round(c.output_share_coder * 100)} %</strong>.</p>
+    </section>`;
+}
+
 function detail(t: Task, s: AppState): SafeHtml {
   const project = s.projects.find((p) => p.id === t.projectId);
   const pct = Math.round(t.progress * 100);
@@ -237,6 +250,7 @@ function detail(t: Task, s: AppState): SafeHtml {
         <button class="btn small danger" data-action="delete-task" data-id="${t.id}">${icon("trash")} Delete</button>
       </div>
       ${runsList(t, s)}
+      ${costBox(t, s)}
       ${t.description ? html`<div class="task-desc md" data-md-task="${t.id}"></div>`
         : html`<p class="warn">This task has no description yet. <button class="link" data-action="edit-task" data-id="${t.id}">Write one</button>: goal, steps, done when.</p>`}
       <div class="detail-state">

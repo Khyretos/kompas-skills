@@ -19,7 +19,10 @@ from pathlib import Path
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Summarize Qwen task costs.")
     parser.add_argument("branch", help="Branch name for the log file")
-    parser.add_argument("--task", type=str, default=None, help="Task ID to filter by")
+    parser.add_argument("--task", type=str, default=None, help="Task id the cost line belongs to")
+    parser.add_argument(
+        "--post", nargs=2, metavar=("CONTAINER", "USER"), default=None,
+        help="Also store the line on the task in a running Kompanion (docker container, user name)")
     parser.add_argument(
         "--transcript", type=str, default=None, help="Path to transcript for Claude usage"
     )
@@ -148,6 +151,16 @@ def main():
 
     with open(log_path, "a", encoding="utf-8") as f:
         f.write(json.dumps(summary_entry) + "\n")
+    
+    if args.post:
+        if not args.task:
+            sys.exit("--post needs --task")
+        container, user = args.post
+        r = subprocess.run(["docker", "exec", "-i", container, "sh", "-c", f"cat > /tmp/cost.json && kompanion-server costs /tmp/cost.json {user}; rm -f /tmp/cost.json"],
+                           input=json.dumps(summary_entry), text=True, capture_output=True)
+        print((r.stdout + r.stderr).strip())
+        if r.returncode != 0:
+            sys.exit(1)
 
 
 if __name__ == "__main__":

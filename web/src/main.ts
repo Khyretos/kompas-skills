@@ -315,16 +315,20 @@ function render(s: AppState, prev: AppState): void {
   }
   lastPcKey = pcKey;
   const rightKeys: (keyof AppState)[] = s.rightTab === "tasks"
-    ? ["rightTab", "tasks", "projects", "openTaskId", "editingTaskId", "taskScope", "activeProjectId", "activeChatId", "chats", "projectAssets", "assetPick", "runCheck", "taskRuns", "taskFilter", "collapsedGroups", "machines"]
+    ? ["rightTab", "tasks", "projects", "openTaskId", "editingTaskId", "taskScope", "activeProjectId", "activeChatId", "chats", "projectAssets", "assetPick", "runCheck", "taskRuns", "taskCosts", "taskFilter", "collapsedGroups", "machines"]
     : s.rightTab === "access" ? ["rightTab", "grants", "accessHistory", "machines"]
-    : s.rightTab === "activity" ? ["rightTab", "activity", "activityFilter"]
+    : s.rightTab === "activity" ? ["rightTab", "activity", "activityFilter", "weeklyCosts"]
     : ["rightTab", "machines", "today", "machinesRefresh", "tasks", "pairing", "gpuOpen", "gpuPins", "cardStyle"];
   // Never rebuild the task editor under the user's hands; only when it opens or closes.
   const editing = s.rightTab === "tasks" && s.editingTaskId && s.editingTaskId === prev.editingTaskId && !firstRender;
   // The open task's W2 runs (for its report): loaded when it opens and when tasks change.
+  if (s.rightTab === "activity" && prev.rightTab !== "activity") {
+    api.weeklyCosts().then((weeklyCosts) => store.set({ weeklyCosts }), () => undefined);
+  }
   if (s.openTaskId && (s.openTaskId !== prev.openTaskId || s.tasks !== prev.tasks)) {
     const id = s.openTaskId;
     api.taskRuns(id).then((runs) => { if (store.get().openTaskId === id) store.set({ taskRuns: { taskId: id, runs } }); }, () => undefined);
+    api.taskCosts(id).then((cost) => { if (store.get().openTaskId === id) store.set({ taskCosts: { taskId: id, cost } }); }, () => undefined);
   }
   const shownProject = s.rightTab === "tasks" && s.taskScope === "project" ? activeProject(s) : undefined;
   if (shownProject?.type === "game" && !(shownProject.id in s.projectAssets)) void loadProjectAssets(shownProject.id);
@@ -332,7 +336,7 @@ function render(s: AppState, prev: AppState): void {
     remount($("#right"), s.rightTab === "tasks" ? renderTasks(s) : s.rightTab === "activity" ? h`
       <div class="pane-head">${paneTabs(s)}
         <button class="icon-btn only-narrow" data-action="pane" data-pane="main" aria-label="Close">✕</button></div>
-      ${renderActivity(s.activity, s.activityFilter)}` : s.rightTab === "access" ? h`
+      ${renderActivity(s.activity, s.activityFilter, s.weeklyCosts)}` : s.rightTab === "access" ? h`
       <div class="pane-head">${paneTabs(s)}
         <button class="icon-btn only-narrow" data-action="pane" data-pane="main" aria-label="Close">✕</button></div>
       ${renderAccess(s.machines.filter((m) => m.id !== "server").map((m) => ({ id: m.id, name: m.name })), s.grants, s.accessHistory)}` : h`

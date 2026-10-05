@@ -234,3 +234,12 @@ export interface NotificationPrefs {
   onDone: boolean;
   dailySummary: boolean;
 }
+
+/** TEN-05: one task's cost line (Coder versus Claude tokens), from tools/qwen/summary.py. */
+export interface CostLine {
+  coder: { jobs: number; output: number; prompt: number; gpu_seconds: number; lines: number };
+  claude: { answers: number; output: number; input: number; cache_read: number; cache_write: number };
+  output_share_coder: number;
+}
+/** TEN-05: totals of the last 7 days. */
+export interface WeeklyCosts { tasks: number; coderOutput: number; claudeOutput: number; coderShare: number }
