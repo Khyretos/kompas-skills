@@ -1,0 +1,6 @@
+{"name": "task-decouple", "out": "docs/plans/decouple.md", "gpu_seconds": 31.3, "tokens": 960, "lines": 19, "model": "Coder", "at": "2026-10-05T11:53:33"}
+{"name": "task-webhook", "out": "docs/plans/webhook.md", "gpu_seconds": 25.4, "tokens": 796, "lines": 17, "model": "Coder", "at": "2026-10-05T11:53:59"}
+{"name": "task-modules", "out": "docs/plans/modules.md", "gpu_seconds": 27.7, "tokens": 866, "lines": 18, "model": "Coder", "at": "2026-10-05T11:54:26"}
+{"name": "task-nightly", "out": "docs/plans/nightly.md", "gpu_seconds": 26.2, "tokens": 818, "lines": 18, "model": "Coder", "at": "2026-10-05T11:54:53"}
+{"name": "task-tokens", "out": "docs/plans/tokens.md", "gpu_seconds": 26.5, "tokens": 828, "lines": 18, "model": "Coder", "at": "2026-10-05T11:55:19"}
+{"name": "task-webhook-fix", "out": "docs/plans/webhook.md", "mode": "patch", "gpu_seconds": 7.1, "tokens": 202, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T11:55:50"}
