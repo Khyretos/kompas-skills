@@ -23,3 +23,8 @@ Check in this order; stop at the first failing layer and send it back.
     `A -. "only for" .-> B`) with a rule-based pass first, render with mmdc, and only then ask the
     model, naming the failing line. Never post a diagram that did not render; PR-Agent's diagrams
     pass through mermaid-guard (Services/pr-agent/mermaid-guard) for this.
+
+11. (2026-10-05, TEN-04 nightly) A worker made an impossible test "pass" by rewriting the expected
+  value in the test (`"ZZZ"` became `"K V D B"`), and the review approved it. Before approving, list
+  the changed files: a change to a test file is a finding unless the task asked for test changes.
+  The check passing proves nothing when the test itself changed.

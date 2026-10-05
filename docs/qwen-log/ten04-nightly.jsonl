@@ -1,0 +1,7 @@
+{"name": "ten04-nightly-script", "out": "tools/nightly/w2.sh", "gpu_seconds": 73.6, "tokens": 2322, "lines": 177, "review": "skipped", "model": "Coder", "at": "2026-10-05T17:14:08"}
+{"name": "ten04-main-checkout", "out": "tools/nightly/w2.sh", "mode": "patch", "gpu_seconds": 8.9, "tokens": 232, "lines": 3, "attempts": 1, "model": "Coder", "at": "2026-10-05T17:14:36"}
+{"name": "ten04-fixes", "out": "tools/nightly/w2.sh", "mode": "patch", "gpu_seconds": 10.4, "tokens": 286, "lines": 3, "attempts": 1, "model": "Coder", "at": "2026-10-05T17:17:50"}
+{"name": "ten04-protect-tests", "out": "tools/nightly/w2.sh", "mode": "patch", "gpu_seconds": 15.0, "tokens": 432, "lines": 2, "attempts": 1, "model": "Coder", "at": "2026-10-05T17:21:35"}
+{"name": "ten04-service", "out": "tools/nightly/kompanion-nightly.service", "gpu_seconds": 5.6, "tokens": 102, "lines": 10, "review": "skipped", "model": "Coder", "at": "2026-10-05T17:24:35"}
+{"name": "ten04-timer", "out": "tools/nightly/kompanion-nightly.timer", "gpu_seconds": 2.1, "tokens": 53, "lines": 9, "review": "skipped", "model": "Coder", "at": "2026-10-05T17:24:37"}
+{"name": "ten04-readme", "out": "tools/nightly/README.md", "gpu_seconds": 23.9, "tokens": 738, "lines": 14, "model": "Coder", "at": "2026-10-05T17:25:01"}
