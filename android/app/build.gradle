@@ -1,0 +1,41 @@
+plugins {
+    id "com.android.application"
+}
+
+android {
+    namespace "com.kreativekompas.kompanion"
+    compileSdk 36
+
+    defaultConfig {
+        applicationId "com.kreativekompas.kompanion"
+        minSdk 26
+        targetSdk 36
+        versionCode((System.getenv("VERSION_CODE") ?: "1") as Integer)
+        versionName "0.1." + (System.getenv("VERSION_CODE") ?: "1")
+    }
+
+    signingConfigs {
+        release {
+            storeFile file(System.getenv("KK_KEYSTORE") ?: "/keys/release.jks")
+            storePassword System.getenv("KK_KEYSTORE_PASS")
+            keyAlias System.getenv("KK_KEY_ALIAS") ?: "kompanion"
+            keyPassword System.getenv("KK_KEY_PASS")
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    implementation "org.unifiedpush.android:connector:3.3.5"
+}

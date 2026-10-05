@@ -1,0 +1,37 @@
+# Throwaway build image for the Kompanion Android app.
+# Google's SDK tools are only used inside this container (Kees approved, 2026-10-05) and never shipped.
+# The app itself is FOSS.
+# Build with android/build.sh.
+
+FROM eclipse-temurin:21-jdk-noble
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends unzip curl ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV ANDROID_HOME=/opt/android-sdk \
+    GRADLE_HOME=/opt/gradle
+ENV PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$GRADLE_HOME/bin:$PATH
+
+RUN set -eu; \
+    curl -fsSL -o /tmp/cl.zip https://dl.google.com/android/repository/commandlinetools-linux-16111833_latest.zip && \
+    echo "e025545c62a8e64c7559119566a569fb1dec5f60  /tmp/cl.zip" | sha1sum -c - && \
+    unzip -q /tmp/cl.zip -d /tmp/cl && \
+    mkdir -p "$ANDROID_HOME/cmdline-tools" && \
+    mv /tmp/cl/cmdline-tools "$ANDROID_HOME/cmdline-tools/latest" && \
+    rm -rf /tmp/cl /tmp/cl.zip
+
+RUN set -eu; \
+    yes | sdkmanager --licenses > /dev/null && \
+    sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+RUN set -eu; \
+    curl -fsSL -o /tmp/g.zip https://services.gradle.org/distributions/gradle-9.8.0-bin.zip && \
+    curl -fsSL -o /tmp/g.sha256 https://services.gradle.org/distributions/gradle-9.8.0-bin.zip.sha256 && \
+    echo "$(cat /tmp/g.sha256)  /tmp/g.zip" | sha256sum -c - && \
+    unzip -q /tmp/g.zip -d /opt && \
+    mv /opt/gradle-9.8.0 /opt/gradle && \
+    rm -rf /tmp/g.zip /tmp/g.sha256
+
+RUN chmod -R a+rX "$ANDROID_HOME" /opt/gradle
+WORKDIR /src
