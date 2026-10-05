@@ -3,7 +3,7 @@
   "productName": "Kreative Kompanion",
   "version": "0.1.0",
   "identifier": "com.kreative-kompas.kompanion",
-  "build": { "frontendDist": "../dist" },
+  "build": { "frontendDist": "../fallback" },
   "app": {
     "withGlobalTauri": true,
     "windows": [
