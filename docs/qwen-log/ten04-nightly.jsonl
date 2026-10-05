@@ -5,3 +5,4 @@
 {"name": "ten04-service", "out": "tools/nightly/kompanion-nightly.service", "gpu_seconds": 5.6, "tokens": 102, "lines": 10, "review": "skipped", "model": "Coder", "at": "2026-10-05T17:24:35"}
 {"name": "ten04-timer", "out": "tools/nightly/kompanion-nightly.timer", "gpu_seconds": 2.1, "tokens": 53, "lines": 9, "review": "skipped", "model": "Coder", "at": "2026-10-05T17:24:37"}
 {"name": "ten04-readme", "out": "tools/nightly/README.md", "gpu_seconds": 23.9, "tokens": 738, "lines": 14, "model": "Coder", "at": "2026-10-05T17:25:01"}
+{"name": "task-protect-tests", "out": "docs/plans/protect-tests.md", "gpu_seconds": 35.3, "tokens": 922, "lines": 18, "model": "Coder", "at": "2026-10-05T17:26:20"}
