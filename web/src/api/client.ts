@@ -8,13 +8,15 @@ export interface PcAction {
   id: string;
   machineId: string;
   summary: string;
-  state: "pending" | "approved" | "always" | "granting" | "running" | "denied" | "done" | "failed" | "refused";
+  state: "pending" | "approved" | "always" | "granting" | "running" | "denied" | "done" | "failed" | "refused" | "stopped";
   /** The grant the step needs, e.g. "packages + root (asks for the password on the PC)". */
   needs?: string | null;
   /** The runner tool call: `{ "tool": "shell", "cwd": .., "command": .. }` and so on. */
   tool?: Record<string, unknown>;
   result: string | null;
   createdAt: string;
+  /** When it started running (approved, or created for automatic steps). */
+  startedAt?: string;
 }
 
 export interface KompanionApi {
@@ -77,6 +79,10 @@ export interface KompanionApi {
   listActions(chatId: string): Promise<PcAction[]>;
   /** W2: run a task by itself on a computer, in a folder, checked by a command. */
   startTask(id: string, machineId: string, folder: string, check: string): Promise<void>;
+  /** Stops a running step: the computer kills the command and what it started. */
+  stopAction(id: string): Promise<void>;
+  /** Stops a running W2 task (and its running step). */
+  stopTask(id: string): Promise<void>;
   /** Does this folder exist on that computer, and which folders are in it (needs a read grant)? */
   checkFolder(machineId: string, path: string): Promise<{ state: "ok" | "nogrant" | "missing" | "notfolder" | "noanswer"; path: string; folders?: string[]; files?: number; message?: string }>;
   listActivity(): Promise<import("../views/activity").ActivityItem[]>;

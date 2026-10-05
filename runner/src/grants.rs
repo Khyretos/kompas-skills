@@ -18,7 +18,7 @@ pub struct Grant {
     pub expires: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Grants {
     path: PathBuf,
     pub list: Vec<Grant>,

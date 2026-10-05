@@ -1,6 +1,6 @@
 [package]
 name = "kompanion-runner"
-version = "0.4.3"
+version = "0.4.4"
 edition = "2024"
 license = "MIT"
 description = "Reports a PC's stats to a Kreative Kompanion server (milestone 2, first slice)."

@@ -10,6 +10,21 @@ use std::time::{Duration, Instant};
 
 use crate::tools::Outcome;
 
+use std::cell::RefCell;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+thread_local! {
+    /// Set by the job thread before it runs a tool: when it turns true, the running command
+    /// is killed and reported as "stopped by you".
+    pub static STOP: RefCell<Option<Arc<AtomicBool>>> = const { RefCell::new(None) };
+}
+
+/// Kills the process group `pid` (the command and everything it started).
+fn kill_group(pid: u32) {
+    let _ = Command::new("kill").arg("-KILL").arg(format!("-{pid}")).status();
+}
+
 const CAP: u64 = 64 * 1024;
 
 /// Runs `program args` (no shell), stdin closed, stdout+stderr drained in threads
@@ -24,6 +39,12 @@ pub fn run_cmd(program: &str, args: &[String], cwd: Option<&Path>, envs: &[(Stri
         .stderr(Stdio::piped());
     if let Some(d) = cwd {
         cmd.current_dir(d);
+    }
+    // Put the child in its own process group so we can kill the whole tree.
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        let _ = cmd.process_group(0);
     }
     let mut child = match cmd.spawn() {
         Ok(c) => c,
@@ -45,12 +66,22 @@ pub fn run_cmd(program: &str, args: &[String], cwd: Option<&Path>, envs: &[(Stri
     let err_t = drain(child.stderr.take().map(|p| Box::new(p) as Box<dyn Read + Send>));
     let start = Instant::now();
     let mut timed_out = false;
+    let stop = STOP.with(|s| s.borrow().clone());
+    let mut stopped = false;
     let code = loop {
         match child.try_wait() {
             Ok(Some(status)) => break status.code().unwrap_or(-1),
+            Ok(None) if stop.as_ref().is_some_and(|f| f.load(Ordering::Relaxed)) => {
+                stopped = true;
+                kill_group(child.id());
+                let _ = child.kill();
+                let _ = child.wait();
+                break -1;
+            }
             Ok(None) if start.elapsed() < Duration::from_secs(timeout_secs) => thread::sleep(Duration::from_millis(50)),
             Ok(None) => {
                 timed_out = true;
+                kill_group(child.id());
                 let _ = child.kill();
                 let _ = child.wait();
                 break -1;
@@ -67,6 +98,9 @@ pub fn run_cmd(program: &str, args: &[String], cwd: Option<&Path>, envs: &[(Stri
     }
     if timed_out {
         output.push_str(&format!("timed out after {timeout_secs} s\n"));
+    }
+    if stopped {
+        output.push_str("stopped by you\n");
     }
     output.push_str(&format!("exit: {code}"));
     Outcome { ok: code == 0, output }
@@ -96,10 +130,32 @@ mod tests {
     }
 
     #[test]
-    fn test_timeout() {
-        let outcome = run_cmd("sleep", &a(&["5"]), None, &[], 1);
+    fn test_timeout_kills_children() {
+        let start = Instant::now();
+        let outcome = run_cmd("sh", &a(&["-c", "sleep 30 & sleep 30; echo never"]), None, &[], 1);
+        let elapsed = start.elapsed();
         assert!(!outcome.ok);
         assert!(outcome.output.contains("timed out"));
+        assert!(elapsed < Duration::from_secs(5));
+    }
+
+    #[test]
+    fn test_stop_flag() {
+        let f = Arc::new(AtomicBool::new(false));
+        STOP.with(|s| *s.borrow_mut() = Some(f.clone()));
+        let f2 = f.clone();
+        let stopper = thread::spawn(move || {
+            thread::sleep(Duration::from_millis(300));
+            f2.store(true, Ordering::Relaxed);
+        });
+        let start = Instant::now();
+        let outcome = run_cmd("sleep", &a(&["30"]), None, &[], 60);
+        let elapsed = start.elapsed();
+        assert!(!outcome.ok);
+        assert!(outcome.output.contains("stopped by you"));
+        assert!(elapsed < Duration::from_secs(5));
+        STOP.with(|s| *s.borrow_mut() = None);
+        stopper.join().ok();
     }
 
     #[test]

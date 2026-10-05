@@ -5,6 +5,8 @@
 //! (The model drafted this twice; Claude rewrote it from the same spec.)
 pub mod tools;
 
+use std::collections::HashMap;
+use std::sync::LazyLock;
 use std::time::Duration;
 
 use axum::{Extension, Json, extract::{Path, State}, http::StatusCode};
@@ -12,6 +14,9 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::{AppState, access, api::RoleAssignment, auth::User, error::{ApiError, ApiResult}, events::Event, llm, util};
+
+/// Runner jobs of running steps: action id -> (machine id, job id), so Stop can cancel them.
+static RUNNING_JOBS: LazyLock<std::sync::Mutex<HashMap<String, (String, String)>>> = LazyLock::new(Default::default);
 
 const MAX_STEPS: usize = 8;
 /// How long a card waits for a decision, and a job for the computer (seconds).
@@ -69,6 +74,33 @@ pub fn hit_step_limit(err: &str) -> bool {
     err.starts_with(STEP_LIMIT)
 }
 
+/// Stops a running step of `user_id`: the runner kills the command and its children
+/// (runner 0.4.4 and newer). Ok(false) when the step isn't running.
+pub async fn stop_action(s: &AppState, user_id: &str, action_id: &str) -> ApiResult<bool> {
+    let mine: Option<(i64,)> = sqlx::query_as("SELECT 1 FROM pc_actions WHERE id = ? AND user_id = ?")
+        .bind(action_id)
+        .bind(user_id)
+        .fetch_optional(&s.db)
+        .await?;
+    if mine.is_none() {
+        return Err(ApiError::NotFound);
+    }
+    let Some((machine_id, job_id)) = RUNNING_JOBS.lock().unwrap().get(action_id).cloned() else {
+        return Ok(false);
+    };
+    access::queue_job(&s.db, &machine_id, user_id, &json!({ "tool": "cancel_job", "job": job_id }), None).await?;
+    Ok(true)
+}
+
+/// POST /actions/{id}/stop
+pub async fn stop(State(s): State<AppState>, Extension(u): Extension<User>, Path(id): Path<String>) -> ApiResult<StatusCode> {
+    if stop_action(&s, &u.id, &id).await? {
+        Ok(StatusCode::ACCEPTED)
+    } else {
+        Err(ApiError::BadRequest("That step isn't running.".into()))
+    }
+}
+
 pub async fn run(s: AppState, user_id: String, chat_id: String, machine_id: String, machine_name: String, role: RoleAssignment) {
     let mut messages = vec![json!({ "role": "system", "content": system_prompt(&machine_name) })];
     let history: Vec<(String, String)> = sqlx::query_as(
@@ -83,7 +115,7 @@ pub async fn run(s: AppState, user_id: String, chat_id: String, machine_id: Stri
         let role = if author == "user" { "user" } else { "assistant" };
         messages.push(json!({ "role": role, "content": text }));
     }
-    let agent = Agent { s: s.clone(), user_id: user_id.clone(), chat_id: chat_id.clone(), machine_id, role, auto: false, max_steps: MAX_STEPS, folder: None };
+    let agent = Agent { s: s.clone(), user_id: user_id.clone(), chat_id: chat_id.clone(), machine_id, role, auto: false, max_steps: MAX_STEPS, folder: None, task_id: None };
     let text = match agent.run(messages).await {
         Ok(t) => t,
         Err(e) => e,
@@ -106,6 +138,8 @@ pub struct Agent {
     /// W2 tasks: every path and working folder must be inside this folder, so the check
     /// and the diff always see the folder that was worked in (never two mixed folders).
     pub folder: Option<String>,
+    /// W2: the task this agent works for; when the user stops it, the agent stops too.
+    pub task_id: Option<String>,
 }
 
 /// Why an edit_file job would break the file, if it would: reads the file through the
@@ -152,6 +186,9 @@ impl Agent {
         let tools = tools::schema();
         // Paths a read found missing during this answer (see the write_file guardrail).
         let mut missing = std::collections::HashSet::<String>::new();
+        if self.task_id.as_deref().is_some_and(crate::taskrun::is_stopped) {
+            return Err("stopped by you".into());
+        }
         for _ in 0..self.max_steps {
             let msg = llm::chat_with_tools(&s.http, p, &self.role.model_id, &messages, &tools)
                 .await
@@ -332,10 +369,18 @@ async fn step(s: &AppState, user_id: &str, chat_id: &str, machine_id: &str, job:
     let _ = sqlx::query("UPDATE pc_actions SET grant_note = ? WHERE id = ?").bind(grant_note).bind(&id).execute(&s.db).await;
     set_action(s, &id, "running", "").await;
     changed(s, user_id);
-    let (state, result) = match access::queue_job(&s.db, machine_id, user_id, job, None).await {
-        Ok(job_id) => wait_job(s, &job_id).await,
+    let (mut state, result) = match access::queue_job(&s.db, machine_id, user_id, job, None).await {
+        Ok(job_id) => {
+            RUNNING_JOBS.lock().unwrap().insert(id.clone(), (machine_id.to_string(), job_id.clone()));
+            let r = wait_job(s, &job_id).await;
+            RUNNING_JOBS.lock().unwrap().remove(&id);
+            r
+        }
         Err(e) => ("failed".to_string(), e.to_string()),
     };
+    if result.contains("stopped by you") {
+        state = "stopped".to_string();
+    }
 
     // A one-step grant goes away again; an earlier grant on that target comes back.
     if let (Some(before), Some((target, _))) = (restore, &needed) {
@@ -475,8 +520,8 @@ pub async fn list(
     Extension(u): Extension<User>,
     Path(chat_id): Path<String>,
 ) -> ApiResult<Json<Vec<Value>>> {
-    let rows: Vec<(String, String, String, String, Option<String>, String, String)> = sqlx::query_as(
-        "SELECT id, machine_id, summary, state, result, created_at, tool FROM (
+    let rows: Vec<(String, String, String, String, Option<String>, String, String, String)> = sqlx::query_as(
+        "SELECT id, machine_id, summary, state, result, created_at, tool, COALESCE(decided_at, created_at) FROM (
            SELECT * FROM pc_actions WHERE chat_id = ? AND user_id = ? ORDER BY created_at DESC LIMIT 50
          ) ORDER BY created_at",
     )
@@ -486,10 +531,10 @@ pub async fn list(
     .await?;
     Ok(Json(
         rows.into_iter()
-            .map(|(id, machine_id, summary, state, result, created_at, tool)| {
+            .map(|(id, machine_id, summary, state, result, created_at, tool, started_at)| {
                 let job: Value = serde_json::from_str(&tool).unwrap_or(Value::Null);
                 json!({ "id": id, "machineId": machine_id, "summary": summary, "state": state, "result": result,
-                        "createdAt": created_at, "needs": needs_text(&job), "tool": job })
+                        "createdAt": created_at, "startedAt": started_at, "needs": needs_text(&job), "tool": job })
             })
             .collect(),
     ))

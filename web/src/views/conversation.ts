@@ -18,6 +18,7 @@ const STEP_LABEL: Record<string, string> = {
   done: "done",
   failed: "failed",
   refused: "not allowed",
+  stopped: "stopped by you",
 };
 
 /** Steps the user opened stay open across re-renders (main.ts keeps this in step). */
@@ -35,6 +36,8 @@ function renderStep(a: PcAction, machines: Record<string, string>): SafeHtml {
         ${icon(busy ? "spark" : a.state === "done" ? "terminal" : "close")}
         <span class="step-summary">${a.summary}</span>
         <span class="chip ${a.state}">${STEP_LABEL[a.state] ?? a.state}</span>
+        ${a.state === "running" ? html`<span class="elapsed" data-since="${a.startedAt ?? a.createdAt}"></span>
+          <button class="btn small danger step-stop" type="button" data-action="step-stop" data-id="${a.id}">Stop</button>` : ""}
       </summary>
       ${a.result ? renderOutput(fromTool(a.tool, a.result, machines[a.machineId])) : ""}
     </details>`;

@@ -143,3 +143,17 @@
 {"name": "project-panel-view", "out": "web/src/views/projectpanel.ts", "gpu_seconds": 65.4, "tokens": 2916, "lines": 104, "model": "qwen3.5:9b-q8_0", "at": "2026-10-04T15:32:51"}
 {"name": "gpu-ledger-pure", "out": "server/src/gpus/ledger.rs", "gpu_seconds": 157.6, "tokens": 4653, "lines": 244, "model": "qwen3.5:9b-q8_0", "at": "2026-10-04T20:42:32"}
 {"name": "gpu-sched-core", "out": "server/src/gpus/sched.rs", "gpu_seconds": 230.6, "tokens": 5867, "lines": 511, "review": "skipped", "model": "Coder", "at": "2026-10-04T20:59:15"}
+{"name": "runner-proc-stop", "out": "runner/src/proc.rs", "mode": "patch", "gpu_seconds": 55.0, "tokens": 1515, "lines": 5, "attempts": 1, "model": "Coder", "at": "2026-10-05T02:12:49"}
+{"name": "runner-proc-stop-fix", "out": "runner/src/proc.rs", "mode": "patch", "gpu_seconds": 12.1, "tokens": 251, "lines": 3, "attempts": 1, "model": "Coder", "at": "2026-10-05T02:13:15"}
+{"name": "runner-main-threads", "out": "runner/src/main.rs", "mode": "patch", "gpu_seconds": 37.0, "tokens": 1003, "lines": 2, "attempts": 1, "model": "Coder", "at": "2026-10-05T02:14:12"}
+{"name": "stop-task", "out": "server/src/taskrun/mod.rs", "mode": "patch", "gpu_seconds": 38.5, "tokens": 1051, "lines": 4, "attempts": 1, "model": "Coder", "at": "2026-10-05T02:15:59"}
+{"name": "stop-step", "out": "server/src/pcagent/mod.rs", "mode": "patch", "gpu_seconds": 103.7, "tokens": 906, "lines": 3, "attempts": 1, "model": "qwen3.5:9b-q8_0", "at": "2026-10-05T02:17:04"}
+{"name": "stop-agent-field", "out": "server/src/pcagent/mod.rs", "mode": "patch", "gpu_seconds": 17.4, "tokens": 293, "lines": 3, "attempts": 1, "model": "qwen3.5:9b-q8_0", "at": "2026-10-05T02:17:22"}
+{"name": "stop-web-api", "out": "web/src/api/client.ts", "mode": "patch", "gpu_seconds": 18.0, "tokens": 319, "lines": 3, "attempts": 1, "model": "Coder", "at": "2026-10-05T02:18:25"}
+{"name": "stop-list-started", "out": "server/src/pcagent/mod.rs", "mode": "patch", "gpu_seconds": 22.6, "tokens": 407, "lines": 2, "attempts": 1, "model": "Coder", "at": "2026-10-05T02:18:30"}
+{"name": "stop-web-http", "out": "web/src/api/http.ts", "mode": "patch", "gpu_seconds": 13.1, "tokens": 300, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T02:18:38"}
+{"name": "stop-web-mock", "out": "web/src/api/mock.ts", "mode": "patch", "gpu_seconds": 11.3, "tokens": 256, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T02:18:41"}
+{"name": "stop-web-step", "out": "web/src/views/conversation.ts", "mode": "patch", "gpu_seconds": 16.6, "tokens": 419, "lines": 2, "attempts": 1, "model": "Coder", "at": "2026-10-05T02:18:55"}
+{"name": "stop-web-task", "out": "web/src/views/tasks.ts", "mode": "patch", "gpu_seconds": 12.0, "tokens": 193, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T02:19:26"}
+{"name": "stop-web-main", "out": "web/src/main.ts", "mode": "patch", "gpu_seconds": 18.7, "tokens": 367, "lines": 2, "attempts": 1, "model": "Coder", "at": "2026-10-05T02:19:33"}
+{"name": "stop-web-test", "out": "web/tests/stop.spec.ts", "gpu_seconds": 18.4, "tokens": 337, "lines": 29, "review": "skipped", "model": "Coder", "at": "2026-10-05T02:20:07"}

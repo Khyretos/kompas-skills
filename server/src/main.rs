@@ -181,6 +181,8 @@ async fn main() -> anyhow::Result<()> {
         .route("/tasks/{id}", patch(tasks::update).delete(tasks::delete))
         .route("/tasks/{id}/events", get(tasks::events))
         .route("/tasks/{id}/start", post(taskrun::start))
+        .route("/tasks/{id}/stop", post(taskrun::stop))
+        .route("/actions/{id}/stop", post(pcagent::stop))
         .route("/projects/{id}", patch(tasks::set_project_kind))
         .route("/projects/{id}/settings", patch(projects::settings))
         .route("/projects/{id}/assets", get(projects::assets).post(projects::attach))

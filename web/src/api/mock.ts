@@ -485,6 +485,16 @@ export class MockApi implements KompanionApi {
     ];
   }
   async startTask() {}
+  async stopAction(actionId: string) {
+    const a = actions.find((x) => x.id === actionId);
+    if (!a || a.state !== "running") throw new Error("That step isn't running.");
+    setTimeout(() => { a.state = "stopped"; a.result = "stopped by you\nexit: -1"; this.emit({ type: "changed", what: "actions" }); }, 200);
+  }
+  async stopTask(taskId: string) {
+    const t = tasks.find((x) => x.id === taskId);
+    if (!t || t.state !== "running") throw new Error("This task isn't running.");
+    setTimeout(() => { t.state = "needs_input"; t.step = "stopped by you"; this.emit({ type: "task", task: structuredClone(t) }); }, 200);
+  }
   /** Demo computers: /home/kees and its projects exist, everything else is missing. */
   async checkFolder(_machineId: string, path: string) {
     await new Promise((r) => setTimeout(r, 150));
@@ -510,7 +520,14 @@ export class MockApi implements KompanionApi {
     step("done", "resolving dependencies...\ninstalling htop...\nexit: 0", 600);
   }
   async send(chatId: string, text: string, machineId?: string) {
-    if (machineId && /three steps/i.test(text)) {
+    if (machineId && /long step/i.test(text)) {
+      // Demo of a long command (20 s) that can be stopped.
+      const a = { id: id("a"), chatId, machineId, summary: "Run `cargo build` in /home/kees/projects/kk-engine", tool: { tool: "shell", cwd: "/home/kees/projects/kk-engine", command: "cargo build" },
+        state: "running", result: null, createdAt: new Date(Date.now() + 50).toISOString() } as PcAction & { chatId: string };
+      actions.push(a);
+      setTimeout(() => this.emit({ type: "changed", what: "actions" }), 100);
+      setTimeout(() => { if (a.state !== "running") return; a.state = "done"; a.result = "Finished\nexit: 0"; this.emit({ type: "changed", what: "actions" }); }, 20_000);
+    } else if (machineId && /three steps/i.test(text)) {
       // Demo of a step group: three automatic steps that finish one after another.
       const at = Date.now() + 50;
       for (let k = 0; k < 3; k++) {
@@ -518,7 +535,7 @@ export class MockApi implements KompanionApi {
           state: k === 0 ? "running" : "approved", result: null, createdAt: new Date(at + k).toISOString() } as PcAction & { chatId: string };
         actions.push(a);
         setTimeout(() => { a.state = "running"; this.emit({ type: "changed", what: "actions" }); }, 600 + k * 900);
-        setTimeout(() => { a.state = "done"; a.result = `line ${k + 1}`; this.emit({ type: "changed", what: "actions" }); }, 1000 + k * 900);
+        setTimeout(() => { if (a.state === "stopped") return; a.state = "done"; a.result = `line ${k + 1}`; this.emit({ type: "changed", what: "actions" }); }, 1000 + k * 900);
       }
       setTimeout(() => this.emit({ type: "changed", what: "actions" }), 100);
     } else if (machineId) {

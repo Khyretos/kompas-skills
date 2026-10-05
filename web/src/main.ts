@@ -420,6 +420,17 @@ function watchCapabilities(on: boolean): void {
   capsTimer = window.setInterval(loadCapabilities, 30_000);
 }
 
+// Running steps show how long they run, updated every second without re-rendering.
+function tickElapsed(): void {
+  const now = Date.now();
+  for (const el of document.querySelectorAll<HTMLElement>(".elapsed[data-since]")) {
+    const secs = Math.max(0, Math.round((now - Date.parse(el.dataset.since ?? "")) / 1000));
+    if (Number.isNaN(secs)) continue;
+    el.textContent = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, "0")}`;
+  }
+}
+window.setInterval(tickElapsed, 1000);
+
 let refetchTimers = new Map<string, number>();
 function refetch(what: string): void {
   if (refetchTimers.has(what)) return;
@@ -654,6 +665,18 @@ function wire(shell: HTMLElement): void {
       if (store.get().recording === "recording") void stopRecording(); else void startRecording();
     },
     "voice-stop": () => reader.stop(),
+    // Stop a running step on the computer (Esc never stops anything).
+    "step-stop": (el) => {
+      el.setAttribute("disabled", "");
+      el.textContent = "Stopping…";
+      return api.stopAction(el.dataset.id ?? "").catch((e) => { el.removeAttribute("disabled"); el.textContent = "Stop"; showError(e); });
+    },
+    "task-stop": (el) => {
+      const id = el.dataset.id ?? "";
+      if (!confirm("Stop this task? The running step is stopped too.")) return;
+      el.setAttribute("disabled", "");
+      return api.stopTask(id).catch((e) => { el.removeAttribute("disabled"); showError(e); });
+    },
     "folder-browse": (el) => {
       const id = el.dataset.id ?? "";
       const { machine, folder } = runFields(id);

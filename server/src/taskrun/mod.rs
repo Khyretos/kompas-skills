@@ -14,6 +14,47 @@ use crate::{AppState, api::{self, RoleAssignment}, auth::User, error::{ApiError,
 
 const ROUNDS: usize = 3;
 
+/// Tasks the user stopped: the run ends at the next step, and the running step is stopped.
+static STOPPED: std::sync::LazyLock<std::sync::Mutex<std::collections::HashSet<String>>> = std::sync::LazyLock::new(Default::default);
+
+pub fn is_stopped(task_id: &str) -> bool {
+    STOPPED.lock().unwrap().contains(task_id)
+}
+
+/// POST /tasks/{id}/stop
+pub async fn stop(State(s): State<AppState>, Extension(u): Extension<User>, Path(id): Path<String>) -> ApiResult<StatusCode> {
+    let row: Option<(String, Option<String>)> = sqlx::query_as("SELECT state, chat_id FROM tasks WHERE id = ? AND user_id = ?")
+        .bind(&id)
+        .bind(&u.id)
+        .fetch_optional(&s.db)
+        .await?;
+    let Some((state, chat_id)) = row else { return Err(ApiError::NotFound) };
+    if state != "running" {
+        return Err(ApiError::BadRequest("This task isn't running.".into()));
+    }
+    STOPPED.lock().unwrap().insert(id.clone());
+    if let Some(chat) = chat_id {
+        let running: Vec<(String,)> = sqlx::query_as("SELECT id FROM pc_actions WHERE chat_id = ? AND state = 'running'")
+            .bind(&chat)
+            .fetch_all(&s.db)
+            .await?;
+        for (action,) in running {
+            let _ = pcagent::stop_action(&s, &u.id, &action).await;
+        }
+    }
+    Ok(StatusCode::ACCEPTED)
+}
+
+/// Ends a stopped run: true when the user stopped it (and it has been finished).
+async fn stopped_here(s: &AppState, r: &Run) -> bool {
+    if !STOPPED.lock().unwrap().remove(&r.task_id) {
+        return false;
+    }
+    note(s, r, "Stopped by you.").await;
+    finish(s, r, "needs_input", "stopped by you").await;
+    true
+}
+
 #[derive(Deserialize)]
 pub struct StartBody {
     pub machine_id: String,
@@ -191,6 +232,7 @@ fn agent(s: &AppState, r: &Run, max_steps: usize) -> pcagent::Agent {
         auto: true,
         max_steps,
         folder: Some(r.folder.clone()),
+        task_id: Some(r.task_id.clone()),
     }
 }
 
@@ -246,6 +288,7 @@ async fn edits_since(s: &AppState, r: &Run, since: &str) -> String {
 
 async fn run(s: AppState, r: Run) {
     let started = util::now();
+    STOPPED.lock().unwrap().remove(&r.task_id); // a stop from an earlier run doesn't count
     // 0. The folder must exist on that computer: otherwise stop at once and say so (a wrong
     // folder once cost three empty review rounds).
     progress(&s, &r, 0.0, "checking the folder").await;
@@ -304,9 +347,13 @@ async fn run(s: AppState, r: Run) {
     // 2. The steps.
     let n = steps.len();
     for (i, step) in steps.iter().enumerate() {
+        if stopped_here(&s, &r).await {
+            return;
+        }
         progress(&s, &r, i as f64 / n as f64 * 0.8, &format!("Step {}/{n}: {}", i + 1, step.what)).await;
         match work(&s, &r, 12, step_instruction(&r.description, i, n, step, &plan_list)).await {
             Ok(line) => note(&s, &r, &format!("Step {}: {line}", i + 1)).await,
+            Err(_) if stopped_here(&s, &r).await => return,
             Err(why) => {
                 if pcagent::hit_step_limit(&why) {
                     note(&s, &r, &format!("Step {} used all its tool calls; the check decides.", i + 1)).await;
@@ -320,6 +367,9 @@ async fn run(s: AppState, r: Run) {
 
     // 3. Check and review, with fix rounds.
     for round in 1..=ROUNDS {
+        if stopped_here(&s, &r).await {
+            return;
+        }
         progress(&s, &r, 0.85, &format!("review, round {round}")).await;
         let check_text = match &r.check {
             Some(cmd) => work(&s, &r, 3, format!("Run exactly this check in {} with the shell tool and report the full result: `{cmd}`", r.folder))
@@ -371,6 +421,7 @@ async fn run(s: AppState, r: Run) {
         }
         match work(&s, &r, 12, format!("The task:\n{}\n\nFix these review findings, then answer with one short line:\n{findings}", cut(&r.description, 3000))).await {
             Ok(line) => note(&s, &r, &format!("Fix {round}: {line}")).await,
+            Err(_) if stopped_here(&s, &r).await => return,
             Err(why) => {
                 if pcagent::hit_step_limit(&why) {
                     note(&s, &r, &format!("Fix {round} used all its tool calls; checking again.")).await;

@@ -745,3 +745,8 @@ button[aria-busy="true"]::after {
 .folder-check .bad { color: var(--bad); }
 .folder-list { list-style: none; margin: 0; padding: 0.25rem 0.5rem; max-height: 12rem; overflow: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-2); font-size: 0.85rem; }
 .folder-list li { padding: 0.15rem 0; }
+
+/* A running step: elapsed time and a Stop button in its summary. */
+.step .elapsed { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 0.8rem; }
+.step .step-stop { margin-left: auto; min-height: 1.8rem; padding: 0.2rem 0.6rem; }
+.chip.stopped { color: var(--attn); }

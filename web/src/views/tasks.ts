@@ -214,6 +214,7 @@ function detail(t: Task, s: AppState): SafeHtml {
         <button class="btn small" data-action="move-task" data-id="${t.id}" data-dir="-1" ${i <= 0 ? "disabled" : ""} aria-label="Move up">↑</button>
         <button class="btn small" data-action="move-task" data-id="${t.id}" data-dir="1" ${i < 0 || i >= siblings.length - 1 ? "disabled" : ""} aria-label="Move down">↓</button>
         ${t.state !== "done" ? html`<button class="btn small" data-action="close-task-done" data-id="${t.id}">Mark done</button>` : ""}
+        ${t.state === "running" ? html`<button class="btn small danger" data-action="task-stop" data-id="${t.id}">Stop task</button>` : ""}
         <button class="btn small danger" data-action="delete-task" data-id="${t.id}">${icon("trash")} Delete</button>
       </div>
       ${t.description ? html`<div class="task-desc md" data-md-task="${t.id}"></div>`

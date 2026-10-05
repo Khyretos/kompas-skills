@@ -169,6 +169,9 @@ fn main() {
     let mut interval = 5u64;
     let mut backoff = 0u64;
 
+    // Running jobs by id: their stop flag (set by a cancel_job job).
+    let running: std::sync::Arc<std::sync::Mutex<std::collections::HashMap<String, std::sync::Arc<std::sync::atomic::AtomicBool>>>> = Default::default();
+
     eprintln!("kompanion-runner: reporting to {}", cfg.server);
     loop {
         thread::sleep(Duration::from_secs(interval.max(1)));
@@ -207,15 +210,34 @@ fn main() {
                                         output = "success".into();
                                     }
                                 }
+                                "cancel_job" => {
+                                    let target = tool_val["job"].as_str().unwrap_or("");
+                                    match running.lock().unwrap().get(target) {
+                                        Some(flag) => {
+                                            flag.store(true, std::sync::atomic::Ordering::Relaxed);
+                                            ok = true;
+                                            output = format!("stopping {target}");
+                                        }
+                                        None => output = format!("no running job {target}"),
+                                    }
+                                }
                                 _ => {
                                     if let Ok(tool) = serde_json::from_value::<tools::Tool>(tool_val.clone()) {
-                                        let res = tools::run(&grants, &tool, &now());
-                                        output = res.output;
-                                        if output.starts_with("not granted") {
-                                            refused = true;
-                                        } else {
-                                            ok = res.ok;
-                                        }
+                                        let flag = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+                                        running.lock().unwrap().insert(id.to_string(), flag.clone());
+                                        let (agent, base_url, machine_id, token) = (agent.clone(), base_url.to_string(), cfg.machine_id.clone(), token.clone());
+                                        let (grants_now, running, job_id) = (grants.clone(), running.clone(), id.to_string());
+                                        thread::spawn(move || {
+                                            crate::proc::STOP.with(|s| *s.borrow_mut() = Some(flag));
+                                            let res = tools::run(&grants_now, &tool, &now());
+                                            let refused = res.output.starts_with("not granted");
+                                            running.lock().unwrap().remove(&job_id);
+                                            let _ = post_result(&agent, &base_url, &machine_id, &token, serde_json::json!({
+                                                "job_id": job_id, "ok": res.ok && !refused, "output": res.output, "refused": refused,
+                                                "grants": grants_now.list
+                                            }));
+                                        });
+                                        continue;
                                     } else {
                                         output = "invalid tool format".into();
                                     }

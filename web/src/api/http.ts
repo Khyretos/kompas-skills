@@ -122,6 +122,8 @@ export class HttpApi implements KompanionApi {
     return this.request<void>("POST", `/chats/${encodeURIComponent(chatId)}/messages`, { text, machine_id: machineId ?? null });
   }
   listActions(chatId: string) { return this.request<import("./client").PcAction[]>("GET", `/chats/${encodeURIComponent(chatId)}/actions`); }
+  stopAction(id: string) { return this.request<void>("POST", `/actions/${encodeURIComponent(id)}/stop`); }
+  stopTask(id: string) { return this.request<void>("POST", `/tasks/${encodeURIComponent(id)}/stop`); }
   checkFolder(machineId: string, path: string) {
     return this.request<{ state: "ok" | "nogrant" | "missing" | "notfolder" | "noanswer"; path: string; folders?: string[]; files?: number; message?: string }>("POST", `/machines/${encodeURIComponent(machineId)}/folder`, { path });
   }
