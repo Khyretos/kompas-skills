@@ -16,7 +16,7 @@ test.describe("Stop a running step", () => {
     await step.locator('[data-action="step-stop"]').click();
     const stopped = page.locator('#messages details.step[data-state="stopped"]');
     await expect(stopped).toHaveCount(1);
-    await expect(stopped.locator(".chip")).toContainText("stopped by you");
+    await expect(stopped.locator("summary .chip.stopped")).toContainText("stopped by you");
   });
 
   test("Escape doesn't stop a running step", async ({ page }) => {
