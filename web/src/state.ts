@@ -48,6 +48,8 @@ export interface AppState {
   taskRuns?: { taskId: string; runs: { id: string; startedAt: string; endedAt: string | null; status: string; step: string | null }[] }; // the open task's W2 runs (report, run id)
   cardStyle?: import("./core/cardtypes").CardStyle; // card colours and labels per action type (Settings)
   projectAssets: Record<string, import("./views/projectpanel").ProjectAsset[]>; // game projects, loaded when shown
+  taskFilter: string; // the task list's live search
+  collapsedGroups: Set<string>; // task list groups the user closed ("Finished"), remembered on this device
   assetPick: { project: string; q: string; items: import("./views/projectpanel").PickResult[]; busy: boolean }; // the picker
   activeProjectId?: string; // project picked in the sidebar (tasks pane, new chats)
   chatMenuId?: string; // chat whose options menu is open
@@ -71,6 +73,8 @@ export const store = new Store<AppState>({
   section: "chat",
   expandedProjects: new Set(),
   allTasksShown: new Set(),
+  taskFilter: "",
+  collapsedGroups: (() => { try { return new Set<string>(JSON.parse(localStorage.getItem("kk-task-groups") ?? "[]")); } catch { return new Set<string>(); } })(),
   voicePrefs: loadVoicePrefs(),
   recording: "idle",
   speaking: false,

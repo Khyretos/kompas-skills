@@ -209,7 +209,7 @@ function render(s: AppState, prev: AppState): void {
   }
   lastPcKey = pcKey;
   const rightKeys: (keyof AppState)[] = s.rightTab === "tasks"
-    ? ["rightTab", "tasks", "projects", "openTaskId", "editingTaskId", "taskScope", "activeProjectId", "activeChatId", "chats", "projectAssets", "assetPick", "runCheck", "taskRuns"]
+    ? ["rightTab", "tasks", "projects", "openTaskId", "editingTaskId", "taskScope", "activeProjectId", "activeChatId", "chats", "projectAssets", "assetPick", "runCheck", "taskRuns", "taskFilter", "collapsedGroups"]
     : s.rightTab === "access" ? ["rightTab", "grants", "accessHistory", "machines"]
     : s.rightTab === "activity" ? ["rightTab", "activity", "activityFilter"]
     : ["rightTab", "machines", "today", "machinesRefresh", "tasks", "pairing", "gpuOpen", "gpuPins", "cardStyle"];
@@ -693,6 +693,14 @@ function wire(shell: HTMLElement): void {
     },
     "voice-stop": () => reader.stop(),
     "card-reset": () => setCards({}),
+    // Task list groups open and close by click; the choice is kept on this device.
+    "task-group-toggle": (el) => {
+      const g = el.dataset.group ?? "";
+      const collapsed = new Set(store.get().collapsedGroups);
+      if (collapsed.has(g)) collapsed.delete(g); else collapsed.add(g);
+      try { localStorage.setItem("kk-task-groups", JSON.stringify([...collapsed])); } catch { /* not saved */ }
+      store.set({ collapsedGroups: collapsed });
+    },
     // Stop a running step on the computer (Esc never stops anything).
     "step-stop": (el) => {
       el.setAttribute("disabled", "");
@@ -982,6 +990,7 @@ function wire(shell: HTMLElement): void {
   }, 1000);
   shell.addEventListener("input", (ev) => {
     const el = ev.target as HTMLInputElement;
+    if (el.id === "task-filter") { store.set({ taskFilter: el.value }); return; }
     if (el.id === "asset-pick-q") { pickSearch(el.dataset.project ?? "", el.value); return; }
     if (el.id !== "machines-refresh") return;
     const seconds = REFRESH_STEPS[Number(el.value)] ?? 5;
