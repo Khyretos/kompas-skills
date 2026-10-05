@@ -27,7 +27,7 @@ test.describe("Project thread", () => {
     await expect(page.locator("#messages")).toContainText("step 2/2 done", { timeout: 5000 });
     await expect(page.locator("#messages")).toContainText("Done:", { timeout: 5000 });
 
-    await page.locator("#messages a", { hasText: "Open the task" }).click();
+    await page.locator("#messages a", { hasText: "Open the task" }).last().click();
     await expect(page.locator("#right .task-detail")).toBeVisible();
     await expect(page.locator("#right .task-detail")).toContainText("Profile shader compile times");
   });

@@ -125,6 +125,7 @@ export class HttpApi implements KompanionApi {
     return this.request<void>("POST", `/chats/${encodeURIComponent(chatId)}/messages`, { text, machine_id: machineId ?? null });
   }
   listActions(chatId: string) { return this.request<import("./client").PcAction[]>("GET", `/chats/${encodeURIComponent(chatId)}/actions`); }
+  listLessons(chatId: string) { return this.request<import("./client").Lesson[]>("GET", `/chats/${encodeURIComponent(chatId)}/lessons`); }
   stopAction(id: string) { return this.request<void>("POST", `/actions/${encodeURIComponent(id)}/stop`); }
   taskRuns(taskId: string) { return this.request<{ id: string; startedAt: string; endedAt: string | null; status: string; step: string | null }[]>("GET", `/tasks/${encodeURIComponent(taskId)}/runs`); }
   taskCosts(taskId: string) { return this.request<import("./types").CostLine | null>("GET", `/tasks/${encodeURIComponent(taskId)}/costs`); }
@@ -158,6 +159,9 @@ export class HttpApi implements KompanionApi {
     return res.blob();
   }
   getSkill(id: string) { return this.request<{ id: string; text: string }>("GET", `/capabilities/skill?id=${encodeURIComponent(id)}`); }
+  decideLesson(id: string, decision: "accept" | "dismiss", text?: string) {
+    return this.request<void>("POST", `/lessons/${encodeURIComponent(id)}`, { decision, text });
+  }
   decideAction(id: string, decision: "approve" | "always" | "deny") {
     return this.request<void>("POST", `/actions/${encodeURIComponent(id)}/decide`, { decision });
   }

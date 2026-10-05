@@ -50,3 +50,11 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
 20. (2026-10-05) A small planner's labels are hints, not facts: Coder put a step on
     `server/src/forge.rs` under worker/cpp-games. Let facts in the step (the files it names,
     matched against each area core's `paths` globs) override the label, in code.
+21. (2026-10-05) Coder writes about 150 correct lines per job at most: a 520-line module in one
+    job came back with 15 compile errors. Split a new module into parts of 3 to 5 functions, write
+    its `use` lines yourself in the prompt (and state which helpers return `()` or need `.await`),
+    and join the parts by script. Tests are a job of their own; give the `db()`/`state()` helpers
+    in the prompt and splice them in by script when the answer leaves them out (it did three times).
+22. (2026-10-05) Tests that set a process-wide env var race each other (cargo runs tests in
+    parallel): hold one `tokio::sync::Mutex` per module around them, and run a new suite three
+    times before trusting it.

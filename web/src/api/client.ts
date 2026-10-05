@@ -3,6 +3,19 @@
 // the real server over HTTPS + server-sent events.
 import type { NotificationPrefs, TaskState, AdminSettings, ThemeChoice, DaySummary, MachineStats, ServerStatus, Chat, Message, Project, RoleAssignment, ModelProvider, SearchResult, Server, Task } from "./types";
 
+/** A lesson a task run's reviewer proposed in the project thread (SK-02). */
+export interface Lesson {
+  id: string;
+  chatId: string;
+  /** The skill card it would go into, e.g. "worker/rust/SKILL". */
+  card: string;
+  text: string;
+  /** The review finding it comes from. */
+  finding: string;
+  state: "proposed" | "accepted" | "dismissed";
+  createdAt: string;
+}
+
 /** A step Kompanion wants to run on a paired computer (F6), waiting for approval. */
 export interface PcAction {
   id: string;
@@ -83,6 +96,8 @@ export interface KompanionApi {
   /** With `machineId`, the answer may use that computer's tools (each step needs approval). */
   send(chatId: string, text: string, machineId?: string): Promise<void>;
   listActions(chatId: string): Promise<PcAction[]>;
+  /** The lessons proposed in a chat (the project thread), oldest first. */
+  listLessons(chatId: string): Promise<Lesson[]>;
   /** W2: run a task by itself on a computer, in a folder, checked by a command. */
   startTask(id: string, machineId: string, folder: string, check: string): Promise<void>;
   /** Stops a running step: the computer kills the command and what it started. */
@@ -111,6 +126,8 @@ export interface KompanionApi {
   /** Text to speech: one or a few sentences as WAV audio. */
   speak(text: string, voice: string): Promise<Blob>;
   decideAction(id: string, decision: "approve" | "always" | "deny"): Promise<void>;
+  /** Accept (with the text as edited) or dismiss a proposed lesson. */
+  decideLesson(id: string, decision: "accept" | "dismiss", text?: string): Promise<void>;
   answer(taskId: string, optionId: string): Promise<void>;
 
   /** Live updates: streamed tokens, task progress, new messages. A "resync"
@@ -123,6 +140,6 @@ export type ServerEvent =
   | { type: "message-delta"; messageId: string; chatId: string; text: string; done: boolean }
   | { type: "task"; task: Task }
   | { type: "machines"; machines: MachineStats[] }
-  | { type: "changed"; what: "tasks" | "projects" | "chats" | "machines" | "access" | "settings" | "actions" | "project-assets" | "gpus"; machineId?: string }
+  | { type: "changed"; what: "tasks" | "projects" | "chats" | "machines" | "access" | "settings" | "actions" | "lessons" | "project-assets" | "gpus"; machineId?: string }
   | { type: "assets"; scan?: unknown; previews?: unknown } // Assets section news (api/assets.ts)
   | { type: "resync" };

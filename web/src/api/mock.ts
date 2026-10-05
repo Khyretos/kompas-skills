@@ -1,7 +1,7 @@
 // A fake server so the UI can be built and tried before the real one exists.
 // Everything here is example data.
 import type { AccessEvent, GrantView } from "../views/access";
-import type { KompanionApi, ServerEvent } from "./client";
+import type { KompanionApi, Lesson, ServerEvent } from "./client";
 import type { PcAction } from "./client";
 import type { TaskState, AdminSettings, DaySummary, MachineStats, Chat, Message, ModelProvider, Project, RoleAssignment, SearchResult, Server, Task } from "./types";
 
@@ -25,6 +25,7 @@ const projects: Project[] = [
   { id: "p-nohboard", name: "nohboard-qt", description: "Keyboard overlay, Qt", updatedAt: ago(60 * 24 * 4) },
 ];
 
+const lessons: Lesson[] = [];
 const chats: Chat[] = [
   { id: "c-kk", title: "Debug tooling and tests", projectId: "p-kk", updatedAt: ago(14) },
   { id: "c-kk-2", title: "Renderer performance", projectId: "p-kk", updatedAt: ago(60 * 5) },
@@ -515,6 +516,18 @@ export class MockApi implements KompanionApi {
   }
 
   async listActions(chatId: string) { return structuredClone(actions.filter((a) => (a as PcAction & { chatId?: string }).chatId === chatId)); }
+  async listLessons(chatId: string) { return structuredClone(lessons.filter((l) => l.chatId === chatId)); }
+  async decideLesson(lessonId: string, decision: "accept" | "dismiss", text?: string) {
+    const l = lessons.find((x) => x.id === lessonId);
+    if (!l || l.state !== "proposed") throw new Error("This lesson was already decided.");
+    l.state = decision === "accept" ? "accepted" : "dismissed";
+    if (decision === "accept" && text?.trim()) l.text = text.trim();
+    const m: Message = { id: id("m"), chatId: l.chatId, author: "orchestrator", at: new Date().toISOString(),
+      text: decision === "accept" ? `Lesson added to \`${l.card}\` (/data/skills/${l.card}.md).` : `Lesson for \`${l.card}\` dismissed.` };
+    messages.push(m);
+    this.emit({ type: "message", message: structuredClone(m) });
+    this.emit({ type: "changed", what: "lessons" });
+  }
   async listActivity() {
     const now = Date.now();
     return [
@@ -542,6 +555,11 @@ export class MockApi implements KompanionApi {
     post(300, `Started **${t.title}** on ${pc}.`);
     post(900, `**${t.title}**, step 1/2 done: added the timer around the shader compile.`);
     post(1500, `**${t.title}**, step 2/2 done: the times go to the console.`);
+    post(1800, `**${t.title}**, review round 1: 1 finding(s). [Open the task](#task=${t.id})`, () => {
+      lessons.push({ id: id("l"), chatId: thread, card: "worker/cpp-games/SKILL", text: "Time a compile step with std::chrono::steady_clock, never system_clock.",
+        finding: "The timer used system_clock, which jumps when the clock changes.", state: "proposed", createdAt: new Date().toISOString() });
+      this.emit({ type: "changed", what: "lessons" });
+    });
     post(2100, `Done: **${t.title}** (done after 1 round(s)). [Open the task](#task=${t.id})`, () => {
       t.state = "done"; t.step = "done after 1 round(s)"; t.progress = 1;
       this.emit({ type: "task", task: structuredClone(t) });
