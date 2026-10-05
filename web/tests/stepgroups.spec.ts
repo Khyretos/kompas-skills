@@ -30,4 +30,19 @@ test.describe("Step groups keep the user's choice", () => {
     await expect(group.locator('details.step[data-state="done"]')).toHaveCount(3, { timeout: 8000 });
     await expect(group).not.toHaveAttribute("open", "");
   });
+  test("a click survives a re-render between press and release", async ({ page }) => {
+    const group = page.locator("#messages details.steps.group").last();
+    await expect(group).toHaveAttribute("open", "");
+    // Press on the summary, replace it with a copy (what a live re-render does), release on the copy:
+    // the browser sends no click then, so the app has to act on the release.
+    await page.evaluate(() => {
+      const old = [...document.querySelectorAll<HTMLElement>("#messages details.steps.group > summary")].pop()!;
+      const opts = { bubbles: true, button: 0, pointerId: 1, isPrimary: true };
+      old.dispatchEvent(new PointerEvent("pointerdown", opts));
+      const copy = old.cloneNode(true) as HTMLElement;
+      old.replaceWith(copy);
+      copy.dispatchEvent(new PointerEvent("pointerup", opts));
+    });
+    await expect(group).not.toHaveAttribute("open", "");
+  });
 });

@@ -79,9 +79,8 @@ export function onAction(
   root: HTMLElement,
   handlers: Record<string, (el: HTMLElement, ev: Event) => void | Promise<unknown>>,
 ): void {
-  root.addEventListener("click", (ev) => {
-    const el = (ev.target as HTMLElement).closest<HTMLElement>("[data-action]");
-    if (!el || !root.contains(el) || el.getAttribute("aria-busy") === "true") return;
+  const run = (el: HTMLElement, ev: Event): void => {
+    if (!root.contains(el) || el.getAttribute("aria-busy") === "true") return;
     const handler = handlers[el.dataset.action ?? ""];
     if (!handler) return;
     ev.preventDefault();
@@ -94,6 +93,26 @@ export function onAction(
       busy.delete(key);
       for (const x of root.querySelectorAll<HTMLElement>("[aria-busy]")) if (busyKey(x) === key) markBusy(x, false);
     });
+  };
+  // A live re-render (a step landing, a timer) can replace the element between press and
+  // release; the browser then sends no click. Run the action on release when the element
+  // under the pointer is the re-rendered twin of the one pressed (same action, id and data-id).
+  const twin = (el: HTMLElement) => `${el.dataset.action}|${el.id}|${el.dataset.id ?? ""}`;
+  let pressed: { el: HTMLElement; key: string } | null = null;
+  root.addEventListener("pointerdown", (ev) => {
+    const el = (ev.target as HTMLElement).closest<HTMLElement>("[data-action]");
+    pressed = el && ev.button === 0 ? { el, key: twin(el) } : null;
+  });
+  root.addEventListener("pointerup", (ev) => {
+    const p = pressed;
+    pressed = null;
+    if (!p || p.el.isConnected) return; // still there: the browser sends the click itself
+    const el = (ev.target as HTMLElement).closest<HTMLElement>("[data-action]");
+    if (el && twin(el) === p.key) run(el, ev);
+  });
+  root.addEventListener("click", (ev) => {
+    const el = (ev.target as HTMLElement).closest<HTMLElement>("[data-action]");
+    if (el) run(el, ev);
   });
 }
 

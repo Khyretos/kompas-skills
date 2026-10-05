@@ -89,3 +89,10 @@
     found for ..." lines. Static markup too: the app enforces Trusted Types, so `el.innerHTML = ...`
     throws and the overlay never opened (all five Playwright tests failed in CI). Build overlays
     with createElement/append, or the `html` template and `mount`.
+32. (2026-10-05) A live re-render between mousedown and mouseup swallows the click: the press
+    landed on an element that is gone, so the browser sends no click. On a busy CI machine this
+    made "close the step group" and the voice button fail now and then; real users lose clicks the
+    same way while steps run. `onAction` now runs the action on pointerup when the pressed element
+    was replaced by its twin (same action, id, data-id). Measure "held down" from pointerdown to
+    pointerup, never to when the click handler runs (jank adds to it), and let Stop wait for a
+    microphone that is still opening, or the recording comes back empty.
