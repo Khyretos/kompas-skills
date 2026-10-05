@@ -220,6 +220,11 @@ async fn finish(s: &AppState, r: &Run, state: &str, step: &str) {
         .await;
     s.bus.send(&r.user_id, Event::Changed { what: "tasks", machine_id: None });
     crate::notify::task_changed(s.db.clone(), r.user_id.clone(), r.task_id.clone(), r.title.clone(), "running".into(), state.into());
+    let text = match state {
+        "done" => format!("Done: **{}** ({step}). [Open the task](#task={})", r.title, r.task_id),
+        _ => format!("**{}** needs you: {step}. [Open the task](#task={})", r.title, r.task_id),
+    };
+    crate::thread::post_run(s, &r.run_id, &text).await;
 }
 
 /// One answer from a model, without tools (plans and reviews), recorded with the run.
@@ -319,6 +324,7 @@ async fn edits_since(s: &AppState, r: &Run, since: &str) -> String {
 
 async fn run(s: AppState, r: Run) {
     let started = util::now();
+    crate::thread::post_run(&s, &r.run_id, &format!("Started **{}** on {}.", r.title, r.machine_name)).await;
     STOPPED.lock().unwrap().remove(&r.task_id); // a stop from an earlier run doesn't count
     // 0. The folder must exist on that computer: otherwise stop at once and say so (a wrong
     // folder once cost three empty review rounds).
@@ -387,7 +393,10 @@ async fn run(s: AppState, r: Run) {
         }
         progress(&s, &r, i as f64 / n as f64 * 0.8, &format!("Step {}/{n}: {}", i + 1, step.what)).await;
         match work(&s, &r, 12, step_instruction(&r.description, i, n, step, &plan_list)).await {
-            Ok(line) => note(&s, &r, &format!("Step {}: {line}", i + 1)).await,
+            Ok(line) => {
+                note(&s, &r, &format!("Step {}: {line}", i + 1)).await;
+                crate::thread::post_run(&s, &r.run_id, &format!("**{}**, step {}/{n} done: {line}", r.title, i + 1)).await;
+            },
             Err(_) if stopped_here(&s, &r).await => return,
             Err(why) => {
                 if pcagent::hit_step_limit(&why) {
@@ -457,6 +466,7 @@ async fn run(s: AppState, r: Run) {
         }
         let findings = review.findings.iter().map(|f| format!("- {f}")).collect::<Vec<_>>().join("\n");
         note(&s, &r, &format!("Review, round {round}:\n{findings}")).await;
+        crate::thread::post_run(&s, &r.run_id, &format!("**{}**, review round {round}: {} finding(s). [Open the task](#task={})", r.title, review.findings.len(), r.task_id)).await;
         if round == ROUNDS {
             note(&s, &r, "Still not right after 3 rounds; it needs you.").await;
             return finish(&s, &r, "needs_input", "review failed 3 times").await;

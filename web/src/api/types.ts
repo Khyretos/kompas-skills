@@ -46,6 +46,7 @@ export interface Chat {
   projectId?: string; // undefined = loose chat
   updatedAt: string;
   pinned?: boolean;
+  thread?: boolean; // the project's thread: task runs post their updates here
 }
 
 export interface Message {

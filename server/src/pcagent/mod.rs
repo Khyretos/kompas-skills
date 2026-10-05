@@ -317,6 +317,11 @@ async fn step(s: &AppState, user_id: &str, chat_id: &str, machine_id: &str, job:
     }
     changed(s, user_id);
 
+    // A task run waiting for the user: say so in the project thread, with a link to the card's chat.
+    if let (false, Some(run)) = (preapproved, run_id) {
+        crate::thread::post_run(s, run, &format!("Waiting for your approval: {}. [Open it](#chat={chat_id})", tools::summary(job))).await;
+    }
+
     let mut state = if preapproved { "covered".to_string() } else { "pending".to_string() };
     for _ in 0..if preapproved { 0 } else { WAIT_SECS } {
         tokio::time::sleep(Duration::from_secs(1)).await;

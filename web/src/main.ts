@@ -136,12 +136,20 @@ async function start(server: Server): Promise<void> {
   api.voiceInfo().then((voice) => store.set({ voice }), () => store.set({ voice: { enabled: false, voices: [] } }));
   wire(shellRoot);
   await openChat(chats[0]?.id);
-  // A link from a mail: #task=<id> opens that task's detail.
-  const linked = /^#task=([\w-]+)$/.exec(location.hash)?.[1];
-  if (linked && store.get().tasks.some((t) => t.id === linked)) {
-    store.set({ openTaskId: linked, rightTab: "tasks", pane: "right" });
+  await followHash();
+  window.addEventListener("hashchange", () => void followHash());
+}
+
+/** Links in mails and in the project thread: #task=<id> opens that task's detail, #chat=<id> that chat. */
+async function followHash(): Promise<void> {
+  const [, kind, id] = /^#(task|chat)=([\w-]+)$/.exec(location.hash) ?? [];
+  if (!id) return;
+  history.replaceState(null, "", location.pathname + location.search);
+  if (kind === "task" && store.get().tasks.some((t) => t.id === id)) {
+    store.set({ openTaskId: id, rightTab: "tasks", pane: "right" });
     $(".shell").dispatchEvent(new CustomEvent("kk-expand", { detail: "right" }));
-    history.replaceState(null, "", location.pathname + location.search);
+  } else if (kind === "chat") {
+    await openChat(id);
   }
 }
 
@@ -627,6 +635,12 @@ function wire(shell: HTMLElement): void {
     "code-copy": (el) => onCodeAction(el),
     "code-wrap": (el) => onCodeAction(el),
     "open-chat": (el) => openChat(el.dataset.id),
+    // The project thread: created on first use, then opened like any chat.
+    "open-thread": async (el) => {
+      const chatId = await api.openThread(el.dataset.project ?? "");
+      if (!store.get().chats.some((c) => c.id === chatId)) store.set({ chats: await api.listChats() });
+      await openChat(chatId);
+    },
     assets: () => store.set({ section: "assets", pane: "main", chatMenuId: undefined }),
     capabilities: () => store.set({ section: "capabilities", pane: "main", chatMenuId: undefined }),
     // A skill, read-only, in a sheet that closes on an outside click, × or Escape (lesson 15).

@@ -20,6 +20,10 @@ DOMPurify.addHook("uponSanitizeAttribute", (node, data) => {
 DOMPurify.addHook("afterSanitizeAttributes", (node) => {
   if (node.tagName === "A") {
     const href = node.getAttribute("href") ?? "";
+    // Keep in-app hash links (#task=... or #chat=...) without target/rel; block everything else.
+    if (/^#(task|chat)=[\w-]+$/.test(href)) {
+      return;
+    }
     if (!/^https?:\/\//i.test(href)) node.removeAttribute("href");
     node.setAttribute("target", "_blank");
     node.setAttribute("rel", "noopener noreferrer nofollow");

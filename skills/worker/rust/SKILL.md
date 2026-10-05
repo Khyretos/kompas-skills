@@ -118,3 +118,7 @@ paths: ["**/*.rs", "**/Cargo.toml"]
 48. (2026-10-05) URL allow-lists: compare the whole prefix (`format!("{}/", server)`), never the host
     part against a full URL; split off `?query` before checking the path's characters. Test with
     look-alike hosts (`ntfy.example.com.evil.com`), `http://`, extra query keys and `/../`.
+49. (2026-10-05) A one-column `query_as` row is a tuple: `if let Some((id,)) = row`, never
+    `Some(id)` (that returns `(String,)`, not `String`). Tests use only helpers that exist: a module
+    such as `crate::test_helpers` is never assumed; copy the `db()`/`state()` helpers into the test
+    module. Bind exactly as many values as the SQL has `?`.

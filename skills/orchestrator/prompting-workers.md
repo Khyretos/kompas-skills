@@ -38,3 +38,7 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
 15. Never ask a model to output its own chat-template tokens (`<|im_start|>`): generation stops there.
 16. Before a long batch, smoke-test about 5 real items and check every answer is non-empty.
 17. Build job prompts with a quoted heredoc (`<<'EOF'`) or from a file.
+18. (2026-10-05) Patch jobs with `focus`: name only lines that are inside a focus region; a prompt
+    that mentions an import outside it made Coder put the `// ...` marker into its SEARCH, and the
+    patch failed twice. After a fix round, count the edit blocks against the numbered findings
+    (5 findings came back as 4 blocks: one was skipped silently) and check each finding in the diff.

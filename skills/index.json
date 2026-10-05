@@ -54,7 +54,7 @@
   ]
  },
  {
-  "chars": 2725,
+  "chars": 3119,
   "description": "How to write a job prompt any worker model can carry out, and how to run fix rounds.",
   "file": "orchestrator/prompting-workers",
   "models": [],
@@ -323,7 +323,7 @@
   ]
  },
  {
-  "chars": 10343,
+  "chars": 10695,
   "description": "Writing Rust for the Kompanion server, runner and helpers.",
   "file": "worker/rust/SKILL",
   "models": [],
@@ -344,7 +344,7 @@
   ]
  },
  {
-  "chars": 13496,
+  "chars": 13987,
   "description": "Writing the vanilla TypeScript web app and its Playwright tests.",
   "file": "worker/web/SKILL",
   "models": [],

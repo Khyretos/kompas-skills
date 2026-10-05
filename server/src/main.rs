@@ -31,6 +31,7 @@ mod projects;
 mod runs;
 mod search;
 mod tasks;
+mod thread;
 mod util;
 mod voice;
 mod windshift;
@@ -232,6 +233,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/actions/{id}/stop", post(pcagent::stop))
         .route("/projects/{id}", patch(tasks::set_project_kind))
         .route("/projects/{id}/settings", patch(projects::settings))
+        .route("/projects/{id}/thread", post(thread::open))
         .route("/projects/{id}/assets", get(projects::assets).post(projects::attach))
         .route("/projects/{id}/assets/{asset}", axum::routing::delete(projects::detach))
         .route("/machines", get(hoststats::list).post(hoststats::create))
