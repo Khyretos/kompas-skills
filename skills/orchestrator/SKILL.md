@@ -51,3 +51,7 @@ Lessons for the orchestrator role. Numbered and dated, newest last.
   soucouyant's Ollama (it supersedes "soucouyant outside 03:00–08:00"). Coder serves 2 sequences
   at once: drafting uses one lane, PR-Agent one worker. Every PR push makes PR-Agent call the
   model up to 8 times, so batch pushes instead of pushing each small fix.
+- (2026-10-05) The kireserver runner pulls a CI image once; later runs start in under a second
+  (MegaLinter's 10.9 GB image: 1 min 8 s the first time, 0.4 s after). Images live in
+  Services/forgejo-runner/dind-data, force_pull is off and nothing prunes them: keep it so.
+  Before asking Kees to merge, every check of the PR must be green.
