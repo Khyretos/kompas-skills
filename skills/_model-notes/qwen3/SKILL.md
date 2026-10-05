@@ -143,3 +143,12 @@ Details: ~/Docker/docs/ai-capability/assets-previews-2026-10.md.
 - (2026-10-04, binary formats) Writing a WAV parser and its own test fixture, it put every header
   field two bytes early in both, so its tests passed and real audio would have broken. For byte
   layouts, give the offsets in the prompt and check them against a real file in review.
+
+## Coder (Qwen3.5 9B int8, OVMS on the A770), 2026-10-05
+
+- Mermaid: mixes edge syntaxes (`-.text-.`) and leaves labels with `/` or `()` unquoted; repeats
+  the same broken line when asked to fix it without the line named. Normalise and render first.
+- Vision works through OVMS (image_url data URL): it judged a rendered diagram against the PR
+  walkthrough correctly. Use it as a check, not as the only gate.
+- Plain JS asked for, TypeScript written: a `.mjs` draft came back with type annotations twice.
+  Say "plain JavaScript, no type annotations" and run `node --check` on every draft.

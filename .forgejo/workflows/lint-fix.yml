@@ -1,7 +1,7 @@
-# Nightly lint fixes as small pull requests. Runs on soucouyant.
+# Nightly lint fixes as small pull requests. Runs on kireserver.
 # Copy to .forgejo/workflows/lint-fix.yml; same flavour image as lint.yml.
 # Each night lint_nightly.py (khyretos/kompas-ci) picks ONE linter and up to 8 of its
-# files, runs the linter's own fix mode, then lets Qwen 3.5 on soucouyant fix the rest
+# files, runs the linter's own fix mode, then lets Coder (Qwen 3.5 on kireserver's A770) fix the rest
 # file by file. A change is kept only when the error count of that language goes down.
 # Result: PR "lint-fix/<linter>". At most 3 such PRs wait at a time; after a merge the
 # next night continues. Nothing is merged automatically.
@@ -14,12 +14,13 @@ on:
 
 jobs:
   fix:
-    runs-on: soucouyant
+    runs-on: kireserver
     container:
       image: oxsecurity/megalinter-cupcake:v9
     env:
-      # Ollama on soucouyant through the relay on kireserver (jobs can't reach their own host)
-      OLLAMA_URL: http://192.168.178.103:11435/v1/chat/completions
+      # Coder (OVMS on kireserver) through the model-relay; OVMS wants its API key.
+      MODEL_URL: http://192.168.178.103:11435/v3/chat/completions
+      FIX_API_KEY: ${{ secrets.OVMS_API_KEY }}
       CI_RAW: ${{ github.server_url }}/khyretos/kompas-ci/raw/branch/main
       DEFAULT_WORKSPACE: ${{ github.workspace }}
       EXTENDS: ${{ github.server_url }}/khyretos/kompas-ci/raw/branch/main/mega-linter.base.yml

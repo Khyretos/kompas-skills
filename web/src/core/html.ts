@@ -99,7 +99,9 @@ export function onAction(
   // under the pointer is the re-rendered twin of the one pressed (same action, id and data-id).
   const twin = (el: HTMLElement) => `${el.dataset.action}|${el.id}|${el.dataset.id ?? ""}`;
   let pressed: { el: HTMLElement; key: string } | null = null;
+  let ranOnRelease: string | null = null; // Chrome may still send a click to the twin: run once
   root.addEventListener("pointerdown", (ev) => {
+    ranOnRelease = null;
     const el = (ev.target as HTMLElement).closest<HTMLElement>("[data-action]");
     pressed = el && ev.button === 0 ? { el, key: twin(el) } : null;
   });
@@ -108,10 +110,18 @@ export function onAction(
     pressed = null;
     if (!p || p.el.isConnected) return; // still there: the browser sends the click itself
     const el = (ev.target as HTMLElement).closest<HTMLElement>("[data-action]");
-    if (el && twin(el) === p.key) run(el, ev);
+    if (el && twin(el) === p.key) {
+      ranOnRelease = p.key;
+      run(el, ev);
+    }
   });
   root.addEventListener("click", (ev) => {
     const el = (ev.target as HTMLElement).closest<HTMLElement>("[data-action]");
+    if (el && ranOnRelease && twin(el) === ranOnRelease) {
+      ranOnRelease = null;
+      ev.preventDefault(); // already done on release (and no native <summary> toggle)
+      return;
+    }
     if (el) run(el, ev);
   });
 }

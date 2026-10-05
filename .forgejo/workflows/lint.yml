@@ -1,5 +1,5 @@
 # MegaLinter (AGPL-3.0): ~100 linters and security scanners in one step, run on
-# soucouyant. Free alternative to SonarQube. Copy to .forgejo/workflows/lint.yml
+# kireserver. Free alternative to SonarQube. Copy to .forgejo/workflows/lint.yml
 # and pick the flavour image for the repo's main language:
 #   megalinter-python, -javascript (TS/Angular/React), -java, -cupcake (C/C++ and
 #   most others), -go, -rust, or megalinter (everything, ~10 GB).
@@ -16,7 +16,7 @@ on:
 
 jobs:
   megalinter:
-    runs-on: soucouyant
+    runs-on: kireserver
     container:
       image: oxsecurity/megalinter-cupcake:v9
     steps:

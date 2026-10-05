@@ -96,3 +96,12 @@
     was replaced by its twin (same action, id, data-id). Measure "held down" from pointerdown to
     pointerup, never to when the click handler runs (jank adds to it), and let Stop wait for a
     microphone that is still opening, or the recording comes back empty.
+33. (2026-10-05) A pane that re-renders on live updates must keep what the user typed: the Run
+    form's Folder field was emptied by a task progress tick, so Start did nothing. `remount` keeps
+    fields marked `data-edited` (set on input/change, cleared on submit) and refocuses a field by
+    form + name when it has no id. When the pointerup fallback ran an action, skip the click
+    Chrome may still send to the twin, or a toggle runs twice and cancels out.
+34. (2026-10-05) Playwright's click() waits until the element stops moving; a message that
+    re-renders 20-30 times a second (steps streaming) delays it by seconds under load, so the
+    click lands in a later state (the step group had already closed itself). For state that
+    changes by itself, read the state and click in one page.evaluate, then assert the opposite.

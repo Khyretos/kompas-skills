@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Queue drafting jobs to Qwen3.5 9B (soucouyant Ollama, or OVMS on kireserver when soucouyant is busy), back to back.
+"""Queue drafting jobs to Coder (Qwen3.5 9B int8, OVMS on kireserver's A770), back to back.
+
+Kees, 2026-10-05: all Kompanion work runs on kireserver; soucouyant is only for image
+and audio generation, so this never calls soucouyant's Ollama.
 
 Each job: draft -> self-review against the role's skills -> final file.
 jobs.json: [{"name": "...", "role": "worker/rust"|"worker/web"|..., "prompt": "...",
@@ -10,49 +13,15 @@ Writes the final code to each job's "out" and one log line per job
 """
 import json, os, re, sys, time, urllib.request
 
-OLLAMA = os.environ.get("OLLAMA_URL", "http://192.168.178.80:11434")
-# Code, tools and vision: Qwen3.5 9B on both GPUs (Kees, 2026-10-03). One model
-# name per Ollama host: a second name makes Ollama reload on every switch.
-SOUCOUYANT_MODEL = os.environ.get("QWEN_MODEL", "qwen3.5:9b-q8_0")
 OVMS = os.environ.get("OVMS_URL", "http://172.16.1.25:8000/v3/chat/completions")  # direct: the proxy cuts long answers at 60 s
 OVMS_MODEL = "Coder"  # Qwen3.5-9B int8 on the A770, same family
 NOTES = "qwen3"  # skills/_model-notes/<NOTES>
 
-import threading, datetime
-LANE = threading.local()  # .prefer: "soucouyant" or "ovms"; .model: last model used
-
-def soucouyant_free():
-    """True when soucouyant's Ollama can take a qwen3.5 job without disturbing
-    another job: qwen3.5 already loaded, nothing loaded, or the loaded model has
-    been idle for 2+ minutes (Ollama's keep-alive is 5 min, so the last use was
-    expires_at - 300 s). A model used in the last 2 minutes (the kk-localize
-    gemma judge) is left alone."""
-    # kk-localize's gemma judge owns soucouyant from 03:00 to 08:00 local: no swaps then.
-    if 3 <= time.localtime().tm_hour < 8:
-        return False
-    try:
-        with urllib.request.urlopen(OLLAMA + "/api/ps", timeout=5) as r:
-            models = json.load(r).get("models", [])
-    except Exception:
-        return False
-    now = datetime.datetime.now(datetime.timezone.utc)
-    for m in models:
-        if m["name"] == SOUCOUYANT_MODEL:
-            continue
-        try:
-            exp = datetime.datetime.fromisoformat(re.sub(r"(\.\d{6})\d+", r"\1", m["expires_at"]))
-            idle = 300 - (exp - now).total_seconds()
-        except Exception:
-            idle = 0
-        if idle < 120:
-            return False
-    return True
+import threading
+LANE = threading.local()  # .model: the model the last call used
 
 def backend():
-    """Drafting goes to soucouyant's Qwen3.5 (RX 9070 XT) whenever it is free;
-    OVMS Coder (A770) is the fallback and the second lane."""
-    if getattr(LANE, "prefer", "soucouyant") == "soucouyant" and soucouyant_free():
-        return (OLLAMA + "/v1/chat/completions", SOUCOUYANT_MODEL, {"reasoning_effort": "none"}, None)
+    """Coder on OVMS (A770), thinking off."""
     env = os.popen("docker inspect ovms --format '{{range .Config.Env}}{{println .}}{{end}}'").read()
     key = next((l[len("API_KEY="):] for l in env.splitlines() if l.startswith("API_KEY=")), "")
     return (ovms_url(), OVMS_MODEL, {"chat_template_kwargs": {"enable_thinking": False}}, key)
@@ -221,8 +190,8 @@ def drop_path_line(code, path):
     return rest if first.strip().strip("`/# ") in (path, path.split("/")[-1]) else code
 
 def main():
-    """Two lanes: soucouyant drafts while OVMS takes other files. Jobs for the
-    same file stay in order on one lane (later edits build on earlier ones)."""
+    """One lane on Coder: OVMS serves 2 sequences at once and Kompanion or PR-Agent
+    may need the other. Jobs for the same file stay in order."""
     jobs = json.load(open(sys.argv[1]))
     log = open(sys.argv[2] if len(sys.argv) > 2 else os.devnull, "a")
     groups = {}
@@ -230,8 +199,7 @@ def main():
         groups.setdefault(job["out"], []).append(job)
     queue = list(groups.values())
     lock = threading.Lock()
-    def lane(prefer):
-        LANE.prefer = prefer
+    def lane():
         while True:
             with lock:
                 if not queue:
@@ -239,7 +207,7 @@ def main():
                 group = queue.pop(0)
             for job in group:
                 run_job(job, log)
-    lanes = [threading.Thread(target=lane, args=(p,)) for p in (["soucouyant", "ovms"] if len(queue) > 1 else ["soucouyant"])]
+    lanes = [threading.Thread(target=lane)]
     for t in lanes: t.start()
     for t in lanes: t.join()
 

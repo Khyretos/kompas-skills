@@ -2,7 +2,7 @@
 
 Check in this order; stop at the first failing layer and send it back.
 
-1. Build, tests and typecheck pass on the soucouyant runner (CI). Read the result and the failure lines only.
+1. Build, tests and typecheck pass on the kireserver runner (CI). Read the result and the failure lines only.
 2. The diff does what the task's "Done when" says, nothing more.
 3. Facts: every path, command, setting, API and identifier exists (look it up; models invent them, see `_model-notes/`).
 4. Security: per-user scoping on every query, no secrets in logs, prompts, mails or URLs; input limits; no `format!` into SQL.
@@ -17,3 +17,9 @@ Check in this order; stop at the first failing layer and send it back.
 9. (2026-10-05) Read every changed condition in a patch, letter by letter: a Coder patch to mail.rs
    dropped one `!` (`smtp_from.is_empty()`), so every task mail failed with "mail is not set up"
    while mail was set up, and all tests passed. Diff the old and new line of each `if`/`ensure!`.
+10. (2026-10-05) Coder (Qwen3.5 9B) writes invalid Mermaid now and then: `E["x"] -.only for-. F`,
+    unquoted labels with slashes or parentheses. Asked to fix it, it returned the same broken line.
+    What works: quote every label and edge label (`A["CI jobs"]`, `A -->|"uses"| B`,
+    `A -. "only for" .-> B`) with a rule-based pass first, render with mmdc, and only then ask the
+    model, naming the failing line. Never post a diagram that did not render; PR-Agent's diagrams
+    pass through mermaid-guard (Services/pr-agent/mermaid-guard) for this.

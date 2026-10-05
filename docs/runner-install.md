@@ -10,7 +10,7 @@ shows the machine id, the token (only once) and the config below.
 
 ## 2. Install the binary
 
-Static binary, no dependencies. Built by CI on soucouyant (artifact
+Static binary, no dependencies. Built by CI on kireserver (artifact
 `kompanion-runner-x86_64-linux-musl`), or locally with
 `cd runner && cargo build --release`.
 

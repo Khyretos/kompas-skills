@@ -227,19 +227,38 @@ let lastPcKey = "";
 /** True when any of these state fields changed since the last render. */
 const changed = (s: AppState, prev: AppState, keys: (keyof AppState)[]) => firstRender || keys.some((k) => s[k] !== prev[k]);
 
+/** Form fields the user changed (marked data-edited on input/change) that the template doesn't
+ *  know about yet: "form class|form data-id|name" -> value. */
+function editedFields(root: HTMLElement): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const f of root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>("form input[name], form textarea[name], form select[name]")) {
+    if (f instanceof HTMLInputElement && (f.type === "checkbox" || f.type === "radio" || f.type === "file")) continue;
+    if (f.dataset.edited) out.set(`${f.form?.className}|${f.form?.dataset.id ?? ""}|${f.name}`, f.value);
+  }
+  return out;
+}
+
 /** Re-mounts a pane but keeps its scroll position and the focused field. */
 function remount(el: HTMLElement, content: ReturnType<typeof renderSidebar>): void {
   const scrollers = [el, ...el.querySelectorAll<HTMLElement>(".nav, .task-groups, .task-detail, .sheet")];
   const tops = scrollers.map((x) => x.scrollTop);
   const focused = el.contains(document.activeElement) ? document.activeElement as HTMLInputElement : null;
   const focusId = focused?.id ?? "";
+  const focusKey = !focusId && focused?.form && focused.name ? `${focused.form.className}|${focused.form.dataset.id ?? ""}|${focused.name}` : "";
   // Typing in a field that re-renders (the asset picker) must not move the caret.
   const caret = focused && typeof focused.selectionStart === "number" ? [focused.selectionStart, focused.selectionEnd ?? focused.selectionStart] : null;
+  const edited = editedFields(el);
   mount(el, content);
+  // Put back what the user typed (it is not in the state the template renders from).
+  for (const f of el.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>("form input[name], form textarea[name], form select[name]")) {
+    const v = edited.get(`${f.form?.className}|${f.form?.dataset.id ?? ""}|${f.name}`);
+    if (v !== undefined) { f.value = v; f.dataset.edited = "1"; }
+  }
   const after = [el, ...el.querySelectorAll<HTMLElement>(".nav, .task-groups, .task-detail, .sheet")];
   after.forEach((x, i) => { if (tops[i]) x.scrollTop = tops[i]; });
-  if (focusId) {
-    const f = document.getElementById(focusId) as HTMLInputElement | null;
+  if (focusId || focusKey) {
+    const f = (focusId ? document.getElementById(focusId)
+      : [...el.querySelectorAll<HTMLInputElement>("form [name]")].find((x) => `${x.form?.className}|${x.form?.dataset.id ?? ""}|${x.name}` === focusKey)) as HTMLInputElement | null;
     f?.focus();
     if (f && caret) try { f.setSelectionRange(caret[0], caret[1]); } catch { /* not a text field */ }
   }
@@ -1081,6 +1100,17 @@ function wire(shell: HTMLElement): void {
       api.listMachines().then((machines) => store.set({ machines })).catch(() => {});
     }
   }, 1000);
+  // Fields the user touched keep their value across live re-renders (see remount).
+  const markEdited = (ev: Event) => {
+    const f = ev.target as HTMLElement;
+    if (f.closest("form") && (f.matches("input[name], textarea[name], select[name]"))) f.dataset.edited = "1";
+  };
+  shell.addEventListener("input", markEdited, true);
+  shell.addEventListener("change", markEdited, true);
+  // A submitted form shows what was saved from then on.
+  shell.addEventListener("submit", (ev) => {
+    for (const f of (ev.target as HTMLFormElement).querySelectorAll<HTMLElement>("[data-edited]")) delete f.dataset.edited;
+  }, true);
   shell.addEventListener("input", (ev) => {
     const el = ev.target as HTMLInputElement;
     if (el.id === "task-filter") { store.set({ taskFilter: el.value }); return; }

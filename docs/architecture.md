@@ -380,9 +380,9 @@ prompts and tool ideas, with attribution) or be archived.
 5. **Every machine** — runner builds for Windows and macOS, auto-update,
    scheduled tasks, project memory.
 
-Already in use alongside the milestones: soucouyant's Ollama (qwen3:14b)
-reachable by kireserver only, and a Forgejo Actions runner on soucouyant, so
-image builds run on the faster PC instead of kireserver.
+Already in use alongside the milestones: a Forgejo Actions runner. Since 2026-10-05
+Kompanion's CI runs on kireserver's runner (one job at a time, 4 cores) and no
+Kompanion work calls soucouyant's Ollama; soucouyant is for image and audio generation.
 
 ## Added milestones (owner requests, 2026-10-01)
 
@@ -402,9 +402,9 @@ control and vision; gemma4 only as kk-localize's translation judge (judge runs
 move to nights later).
 
 - orchestrator, reviewer, PC-control agent (F6), vision and test-driver → Coder on OVMS
-- worker and drafting → qwen3.5:9b-q8_0 on soucouyant (thinking off with `reasoning_effort: "none"`)
-- The drafting pipeline uses soucouyant when Ollama has qwen3.5 loaded or
-  nothing loaded, and OVMS Coder otherwise, so it never forces a model swap.
+- worker and drafting → Coder on OVMS too (Kees, 2026-10-05: all Kompanion work runs
+  on kireserver; soucouyant is only for image and audio generation). OVMS serves two
+  sequences at once, so the drafting pipeline uses one lane and PR-Agent one worker.
 
 ### Milestone 1.5 status (2026-10-03)
 
