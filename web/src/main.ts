@@ -302,7 +302,7 @@ function render(s: AppState, prev: AppState): void {
   }
   lastPcKey = pcKey;
   const rightKeys: (keyof AppState)[] = s.rightTab === "tasks"
-    ? ["rightTab", "tasks", "projects", "openTaskId", "editingTaskId", "taskScope", "activeProjectId", "activeChatId", "chats", "projectAssets", "assetPick", "runCheck", "taskRuns", "taskFilter", "collapsedGroups"]
+    ? ["rightTab", "tasks", "projects", "openTaskId", "editingTaskId", "taskScope", "activeProjectId", "activeChatId", "chats", "projectAssets", "assetPick", "runCheck", "taskRuns", "taskFilter", "collapsedGroups", "machines"]
     : s.rightTab === "access" ? ["rightTab", "grants", "accessHistory", "machines"]
     : s.rightTab === "activity" ? ["rightTab", "activity", "activityFilter"]
     : ["rightTab", "machines", "today", "machinesRefresh", "tasks", "pairing", "gpuOpen", "gpuPins", "cardStyle"];
@@ -1091,8 +1091,20 @@ function wire(shell: HTMLElement): void {
   let lastPoll = 0, lastWatch = 0;
   setInterval(() => {
     const s = store.get();
-    if (s.rightTab !== "machines" || document.hidden) return;
+    if (document.hidden) return;
     const now = Date.now();
+    if (s.rightTab !== "machines") {
+      // Other tabs (the Run form lists computers): keep who is online current every 20 s,
+      // re-rendering only when that changes. Before, a list loaded during a server restart
+      // said "offline" until the page was reloaded.
+      if (now - lastPoll < 20_000) return;
+      lastPoll = now;
+      api.listMachines().then((machines) => {
+        const sig = (ms: typeof machines) => ms.map((m) => `${m.id}:${m.name}:${m.online}`).join("|");
+        if (sig(machines) !== sig(store.get().machines)) store.set({ machines });
+      }).catch(() => {});
+      return;
+    }
     if (s.machinesRefresh === 1) {
       if (now - lastWatch > 10_000) { lastWatch = now; api.watchMachines().catch(() => {}); }
     } else if (now - lastPoll >= s.machinesRefresh * 1000) {
