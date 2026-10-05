@@ -1,0 +1,21 @@
+{"name": "android-dockerfile", "out": "android/Dockerfile.build", "gpu_seconds": 35.5, "tokens": 1093, "lines": 37, "model": "Coder", "at": "2026-10-05T12:23:33"}
+{"name": "android-build-sh", "out": "android/build.sh", "gpu_seconds": 23.8, "tokens": 671, "lines": 33, "model": "Coder", "at": "2026-10-05T12:23:57"}
+{"name": "android-keystore-sh", "out": "android/keystore.sh", "gpu_seconds": 24.7, "tokens": 739, "lines": 27, "model": "Coder", "at": "2026-10-05T12:24:22"}
+{"name": "android-gradle-root", "out": "android/settings.gradle", "gpu_seconds": 6.7, "tokens": 172, "lines": 18, "model": "Coder", "at": "2026-10-05T12:24:28"}
+{"name": "android-gradle-buildroot", "out": "android/build.gradle", "gpu_seconds": 3.1, "tokens": 46, "lines": 3, "model": "Coder", "at": "2026-10-05T12:24:31"}
+{"name": "android-gradle-props", "out": "android/gradle.properties", "gpu_seconds": 2.8, "tokens": 64, "lines": 3, "model": "Coder", "at": "2026-10-05T12:24:34"}
+{"name": "android-gradle-app", "out": "android/app/build.gradle", "gpu_seconds": 17.9, "tokens": 528, "lines": 41, "model": "Coder", "at": "2026-10-05T12:24:52"}
+{"name": "android-gradle-app-fix", "out": "android/app/build.gradle", "mode": "patch", "gpu_seconds": 3.3, "tokens": 43, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T12:25:42"}
+{"name": "android-build-sh-fix", "out": "android/build.sh", "mode": "patch", "gpu_seconds": 2.1, "tokens": 52, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T12:25:44"}
+{"name": "android-manifest", "out": "android/app/src/main/AndroidManifest.xml", "gpu_seconds": 19.7, "tokens": 599, "lines": 35, "model": "Coder", "at": "2026-10-05T12:27:39"}
+{"name": "android-res-values", "out": "android/app/src/main/res/values/values.xml", "gpu_seconds": 27.5, "tokens": 855, "lines": 31, "model": "Coder", "at": "2026-10-05T12:28:06"}
+{"name": "android-layout", "out": "android/app/src/main/res/layout/activity_main.xml", "gpu_seconds": 7.6, "tokens": 231, "lines": 13, "model": "Coder", "at": "2026-10-05T12:28:14"}
+{"name": "android-stat-icon", "out": "android/app/src/main/res/drawable/ic_stat.xml", "gpu_seconds": 11.4, "tokens": 349, "lines": 4, "model": "Coder", "at": "2026-10-05T12:28:25"}
+{"name": "android-push-java", "out": "android/app/src/main/java/com/kreativekompas/kompanion/Push.java", "gpu_seconds": 43.8, "tokens": 1383, "lines": 96, "model": "Coder", "at": "2026-10-05T12:29:09"}
+{"name": "android-pushservice-java", "out": "android/app/src/main/java/com/kreativekompas/kompanion/PushServiceImpl.java", "gpu_seconds": 53.4, "tokens": 1678, "lines": 116, "model": "Coder", "at": "2026-10-05T12:30:03"}
+{"name": "android-mainactivity-java", "out": "android/app/src/main/java/com/kreativekompas/kompanion/MainActivity.java", "gpu_seconds": 53.3, "tokens": 1675, "lines": 123, "model": "Coder", "at": "2026-10-05T12:30:56"}
+{"name": "android-push-java-fix", "out": "android/app/src/main/java/com/kreativekompas/kompanion/Push.java", "gpu_seconds": 23.0, "tokens": 715, "lines": 97, "review": "skipped", "model": "Coder", "at": "2026-10-05T12:32:16"}
+{"name": "android-pushservice-java-fix", "out": "android/app/src/main/java/com/kreativekompas/kompanion/PushServiceImpl.java", "gpu_seconds": 26.2, "tokens": 814, "lines": 112, "review": "skipped", "model": "Coder", "at": "2026-10-05T12:32:42"}
+{"name": "android-build-sh-cache", "out": "android/build.sh", "mode": "patch", "gpu_seconds": 13.6, "tokens": 373, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T12:34:21"}
+{"name": "android-dockerfile-bt", "out": "android/Dockerfile.build", "mode": "patch", "gpu_seconds": 3.8, "tokens": 98, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T12:35:01"}
+{"name": "android-pick-distributor", "out": "android/app/src/main/java/com/kreativekompas/kompanion/MainActivity.java", "gpu_seconds": 31.1, "tokens": 951, "lines": 139, "review": "skipped", "model": "Coder", "at": "2026-10-05T12:41:13"}
