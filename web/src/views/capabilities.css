@@ -37,3 +37,29 @@
 .skill-body ol { list-style: decimal; }
 .skill-body li { margin-bottom: 0.4rem; }
 .skill-body code { overflow-wrap: anywhere; }
+
+/* M6-04 GPU timeline: VRAM area (violet), reserved line (lilac, dashed), watts (orange),
+   job bars by kind, events as orange marks. Scrolls sideways on a phone. */
+.gpu-timeline { margin: 1rem 0 1.5rem; }
+.gpu-timeline header, .gpu-timeline .tl-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+.tl-gpu { margin: 0.75rem 0 0; }
+.tl-gpu figcaption { margin-bottom: 0.3rem; }
+.tl-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.tl-svg { display: block; width: 100%; min-width: 720px; height: auto; } /* full row; scrolls on a phone */
+.tl-vram { fill: color-mix(in srgb, var(--brand) 55%, transparent); stroke: var(--brand); stroke-width: 1; }
+.tl-reserved { fill: none; stroke: #cca9ff; stroke-width: 1; stroke-dasharray: 4 3; }
+.tl-watts { fill: none; stroke: var(--accent); stroke-width: 1.5; }
+.tl-job { fill: var(--brand); }
+.tl-job.kind-asset { fill: var(--accent); }
+.tl-job.kind-chat { fill: #cca9ff; }
+.tl-job.failed, .tl-job.dropped { fill: var(--bad); }
+.tl-event { stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 2 2; }
+.tl-tick { fill: var(--muted); font-size: 10px; }
+.tl-legend { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; margin-top: 0.4rem; }
+.tl-key { white-space: nowrap; }
+.tl-key::before { content: ""; display: inline-block; width: 0.8rem; height: 0.8rem; border-radius: 2px; margin-right: 0.3rem; vertical-align: -0.1rem; }
+.tl-key-vram::before { background: color-mix(in srgb, var(--brand) 55%, transparent); border: 1px solid var(--brand); }
+.tl-key-reserved::before { height: 0; border-top: 2px dashed #cca9ff; vertical-align: 0.25rem; }
+.tl-key-watts::before { height: 0; border-top: 2px solid var(--accent); vertical-align: 0.25rem; }
+.tl-key-jobs::before { background: var(--brand); }
+.tl-key-events::before { width: 0; border-left: 2px dashed var(--accent); }

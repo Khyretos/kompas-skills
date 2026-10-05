@@ -273,7 +273,7 @@ function render(s: AppState, prev: AppState): void {
   shell.dataset.section = s.section;
   if (s.section === "assets" && (s.section !== prev.section || firstRender)) assetsView?.show();
   if (s.section !== prev.section || firstRender) watchCapabilities(s.section === "capabilities");
-  if (s.section === "capabilities" && changed(s, prev, ["capabilities", "section"])) mount($("#caps"), renderCapabilities(s.capabilities));
+  if (s.section === "capabilities" && changed(s, prev, ["capabilities", "section", "gpuTimeline", "gpuRange"])) mount($("#caps"), renderCapabilities(s.capabilities, s.gpuTimeline, s.gpuRange));
 
   if (changed(s, prev, ["chats", "projects", "tasks", "activeChatId", "activeProjectId", "expandedProjects",
     "chatMenuId", "movingChatId", "renamingChatId", "server", "userName", "logoVersion", "section", "allTasksShown", "openTaskId"])) {
@@ -536,6 +536,7 @@ function pickSearch(project: string, q: string): void {
 let capsTimer: number | undefined;
 function loadCapabilities(): void {
   api.getCapabilities().then((capabilities) => store.set({ capabilities }), showError);
+  api.gpuTimeline(store.get().gpuRange).then((gpuTimeline) => store.set({ gpuTimeline }), () => undefined);
 }
 function watchCapabilities(on: boolean): void {
   window.clearInterval(capsTimer);
@@ -843,6 +844,11 @@ function wire(shell: HTMLElement): void {
       document.getElementById("task-filter")?.focus();
     },
     "close-task": () => store.set({ openTaskId: undefined }),
+    "gpu-range": (el) => {
+      const gpuRange = el.dataset.hours === "24" ? 24 : 1;
+      store.set({ gpuRange, gpuTimeline: undefined });
+      return api.gpuTimeline(gpuRange).then((gpuTimeline) => store.set({ gpuTimeline }), showError);
+    },
     scope: (el) => store.set({ taskScope: el.dataset.scope as AppState["taskScope"] }),
     pane: (el) => store.set({ pane: el.dataset.pane as AppState["pane"] }),
     answer: (el) => api.answer(el.dataset.task ?? "", el.dataset.option ?? "").catch(showError),

@@ -1,213 +1,121 @@
 import { html, type SafeHtml } from "../core/html";
 
-export interface TlSample {
-  at: string;
-  usedMib: number | null;
-  reservedMib: number;
-  watts: number | null;
+export interface TlSample { at: string; usedMib: number | null; reservedMib: number; watts: number | null }
+export interface TlJob { id: string; kind: string; what: string; state: string; startedAt: string; endedAt: string | null; error: string | null }
+export interface TlEvent { at: string; kind: string; detail: string }
+export interface TlGpu { gpu: string; machine: string; hours: number; samples: TlSample[]; jobs: TlJob[]; events: TlEvent[] }
+
+const n = (v: number): string => String(Math.round(v * 10) / 10);
+
+function line(pts: [number, number][]): string {
+  return pts.length < 2 ? "" : pts.map(([x, y], i) => `${i ? "L" : "M"} ${n(x)} ${n(y)}`).join(" ");
 }
 
-export interface TlJob {
-  id: string;
-  kind: string;
-  what: string;
-  state: string;
-  startedAt: string;
-  endedAt: string | null;
-  error: string | null;
+/** "12.3 GB VRAM, 168 W" over the shown range (the watts line is scaled to its own peak). */
+function peakText(g: TlGpu): string {
+  const vram = Math.max(0, ...g.samples.map((s) => s.usedMib ?? 0));
+  const watts = Math.max(0, ...g.samples.map((s) => s.watts ?? 0));
+  return `${(vram / 1024).toFixed(1)} GB VRAM${watts ? `, ${Math.round(watts)} W` : ""}`;
 }
 
-export interface TlEvent {
-  at: string;
-  kind: string;
-  detail: string;
-}
-
-export interface TlGpu {
-  gpu: string;
-  machine: string;
-  hours: number;
-  samples: TlSample[];
-  jobs: TlJob[];
-  events: TlEvent[];
-}
-
-const n = (v: number): number => Math.round(v * 10) / 10;
-
-function parseTime(s: string): number {
-  return Date.parse(s);
-}
-
-function formatTime(t: number): string {
-  const d = new Date(t);
-  return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
-}
-
-function buildPath(samples: TlSample[], width: number, start: number, end: number, yScale: (mib: number) => number): string {
-  if (!samples.length) return "";
-  
-  const points: string[] = [];
-  let first = true;
-  
-  for (const s of samples) {
-    if (s.usedMib === null) continue;
-    
-    const x = n((parseTime(s.at) - start) / (end - start) * width);
-    const y = n(yScale(s.usedMib));
-    
-    if (first) {
-      points.push(`M ${x} ${y}`);
-      first = false;
-    } else {
-      points.push(`L ${x} ${y}`);
-    }
-  }
-  
-  if (points.length === 0) return "";
-  
-  // Close the path back to baseline
-  const lastX = n((parseTime(samples[samples.length - 1].at) - start) / (end - start) * width);
-  const lastY = n(yScale(samples[samples.length - 1].usedMib!));
-  
-  points.push(`L ${lastX} 110 L ${lastX} 110`);
-  
-  return `M ${points.join(" ")}`;
-}
-
-function renderTimeline(list: TlGpu[] | undefined, hours: 1 | 24, totalMib: Record<string, number>, now = Date.now()): SafeHtml {
-  const width = hours === 1 ? 720 : 1440;
-  const height = 140;
+export function renderTimeline(list: TlGpu[] | undefined, hours: 1 | 24, totalMib: Record<string, number>, now = Date.now()): SafeHtml {
+  const W = hours === 1 ? 720 : 1440;
+  const H = 140;
   const start = now - hours * 3600_000;
-  const end = now;
-  
-  const header = html`
-    <section class="gpu-timeline" aria-labelledby="tl-h">
+  const x = (t: number) => ((t - start) / (hours * 3600_000)) * W;
+
+  function localTime(t: number): string {
+    const d = new Date(t);
+    return `${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+  }
+
+  function vramY(mib: number, max: number): number {
+    return 110 - (mib / max) * 100;
+  }
+
+  function wattsY(w: number, maxW: number): number {
+    return 110 - (w / maxW) * 100;
+  }
+
+  if (!list || list.length === 0) {
+    return html`<section class="gpu-timeline" aria-labelledby="tl-h">
       <h2 id="tl-h" class="label">GPU timeline</h2>
       <div class="seg" role="group" aria-label="Time range">
-        <button 
-          data-action="gpu-range" 
-          data-hours="1" 
-          aria-pressed="${String(list && list[0]?.hours === 1)}"
-          class="${list && list[0]?.hours === 1 ? "" : "hidden"}"
-        >1 h</button>
-        <button 
-          data-action="gpu-range" 
-          data-hours="24" 
-          aria-pressed="${String(list && list[0]?.hours === 24)}"
-          class="${list && list[0]?.hours === 24 ? "" : "hidden"}"
-        >24 h</button>
+        <button data-action="gpu-range" data-hours="1" aria-pressed="false">1 h</button>
+        <button data-action="gpu-range" data-hours="24" aria-pressed="false">24 h</button>
       </div>
-  `;
-
-  if (list === undefined) {
-    return html`${header}<p class="muted small">Loading…</p>`;
+      <p class="muted small">${list === undefined ? "Loading…" : "No GPUs configured."}</p>
+    </section>`;
   }
 
-  if (list.length === 0) {
-    return html`${header}<p class="muted small">No GPUs configured.</p>`;
-  }
+  const activeHours = hours === 1 ? 1 : 24;
+  const activeBtn = html`<button data-action="gpu-range" data-hours="${activeHours}" aria-pressed="true">${activeHours} h</button>`;
+  const inactiveBtn = html`<button data-action="gpu-range" data-hours="${activeHours === 1 ? 24 : 1}" aria-pressed="false">${activeHours === 1 ? 24 : 1} h</button>`;
 
-  const figures = list.map((g) => {
-    const maxW = Math.max(...g.samples.map((s) => s.watts || 0), 1);
-    const peakUsed = g.samples.reduce((max, s) => s.usedMib !== null && s.usedMib > max ? s.usedMib : max, 0);
-    const peakReserved = g.samples.reduce((max, s) => s.reservedMib > max ? s.reservedMib : max, 0);
-    const peak = Math.max(peakUsed, peakReserved);
-    
-    const vramTotal = totalMib[g.gpu] || peak || 1;
-    
-    const yScale = (mib: number) => 110 - (mib / vramTotal) * 100;
-    
-    const vramPoints = g.samples
-      .filter((s) => s.usedMib !== null)
-      .map((s) => {
-        const x = n((parseTime(s.at) - start) / (end - start) * width);
-        const y = n(yScale(s.usedMib));
-        return `${x},${y}`;
-      })
-      .join(" ");
-      
-    const reservedPoints = g.samples
-      .map((s) => {
-        const x = n((parseTime(s.at) - start) / (end - start) * width);
-        const y = n(yScale(s.reservedMib));
-        return `${x},${y}`;
-      })
-      .join(" ");
-      
-    const wattsPoints = g.samples
-      .filter((s) => s.watts !== null)
-      .map((s) => {
-        const x = n((parseTime(s.at) - start) / (end - start) * width);
-        const y = n(110 - (s.watts / maxW) * 100);
-        return `${x},${y}`;
-      })
-      .join(" ");
-      
-    const jobGroups = g.jobs.map((j) => {
-      const jStart = parseTime(j.startedAt);
-      const jEnd = j.endedAt ? parseTime(j.endedAt) : end;
-      const jWidth = Math.max(2, n((jEnd - jStart) / (end - start) * width));
-      const jX = n((jStart - start) / (end - start) * width);
-      const jY = 116;
-      const jH = 12;
-      
-      return html`
-        <g>
+  return html`<section class="gpu-timeline" aria-labelledby="tl-h">
+    <h2 id="tl-h" class="label">GPU timeline</h2>
+    <div class="seg" role="group" aria-label="Time range">
+      ${activeBtn} ${inactiveBtn}
+    </div>
+    ${list.map((g) => {
+      const gpuTotal = totalMib[g.gpu] ?? 1;
+      const maxUsed = Math.max(...g.samples.map((s) => s.usedMib ?? 0), ...g.samples.map((s) => s.reservedMib));
+      const maxW = Math.max(...g.samples.map((s) => s.watts ?? 0), 1);
+
+      const vramPts = g.samples.filter((s) => s.usedMib !== null).map((s): [number, number] => [x(Date.parse(s.at)), vramY(s.usedMib as number, gpuTotal)]);
+      const reservedPts = g.samples.map((s): [number, number] => [x(Date.parse(s.at)), vramY(s.reservedMib, gpuTotal)]);
+      const wattsPts = g.samples.filter((s) => s.watts !== null).map((s): [number, number] => [x(Date.parse(s.at)), wattsY(s.watts as number, maxW)]);
+
+      const jobBars = g.jobs.map((j) => {
+        const sx = x(Date.parse(j.startedAt));
+        const ex = j.endedAt ? x(Date.parse(j.endedAt)) : W;
+        const width = Math.max(ex - sx, 2);
+        const y = 116;
+        const height = 12;
+        return html`<g>
           <title>${j.kind}: ${j.what} (${j.state}${j.error ? ", " + j.error : ""})</title>
-          <rect 
-            class="tl-job kind-${j.kind} ${j.state}" 
-            x="${jX}" 
-            y="${jY}" 
-            width="${jWidth}" 
-            height="${jH}" 
-            rx="2"
-          />
-        </g>
-      `;
-    });
-    
-    const eventLines = g.events.map((e) => {
-      const ex = n((parseTime(e.at) - start) / (end - start) * width);
-      return html`
-        <g>
+          <rect class="tl-job kind-${j.kind} ${j.state}" x="${n(sx)}" y="${y}" width="${n(width)}" height="${height}" rx="2" />
+        </g>`;
+      });
+
+      const eventLines = g.events.map((e) => {
+        const lx = x(Date.parse(e.at));
+        return html`<g>
           <title>${e.kind}: ${e.detail}</title>
-          <line class="tl-event" x1="${ex}" x2="${ex}" y1="6" y2="128" />
-        </g>
-      `;
-    });
-    
-    const tickInterval = hours === 1 ? 15 * 60_000 : 3 * 3600_000;
-    const ticks = [];
-    for (let t = start + tickInterval; t <= end; t += tickInterval) {
-      const tx = n((t - start) / (end - start) * width);
-      ticks.push(html`<text class="tl-tick" x="${tx}" y="138">${formatTime(t)}</text>`);
-    }
-    
-    const ariaLabel = `a${g.gpu}: peak ${n(peak)} GB VRAM, ${g.jobs.length} jobs, ${g.events.length} events in the last ${hours} h`;
-    
-    return html`
-      <figure class="tl-gpu">
-        <figcaption><strong>${g.gpu}</strong> <span class="muted small">${g.machine}</span></figcaption>
+          <line class="tl-event" x1="${n(lx)}" x2="${n(lx)}" y1="6" y2="128" />
+        </g>`;
+      });
+
+      const ticks = [];
+      const stepMs = activeHours === 1 ? 15 * 60 * 1000 : 3 * 3600 * 1000;
+      for (let t = start; t <= now; t += stepMs) {
+        ticks.push(html`<text class="tl-tick" x="${n(x(t))}" y="138">${localTime(t)}</text>`);
+      }
+
+      const vramPath = vramPts.length >= 2 ? line([[vramPts[0][0], 110], ...vramPts, [vramPts[vramPts.length - 1][0], 110]]) + " Z" : "";
+      const reservedPath = reservedPts.length >= 2 ? line(reservedPts) : "";
+      const wattsPath = wattsPts.length >= 2 ? line(wattsPts) : "";
+
+      return html`<figure class="tl-gpu">
+        <figcaption><strong>${g.gpu}</strong> <span class="muted small">${g.machine} · peak ${peakText(g)}</span></figcaption>
         <div class="tl-scroll">
-          <svg class="tl-svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" role="img" aria-label="${ariaLabel}">
-            <path class="tl-vram" d="M ${vramPoints} L ${vramPoints.split(" ").pop() || "0,110"} 110 Z" />
-            <path class="tl-reserved" d="M ${reservedPoints} L ${reservedPoints.split(" ").pop() || "0,110"} 110 Z" />
-            <path class="tl-watts" d="M ${wattsPoints}" />
-            ${jobGroups}
+          <svg class="tl-svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${g.gpu}: peak ${Math.round(maxUsed)} MB VRAM, ${g.jobs.length} jobs, ${g.events.length} events in the last ${activeHours} h">
+            <path class="tl-vram" d="${vramPath}" />
+            <path class="tl-reserved" d="${reservedPath}" />
+            <path class="tl-watts" d="${wattsPath}" />
+            ${jobBars}
             ${eventLines}
             ${ticks}
           </svg>
         </div>
-        <p class="muted small tl-legend">
-          <span class="tl-key tl-key-vram">VRAM in use</span>
-          <span class="tl-key tl-key-reserved">reserved</span>
-          <span class="tl-key tl-key-watts">watts</span>
-          <span class="tl-key tl-key-jobs">jobs</span>
-          <span class="tl-key tl-key-events">events</span>
-        </p>
-      </figure>
-    `;
-  });
-
-  return html`${header}${figures}`;
+      </figure>`;
+    })}
+    <p class="muted small tl-legend">
+      <span class="tl-key tl-key-vram">VRAM in use</span>
+      <span class="tl-key tl-key-reserved">reserved</span>
+      <span class="tl-key tl-key-watts">watts</span>
+      <span class="tl-key tl-key-jobs">jobs</span>
+      <span class="tl-key tl-key-events">events</span>
+    </p>
+  </section>`;
 }
