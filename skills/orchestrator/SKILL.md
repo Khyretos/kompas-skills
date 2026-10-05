@@ -55,3 +55,11 @@ Lessons for the orchestrator role. Numbered and dated, newest last.
   (MegaLinter's 10.9 GB image: 1 min 8 s the first time, 0.4 s after). Images live in
   Services/forgejo-runner/dind-data, force_pull is off and nothing prunes them: keep it so.
   Before asking Kees to merge, every check of the PR must be green.
+- (2026-10-05) Before telling Kees a PR is ready, check it is still mergeable against the
+  current main (other threads and his merges move main): when several PRs touch the same files
+  (skills/, docs/qwen-log.jsonl), merge main into the branch first, re-run the checks, then
+  announce. Append-only files conflict often: keep both sides, in order.
+- (2026-10-05, M6-03) A CLI path that needs no config or database must run before main loads
+  them (`kompanion-server gpu-role` ran a migration on a host database otherwise). Live tests of
+  privileged actions go through the same helper the server uses, with the socket path as an
+  environment override, not through a second code path.

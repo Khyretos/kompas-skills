@@ -238,5 +238,10 @@
 {"name": "onaction-twin", "out": "web/src/core/html.ts", "mode": "patch", "gpu_seconds": 32.9, "tokens": 730, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T06:11:12"}
 {"name": "lostclick-test", "out": "web/tests/stepgroups.spec.ts", "mode": "patch", "gpu_seconds": 17.7, "tokens": 478, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T06:11:59"}
 {"name": "remount-keep-fields", "out": "web/src/main.ts", "mode": "patch", "gpu_seconds": 38.0, "tokens": 924, "lines": 2, "attempts": 1, "model": "Coder", "at": "2026-10-05T06:36:25"}
+{"name": "gpu-role-helper", "out": "gpu-role/src/main.rs", "gpu_seconds": 154.9, "tokens": 3850, "lines": 215, "model": "Coder", "at": "2026-10-05T07:38:44"}
+{"name": "gpu-role-policy", "out": "server/src/gpus/role_policy.rs", "gpu_seconds": 119.3, "tokens": 3229, "lines": 189, "model": "Coder", "at": "2026-10-05T07:40:44"}
+{"name": "gpu-role-helper-2", "out": "gpu-role/src/main.rs", "gpu_seconds": 183.8, "tokens": 4313, "lines": 238, "model": "Coder", "at": "2026-10-05T08:00:34"}
+{"name": "gpu-role-io", "out": "server/src/gpus/role.rs", "gpu_seconds": 226.0, "tokens": 5679, "lines": 296, "model": "Coder", "at": "2026-10-05T08:07:56"}
+{"name": "role-chip", "out": "web/src/views/capabilities.ts", "mode": "patch", "gpu_seconds": 55.3, "tokens": 1464, "lines": 3, "attempts": 1, "model": "Coder", "at": "2026-10-05T08:18:02"}
 {"name": "contrast-test", "out": "web/tests/contrast.spec.ts", "gpu_seconds": 266.1, "tokens": 6343, "lines": 279, "model": "Coder", "at": "2026-10-05T07:48:25"}
 {"name": "chat-report-per-run", "out": "server/src/runs.rs", "mode": "patch", "gpu_seconds": 89.4, "tokens": 1833, "lines": 3, "attempts": 1, "model": "Coder", "at": "2026-10-05T07:55:04"}
