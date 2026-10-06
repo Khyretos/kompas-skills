@@ -127,3 +127,9 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
     matched, and Claude's own wiring in the same tree (routes calling the next, unwritten
     module) broke the compile check. Match needles with whitespace and trailing commas ignored
     (`tools/qwen/chk.py` does this), and wire callers only after the module they call exists.
+70. (2026-10-06) Two "insert a new function after/before <anchor>" patch jobs replaced the
+    anchor instead: one SEARCH/REPLACE dropped `current()`, the other deleted `comfy_target`,
+    and three fix rounds then edited a broken file. A patch check must name every existing
+    public function of the edited file (not only test names, lesson 66) so a lost neighbour fails
+    the check. Better, for a new function: let the job write only the function into a scratch
+    file (whole-file mode) and splice it in at the anchor yourself.
