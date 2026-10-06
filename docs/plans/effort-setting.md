@@ -5,6 +5,7 @@
 **Depends on:** nothing; works with the skills loader once that exists (the budget follows the effort).
 
 **Steps**
+
 1. Define four levels, one vocabulary everywhere: Auto (default), Low, Medium, High.
    - Low: thinking off, at most 2 tool rounds, 1 review round, small skill budget.
    - Medium: today's behaviour: thinking off, 6 tool rounds, up to 3 fix rounds.

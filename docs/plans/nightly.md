@@ -5,6 +5,7 @@
 **Depends on:** nothing.
 
 **Steps**
+
 1. Create a fixed test repo `kompanion-w2-fixture` with one function and a failing test, plus a task "make the test pass" with a "done when".
 2. Configure a nightly CI job to start a Kompanion server from the PR-merged main using a test config that points to the real Coder provider on OVMS, running in the job container with a grant for the fixture folder.
 3. Run the task and wait up to 15 minutes; if it ends `done`, the fixture's test passes, the reviewer approves, and the run report exists, record time, model calls, tokens and fix rounds in `docs/nightly/<date>.json`.
