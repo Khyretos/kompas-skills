@@ -64,3 +64,8 @@ Topic lessons moved into cards (sql, processes-files, axum-api), loaded when a j
    file: read its fields there (a `toml::Table` field is a map, not a `toml::Value`; iterate it
    directly). `as_integer()` returns `Option<i64>`, so compare with `Some(20)`, not `Some(&20)`.
    A test asserts what the spec says ("unchanged" means equal to the input), not a guess.
+65. (2026-10-06) One range check for int and float parameters: a closure taking `f64`
+   (`in_range(n as f64)?`), never `i64 < f64`. `Option` has no `or_insert_with`: on a JSON object
+   use `as_object_mut()` and `.entry(k).or_insert_with(..)`. Bind values by reference in an sqlx
+   chain (`.bind(&id)`) when they are used after the query, and build each query once, as one
+   chain. A variable made inside one `.map(|..| ..)` closure does not exist in the next `.map`.

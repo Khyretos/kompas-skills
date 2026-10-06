@@ -101,3 +101,8 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
     and `test -e f || { echo "error: f: not written"; exit 1; }`). When a cut-off answer goes
     into fix rounds, the fix writes a stub with just the grepped names; for a whole file, check
     every piece of the spec (a list of signatures and literals) and ask for a compact file.
+64. (2026-10-06) A card rule is not enough for a test stub server: with lesson 49 in its skills,
+    Coder still wrote axum 0.7 (`"/history/:id"`, `std::net::TcpListener`, an invented
+    `map_into_response`) and three fix rounds did not get it to compile. Put the stub's handler
+    signatures, routes and serve lines in the prompt as code (Claude applies literal code), or
+    write the stub yourself and let the job write only the asserts.
