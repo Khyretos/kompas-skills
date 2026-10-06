@@ -191,6 +191,8 @@ function runForm(t: Task, s: AppState): SafeHtml {
             data-path="${`${rc.result!.path === "/" ? "" : rc.result!.path}/${f}`}">${f}/</button></li>`)}
         </ul>` : ""}
       <label>Check <input name="check" placeholder="cargo test (optional)"></label>
+      <label><input type="checkbox" name="tests_may_change"> This task may change tests</label>
+      <p class="muted small">Off: test files and the check's own files are protected; the run can't pass by changing them.</p>
       <p class="muted small">Kompanion plans, works step by step and reviews the result (up to 3 rounds). Steps your grants allow run by themselves; anything else asks you first. Progress shows in the task's own chat.</p>
       <button class="btn primary small" type="submit">Start</button>
     </form>`;

@@ -134,8 +134,8 @@ export class HttpApi implements KompanionApi {
   checkFolder(machineId: string, path: string) {
     return this.request<{ state: "ok" | "nogrant" | "missing" | "notfolder" | "noanswer"; path: string; folders?: string[]; files?: number; message?: string }>("POST", `/machines/${encodeURIComponent(machineId)}/folder`, { path });
   }
-  startTask(id: string, machineId: string, folder: string, check: string) {
-    return this.request<void>("POST", `/tasks/${encodeURIComponent(id)}/start`, { machine_id: machineId, folder, check });
+  startTask(id: string, machineId: string, folder: string, check: string, testsMayChange = false) {
+    return this.request<void>("POST", `/tasks/${encodeURIComponent(id)}/start`, { machine_id: machineId, folder, check, tests_may_change: testsMayChange });
   }
   listActivity() { return this.request<import("../views/activity").ActivityItem[]>("GET", "/activity"); }
   getCapabilities() { return this.request<import("../views/capabilities").Capabilities>("GET", "/capabilities"); }

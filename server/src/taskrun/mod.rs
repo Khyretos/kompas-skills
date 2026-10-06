@@ -235,6 +235,12 @@ pub async fn start(
         protected,
         tests_may_change: b.tests_may_change,
     };
+    let _ = sqlx::query("UPDATE runs SET protected = ?, tests_may_change = ? WHERE id = ?")
+        .bind(serde_json::to_string(&r.protected).unwrap_or_default())
+        .bind(r.tests_may_change)
+        .bind(&r.run_id)
+        .execute(&s.db)
+        .await;
     tokio::spawn(run(s.clone(), r));
     Ok(StatusCode::ACCEPTED)
 }
@@ -407,19 +413,18 @@ fn cut(text: &str, max: usize) -> String {
     text.chars().take(max).collect()
 }
 
-/// The file changes the steps of this run made, from the edit/write results themselves
-/// The protected files (tests, the check's own files) this run's steps edited or wrote.
-async fn protected_changed(s: &AppState, r: &Run, since: &str) -> Vec<String> {
+/// The protected files (tests, the check's own files) the steps in this chat edited or wrote since `since`.
+pub(crate) async fn protected_changed(s: &AppState, chat_id: &str, since: &str, protected: &[String]) -> Vec<String> {
     let rows: Vec<(Option<String>,)> = sqlx::query_as(
         "SELECT DISTINCT json_extract(tool, '$.path') FROM pc_actions WHERE chat_id = ? AND created_at >= ? AND state = 'done'
          AND json_extract(tool, '$.tool') IN ('edit_file', 'write_file')",
     )
-    .bind(&r.chat_id)
+    .bind(chat_id)
     .bind(since)
     .fetch_all(&s.db)
     .await
     .unwrap_or_default();
-    rows.into_iter().filter_map(|(p,)| p).filter(|p| protect::is_protected(p, &r.protected)).collect()
+    rows.into_iter().filter_map(|(p,)| p).filter(|p| protect::is_protected(p, protected)).collect()
 }
 
 /// The file changes the steps of this run made, from the edit/write results themselves
@@ -614,7 +619,7 @@ async fn run(s: AppState, r: Run) {
             }
         };
         // A changed test can't pass review, whatever the reviewer said (RUN-01).
-        let changed = if r.tests_may_change { vec![] } else { protected_changed(&s, &r, &started).await };
+        let changed = if r.tests_may_change { vec![] } else { protected_changed(&s, &r.chat_id, &started, &r.protected).await };
         if !changed.is_empty() {
             review.ok = false;
             review.findings.push(format!(

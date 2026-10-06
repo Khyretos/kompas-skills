@@ -177,9 +177,9 @@ pub async fn calls_where(s: &AppState, column: &str, id: &str) -> ApiResult<Vec<
 
 /// Returns a report for a specific run.
 pub async fn run_report(s: &AppState, user_id: &str, run_id: &str) -> ApiResult<Value> {
-    type RunRow = (String, String, String, String, String, Option<String>, String, Option<String>, String, Option<String>, String, String);
+    type RunRow = (String, String, String, String, String, Option<String>, String, Option<String>, String, Option<String>, String, String, String, bool);
     let row = sqlx::query_as::<_, RunRow>(
-        "SELECT r.task_id, t.title, r.chat_id, COALESCE(m.name, r.machine_id), r.folder, r.check_cmd, r.started_at, r.ended_at, r.status, r.step, r.plan, r.rounds FROM runs r JOIN tasks t ON t.id = r.task_id LEFT JOIN machines m ON m.id = r.machine_id WHERE r.id = ? AND r.user_id = ?"
+        "SELECT r.task_id, t.title, r.chat_id, COALESCE(m.name, r.machine_id), r.folder, r.check_cmd, r.started_at, r.ended_at, r.status, r.step, r.plan, r.rounds, r.protected, r.tests_may_change FROM runs r JOIN tasks t ON t.id = r.task_id LEFT JOIN machines m ON m.id = r.machine_id WHERE r.id = ? AND r.user_id = ?"
     )
     .bind(run_id)
     .bind(user_id)
@@ -187,10 +187,12 @@ pub async fn run_report(s: &AppState, user_id: &str, run_id: &str) -> ApiResult<
     .await?
         .ok_or(ApiError::NotFound)?;
     
-    let (task_id, title, _chat_id, computer, folder, check_cmd, started, ended, status, step, plan_str, rounds_str) = row;
+    let (task_id, title, chat_id, computer, folder, check_cmd, started, ended, status, step, plan_str, rounds_str, protected_str, tests_may_change) = row;
     
     let plan: Value = serde_json::from_str(&plan_str).unwrap_or(json!([]));
     let rounds: Value = serde_json::from_str(&rounds_str).unwrap_or(json!([]));
+    let protected: Vec<String> = serde_json::from_str(&protected_str).unwrap_or_default();
+    let changed = crate::taskrun::protected_changed(s, &chat_id, &started, &protected).await;
     
     let steps = steps_where(s, "run_id", run_id).await?;
     let calls = calls_where(s, "run_id", run_id).await?;
@@ -214,7 +216,10 @@ pub async fn run_report(s: &AppState, user_id: &str, run_id: &str) -> ApiResult<
         "plan": plan,
         "reviewRounds": rounds,
         "steps": steps,
-        "modelCalls": calls
+        "modelCalls": calls,
+        "testsMayChange": tests_may_change,
+        "protected": protected,
+        "protectedChanged": changed
     }))
 }
 

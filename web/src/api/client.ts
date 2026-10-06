@@ -99,7 +99,7 @@ export interface KompanionApi {
   /** The lessons proposed in a chat (the project thread), oldest first. */
   listLessons(chatId: string): Promise<Lesson[]>;
   /** W2: run a task by itself on a computer, in a folder, checked by a command. */
-  startTask(id: string, machineId: string, folder: string, check: string): Promise<void>;
+  startTask(id: string, machineId: string, folder: string, check: string, testsMayChange?: boolean): Promise<void>;
   /** Stops a running step: the computer kills the command and what it started. */
   stopAction(id: string): Promise<void>;
   /** Stops a running W2 task (and its running step). */
