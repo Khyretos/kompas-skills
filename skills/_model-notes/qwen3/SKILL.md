@@ -47,3 +47,6 @@ Full history with evidence: `docs/model-notes/qwen3-history-2026-10.md`.
   every condition in a draft against the spec.
 - Big files: several edits in one patch job run out of answer room or get half-applied; send one
   edit per job. "Replace X with Y" can come back as "delete X"; check the line is there.
+- A patch job told to fix a function it wrote earlier may add a corrected copy of the block next
+  to the old one instead of replacing it; check for duplicated blocks. Two such fix rounds on new
+  logic: Claude writes it (pipeline check_loop, 2026-10-06).
