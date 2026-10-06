@@ -122,3 +122,8 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
     line. For code that runs a program, put a fake program first on PATH in the test (a script
     that writes its argv to a file) and assert the exact argv, or route the command through a
     pure `fn args(...) -> Vec<String>` that a test checks.
+69. (2026-10-06) A correct draft failed its check and burned three fix rounds: the worker
+    wrapped the signatures over several lines (rustfmt style), so the one-line needles never
+    matched, and Claude's own wiring in the same tree (routes calling the next, unwritten
+    module) broke the compile check. Match needles with whitespace and trailing commas ignored
+    (`tools/qwen/chk.py` does this), and wire callers only after the module they call exists.
