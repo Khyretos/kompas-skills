@@ -52,3 +52,6 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
 28. (2026-10-06) A model's tags (public or private, keep or drop) are a draft: it tagged whole runs the
     same and called a brand card general. Review every block that moves to a public place with a
     keyword scan plus the privacy check.
+29. (2026-10-06) A patch job asking for a rename and a new paragraph in one file did only the paragraph.
+    Give each edit its own patch job with a focus on the lines it changes, and a check per edit. Appending
+    a lesson to a card failed twice with no edit blocks at all: plain appends are applied by the orchestrator.
