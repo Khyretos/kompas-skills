@@ -66,3 +66,10 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
 32. (2026-10-06) When one job changes a function's parameters and another job edits its callers, the
     second draft guessed the order (twice). Give every caller job the full new parameter list, and check
     the call's exact argument order: type checks miss swapped optional parameters of similar types.
+33. (2026-10-06) An unbalanced bracket stops the compiler before any type error, so three fix rounds
+    chased one parse error and never saw the rest. When fix rounds repeat the same error, fix that line
+    by hand and run one more fix job with the full error list. Test stubs on a framework API the model
+    guesses at (axum extractors) are given as literal code and applied by Claude.
+34. (2026-10-06) A check for a renamed function must pass once the callers are updated too: rename
+    the callers in the same job, or in the check's precondition, or the job can never pass. Read
+    every test a fix round added: one asserted an expectation the spec never gave.

@@ -22,3 +22,9 @@ paths: ["server/src/api.rs", "server/src/admin.rs", "server/src/access/**", "ser
 48. (2026-10-05) URL allow-lists: compare the whole prefix (`format!("{}/", server)`), never the host
     part against a full URL; split off `?query` before checking the path's characters. Test with
     look-alike hosts (`ntfy.example.com.evil.com`), `http://`, extra query keys and `/../`.
+49. (2026-10-06) A test stub server in axum 0.8: handlers take extractors (`State(x): State<T>`,
+    `Path((a, b, rest)): Path<(String, String, String)>`, `Json(v): Json<Value>`), routes are
+    `get(h).post(h).put(h)` plus `.with_state(x)`, served on `tokio::net::TcpListener::bind("127.0.0.1:0")`
+    with `tokio::spawn(axum::serve(l, app).into_future())`. reqwest: `.send().await.map_err(..)?` gives
+    a Response; then call `resp.status()` and `resp.text().await`, never match Ok/Err on it again.
+    Check an Option by reference (`if let Some(s) = &sha`) when it is used again later.
