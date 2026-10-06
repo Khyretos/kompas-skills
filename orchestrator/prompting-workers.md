@@ -55,3 +55,8 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
 29. (2026-10-06) A patch job asking for a rename and a new paragraph in one file did only the paragraph.
     Give each edit its own patch job with a focus on the lines it changes, and a check per edit. Appending
     a lesson to a card failed twice with no edit blocks at all: plain appends are applied by the orchestrator.
+30. (2026-10-06) A drafted deploy script piped a file into `docker exec -i ... python3 -c` but left out the
+    `< file` redirect; the check only grepped for strings and passed, and the first real run wrote an empty
+    plugin into the live database. A script with side effects needs a check that runs it against a stub (or
+    asserts every step the spec names, the redirect included), and its first real run is verified at once.
+    Progress output written with `\r` (git subtree push, curl) is one long line for `tail`: add `tr '\r' '\n'`.
