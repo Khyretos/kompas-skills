@@ -129,3 +129,14 @@ paths: ["**/*.rs", "**/Cargo.toml"]
     (`|c: char| "()[]".contains(c)`). Cut strings with `strip_prefix`/`strip_suffix`, never at
     hand-counted indexes (`[12..]` for the 13-character "_model-notes/" left a "/"). When porting
     Python, its `'text'` strings become `"text"` in Rust: single quotes are one `char`.
+51. (2026-10-06) Slicing off quotes or brackets: check the length first (`s.len() >= 2`); a token
+   that is one quote character makes `&s[1..s.len() - 1]` panic.
+52. (2026-10-06) Every call to an `async fn` ends in `.await`; a match arm that returns its result
+   without it hands back a future, not a String.
+53. (2026-10-06) A guard that should apply to some tools names them (`matches!(job["tool"].as_str(),
+   Some("edit_file" | "write_file"))`), and uses the helper the prompt names, never a hand-made
+   `contains`. A refusal on every tool blocked reading the files too.
+54. (2026-10-06) SQL columns: use only columns you saw in the file. JSON fields of a stored column
+   are read with `json_extract(tool, '$.path')`; there was no `path` column.
+55. (2026-10-06) A fix round fixes only errors in the file you edit. An error in another file is
+   not yours: leave unrelated code (another function, another query's binds) unchanged.

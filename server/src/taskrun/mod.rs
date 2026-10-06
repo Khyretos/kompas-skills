@@ -5,6 +5,7 @@
 //! task needs the user. Everything shows in the task's own chat.
 //! (Claude rewrote the loop after two failed model drafts; parse.rs is the model's.)
 pub mod parse;
+pub mod protect;
 
 use axum::{Extension, Json, extract::{Path, State}, http::StatusCode};
 use serde::Deserialize;
@@ -106,6 +107,10 @@ pub struct StartBody {
     pub folder: String,
     #[serde(default)]
     pub check: String,
+    #[serde(default)]
+    pub protected: Vec<String>,
+    #[serde(default)]
+    pub tests_may_change: bool,
 }
 
 struct Run {
@@ -122,6 +127,8 @@ struct Run {
     worker: RoleAssignment,
     reviewer: RoleAssignment,
     run_id: String,
+    protected: Vec<String>,
+    tests_may_change: bool,
 }
 
 async fn role(s: &AppState, user_id: &str, name: &str) -> ApiResult<Option<RoleAssignment>> {
@@ -218,9 +225,15 @@ pub async fn start(
     .bind(util::now())
     .execute(&s.db)
     .await?;
+    let mut protected = b.protected.clone();
+    if let Some(cmd) = &check {
+        protected.extend(protect::check_files(cmd));
+    }
     let r = Run {
         user_id: u.id.clone(), task_id: id, title, description, chat_id, machine_id: b.machine_id,
         machine_name, folder, check, orchestrator, worker, reviewer, run_id,
+        protected,
+        tests_may_change: b.tests_may_change,
     };
     tokio::spawn(run(s.clone(), r));
     Ok(StatusCode::ACCEPTED)
@@ -348,6 +361,7 @@ fn agent(s: &AppState, r: &Run, max_steps: usize) -> pcagent::Agent {
         folder: Some(r.folder.clone()),
         task_id: Some(r.task_id.clone()),
         run_id: Some(r.run_id.clone()),
+        protect: if r.tests_may_change { None } else { Some(r.protected.clone()) },
     }
 }
 
@@ -391,6 +405,21 @@ fn step_instruction(task: &str, i: usize, n: usize, step: &parse::PlanStep, plan
 
 fn cut(text: &str, max: usize) -> String {
     text.chars().take(max).collect()
+}
+
+/// The file changes the steps of this run made, from the edit/write results themselves
+/// The protected files (tests, the check's own files) this run's steps edited or wrote.
+async fn protected_changed(s: &AppState, r: &Run, since: &str) -> Vec<String> {
+    let rows: Vec<(Option<String>,)> = sqlx::query_as(
+        "SELECT DISTINCT json_extract(tool, '$.path') FROM pc_actions WHERE chat_id = ? AND created_at >= ? AND state = 'done'
+         AND json_extract(tool, '$.tool') IN ('edit_file', 'write_file')",
+    )
+    .bind(&r.chat_id)
+    .bind(since)
+    .fetch_all(&s.db)
+    .await
+    .unwrap_or_default();
+    rows.into_iter().filter_map(|(p,)| p).filter(|p| protect::is_protected(p, &r.protected)).collect()
 }
 
 /// The file changes the steps of this run made, from the edit/write results themselves
@@ -567,7 +596,7 @@ async fn run(s: AppState, r: Run) {
             r.folder,
             cut(&diff_text, 6000)
         );
-        let review = match ask_model(
+        let mut review = match ask_model(
             &s,
             &r,
             &r.reviewer,
@@ -584,6 +613,15 @@ async fn run(s: AppState, r: Run) {
                 return finish(&s, &r, "needs_input", "review failed").await;
             }
         };
+        // A changed test can't pass review, whatever the reviewer said (RUN-01).
+        let changed = if r.tests_may_change { vec![] } else { protected_changed(&s, &r, &started).await };
+        if !changed.is_empty() {
+            review.ok = false;
+            review.findings.push(format!(
+                "Changed test files: {}. The task may not change tests: undo that and fix the code instead.",
+                changed.join(", ")
+            ));
+        }
         let _ = sqlx::query("UPDATE runs SET rounds = json_insert(rounds, '$[#]', json(?)) WHERE id = ?")
             .bind(json!({ "round": round, "ok": review.ok, "findings": review.findings }).to_string())
             .bind(&r.run_id)
@@ -599,7 +637,19 @@ async fn run(s: AppState, r: Run) {
         propose_lessons(&s, &r, &review.findings, &used).await;
         if round == ROUNDS {
             note(&s, &r, "Still not right after 3 rounds; it needs you.").await;
-            return finish(&s, &r, "needs_input", "review failed 3 times").await;
+            // Changed tests, or a refused try at it: the impossible test is the likely cause.
+            let refused: Option<(i64,)> = sqlx::query_as(
+                "SELECT count(*) FROM pc_actions WHERE chat_id = ? AND created_at >= ? AND state = 'refused'
+                 AND result LIKE '%this task may not change tests%'",
+            )
+            .bind(&r.chat_id)
+            .bind(&started)
+            .fetch_optional(&s.db)
+            .await
+            .unwrap_or(None);
+            let tried = refused.is_some_and(|(n,)| n > 0);
+            let why = if changed.is_empty() && !tried { "review failed 3 times" } else { "the task may not change tests" };
+            return finish(&s, &r, "needs_input", why).await;
         }
         match work_with(&s, &r, 12, format!("The task:\n{}\n\nFix these review findings, then answer with one short line:\n{findings}", cut(&r.description, 3000)), &fix_skills).await {
             Ok(line) => note(&s, &r, &format!("Fix {round}: {line}")).await,
@@ -629,7 +679,7 @@ mod tests {
         let r = Run {
             user_id: "u".into(), task_id: "t".into(), title: "T".into(), description: "D".into(), chat_id: "c".into(),
             machine_id: "m".into(), machine_name: "soucouyant".into(), folder: "/home/k/app".into(), check: None,
-            orchestrator: role(), worker: role(), reviewer: role(), run_id: "r".into(),
+            orchestrator: role(), worker: role(), reviewer: role(), run_id: "r".into(), protected: vec![], tests_may_change: false,
         };
         let p = worker_prompt(&r);
         assert!(p.contains("/home/k/app") && p.contains("soucouyant"));

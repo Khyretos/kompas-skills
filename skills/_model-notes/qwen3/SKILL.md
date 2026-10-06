@@ -50,3 +50,8 @@ Full history with evidence: `docs/model-notes/qwen3-history-2026-10.md`.
 - A patch job told to fix a function it wrote earlier may add a corrected copy of the block next
   to the old one instead of replacing it; check for duplicated blocks. Two such fix rounds on new
   logic: Claude writes it (pipeline check_loop, 2026-10-06).
+- With excerpts (`focus`), a patch may copy the `// ...` skip marker into the code and close the
+  function after it, splitting it in two. Check the edited function is whole (RUN-01, 2026-10-06).
+- Build-check fix rounds whose error sits in another file: the model "fixes" unrelated code in its
+  own file until the build is worse. Give the check to the job whose file holds the error, or let
+  Claude fix it (RUN-01, 2026-10-06).
