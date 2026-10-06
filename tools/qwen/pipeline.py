@@ -11,6 +11,8 @@ Writes the final code to each job's "out" and one log line per job
 (seconds on the GPU, tokens). Code fences are stripped from the output.
 Supports "check": "<shell command>" which runs after the job; if it fails,
 the pipeline retries up to 3 times with a patch job fixing the errors.
+Each check is tried once before any job runs; jobs whose check already fails
+are skipped as a spec error ("precheck": false turns that off).
 """
 import json, os, re, subprocess, sys, time, tomllib, urllib.request, urllib.parse, socket, threading
 
@@ -171,7 +173,13 @@ def apply_patch(text, answer):
     blocks = BLOCK.findall(answer)
     if not blocks:
         return text, "no edit blocks found in the answer"
+    # Coder copies the `// ...` gap marker of focus excerpts into its patches (RUN-01, 2026-10-06).
     for search, replace in blocks:
+        for line in replace.splitlines():
+            stripped = line.strip()
+            if stripped in ("// ...", "# ..."):
+                if stripped not in [l.strip() for l in search.splitlines()]:
+                    return text, "the REPLACE text contains a `// ...` placeholder line; write out the real code instead of skipping lines"
         where = find(text, search)
         if where is None:
             return text, "this SEARCH text is missing from the file or not unique:\n" + search[:600]
@@ -258,6 +266,22 @@ def run_check(cmd):
         return False, f"timed out: {e}"
     return p.returncode == 0, "\n".join((p.stdout + p.stderr).splitlines()[-60:])
 
+HEADER = re.compile(r"(error|warning)\b|\S+\(\d+,\d+\): error")
+
+def own_errors(errors, out):
+    """A fix round only sees the check errors that name its own file: errors from other jobs' files sent Coder editing the wrong code (RUN-01, 2026-10-06)."""
+    name = os.path.basename(out)
+    blocks, cur = [], []
+    for line in errors.splitlines():
+        # A block ends at a blank line or where the next error starts (rustc, tsc, eslint start errors at column 0).
+        if not line.strip() or HEADER.match(line):
+            if cur: blocks.append(cur)
+            cur = [line] if line.strip() else []
+        else:
+            cur.append(line)
+    if cur: blocks.append(cur)
+    return "\n\n".join("\n".join(b) for b in blocks if any(name in l for l in b))
+
 def check_loop(job, log):
     """job["check"]: a build command run after the job; on failure the errors go back to
     the model as a patch job for the same file, at most 3 rounds (Kees, 2026-10-05: half of
@@ -268,8 +292,11 @@ def check_loop(job, log):
     for n in range(1, 4):
         if passed:
             break
+        mine = own_errors(errors, out)
+        if not mine:
+            break
         fix = {k: v for k, v in job.items() if k not in ("check", "focus", "context")}
-        fix.update(name=f"{job['name']}#fix{n}", mode="patch", prompt=f"The check `{cmd}` fails after your change to {out}. Fix these errors in {out}; change nothing else.\n\n{errors}")
+        fix.update(name=f"{job['name']}#fix{n}", mode="patch", prompt=f"The check `{cmd}` fails after your change to {out}. Fix these errors in {out}; change nothing else.\n\n{mine}")
         try:
             patch_job(fix, log)
         except RuntimeError as e:
@@ -299,6 +326,16 @@ def main():
     may need the other. Jobs for the same file stay in order."""
     jobs = json.load(open(sys.argv[1]))
     log = open(sys.argv[2] if len(sys.argv) > 2 else os.devnull, "a")
+    # A check that already fails before any job ran is a spec error, not a job error (RUN-01, 2026-10-06).
+    bad = {}
+    for cmd in {j["check"] for j in jobs if j.get("check") and j.get("precheck", True)}:
+        passed, errors = run_check(cmd)
+        if not passed:
+            bad[cmd] = errors
+    for cmd, errors in bad.items():
+        rec = {"spec_error": cmd, "errors": errors[-1500:], "at": time.strftime("%Y-%m-%dT%H:%M:%S")}
+        log.write(json.dumps(rec) + "\n"); log.flush(); print(json.dumps(rec), flush=True)
+    jobs = [j for j in jobs if j.get("check") not in bad or not j.get("precheck", True)]
     groups = {}
     for job in jobs:
         groups.setdefault(job["out"], []).append(job)
