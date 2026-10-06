@@ -133,7 +133,7 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
     public function of the edited file (not only test names, lesson 66) so a lost neighbour fails
     the check. Better, for a new function: let the job write only the function into a scratch
     file (whole-file mode) and splice it in at the anchor yourself.
-71. (2026-10-07) A negative needle in a check (`! grep refused`) matched the doc line the prompt
+72. (2026-10-07) A negative needle in a check (`! grep refused`) matched the doc line the prompt
     itself dictated ("nothing is refused"), so a correct draft failed and the fix rounds pasted
     the check's needles into a junk comment. Keep negative needles out of the text you ask for
     (search the exact old phrase, e.g. `licences are refused`), build checks with `chk.py` or
