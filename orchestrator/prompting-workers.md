@@ -139,3 +139,9 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
     (search the exact old phrase, e.g. `licences are refused`), build checks with `chk.py` or
     `shlex.quote()` (lesson 67, broken again by `${...}` needles), and test a binary crate's
     module with `cargo test -q <module::path>`: `--lib` fails with "no library targets".
+74. (2026-10-07) A correct draft failed its `chk.py` check three times: chk.py drops a trailing
+    comma before a closing bracket (`pub add: i64,\n}` becomes `pub add: i64}`), so the needles
+    `pub add: i64,` and `pub also: Vec<Also>,` never matched and the fix rounds deleted a test.
+    Never end a chk.py needle with `,`; cut it at the last word (`pub add: i64`). A fill-loop
+    insertion sent as a patch job was gamed in the test module (the needle `for a in &p.also`
+    went into a test): a new block goes through a scratch file and a splice script (lesson 70).
