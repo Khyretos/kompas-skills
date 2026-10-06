@@ -115,7 +115,7 @@ pub async fn run(s: AppState, user_id: String, chat_id: String, machine_id: Stri
         let role = if author == "user" { "user" } else { "assistant" };
         messages.push(json!({ "role": role, "content": text }));
     }
-    let agent = Agent { s: s.clone(), user_id: user_id.clone(), chat_id: chat_id.clone(), machine_id, role, auto: false, max_steps: MAX_STEPS, folder: None, task_id: None, run_id: None };
+    let agent = Agent { s: s.clone(), user_id: user_id.clone(), chat_id: chat_id.clone(), machine_id, role, auto: false, max_steps: MAX_STEPS, folder: None, task_id: None, run_id: None, protect: None };
     let text = match agent.run(messages).await {
         Ok(t) => t,
         Err(e) => e,
@@ -142,6 +142,8 @@ pub struct Agent {
     pub task_id: Option<String>,
     /// W2: the run this agent works for (its model calls and steps are recorded with it).
     pub run_id: Option<String>,
+    /// W2 tasks that may not change tests: Some(extra protected files); None = no protection.
+    pub protect: Option<Vec<String>>,
 }
 
 /// Why an edit_file job would break the file, if it would: reads the file through the
@@ -240,6 +242,13 @@ impl Agent {
                         )
                     }
                     Some(_) if edit_err.is_some() => format!("Refused, nothing changed: {}", edit_err.as_deref().unwrap_or("")),
+                    Some(job)
+                        if matches!(job["tool"].as_str(), Some("edit_file" | "write_file"))
+                            && self.protect.as_ref().is_some_and(|x| crate::taskrun::protect::is_protected(job["path"].as_str().unwrap_or(""), x)) =>
+                    {
+                        let path = job["path"].as_str().unwrap_or("");
+                                                refuse(s, &self.user_id, &self.chat_id, &self.machine_id, &job, self.run_id.as_deref(), &format!("{path} is a test file and this task may not change tests. Change the code so the tests pass instead.")).await
+                    }
                     Some(job) if job["tool"] == "write_file" && job["path"].as_str().is_some_and(|p| missing.contains(p)) => {
                         "Blocked: that file did not exist when you looked. Ask the user before creating a new file.".to_string()
                     }
@@ -294,6 +303,7 @@ async fn set_action(s: &AppState, id: &str, state: &str, result: &str) {
 /// One tool call: an approval card, then (if approved) a runner job. Returns the
 /// text the model gets back.
 async fn step(s: &AppState, user_id: &str, chat_id: &str, machine_id: &str, job: &Value, auto: bool, run_id: Option<&str>) -> String {
+
     let id = util::new_id();
     // Under a standing grant (tasks): no card, the step runs right away.
     let preapproved = auto && covered(s, machine_id, job).await;
@@ -419,6 +429,31 @@ async fn step(s: &AppState, user_id: &str, chat_id: &str, machine_id: &str, job:
     set_action(s, &id, &state, &result).await;
     changed(s, user_id);
     model_result(&state, &result)
+}
+
+/// Refuse a job because it violates a rule (e.g., editing a test file).
+/// Inserts a pc_actions row with state 'refused' and returns the reason.
+async fn refuse(s: &AppState, user_id: &str, chat_id: &str, machine_id: &str, job: &Value, run_id: Option<&str>, reason: &str) -> String {
+    let id = util::new_id();
+    let _ = sqlx::query(
+        "INSERT INTO pc_actions (id, chat_id, user_id, machine_id, tool, summary, state, result, created_at, ended_at, run_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    )
+    .bind(&id)
+    .bind(chat_id)
+    .bind(user_id)
+    .bind(machine_id)
+    .bind(job.to_string())
+    .bind(tools::summary(job))
+    .bind("refused")
+    .bind(reason)
+    .bind(util::now())
+    .bind(util::now())
+    .bind(run_id)
+    .execute(&s.db)
+    .await;
+    changed(s, user_id);
+    format!("Refused, nothing changed: {}", reason)
 }
 
 /// What the model gets back from a step: the outcome first, then the end of the
