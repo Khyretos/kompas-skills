@@ -54,7 +54,7 @@
   ]
  },
  {
-  "chars": 4980,
+  "chars": 5348,
   "description": "How to write a job prompt any worker model can carry out, and how to run fix rounds.",
   "file": "orchestrator/prompting-workers",
   "models": [],
@@ -369,7 +369,7 @@
   ]
  },
  {
-  "chars": 1332,
+  "chars": 1697,
   "description": "Python scripts and services (ingest jobs, MCP servers, small web servers).",
   "file": "worker/python",
   "models": [],

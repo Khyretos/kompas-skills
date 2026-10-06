@@ -62,3 +62,15 @@ These files grow with every review, so models get only what a job needs, and eve
   after that card's text. The skills folder in the image stays read-only.
 - Every review finding: a lesson in the right card or core, and a row in
   `docs/lessons-learned.md` (in this repo).
+
+## Layers (SK-03, 2026-10-06)
+
+`tools/skills/load.py` merges three layers, later ones win:
+1. general: `skills/general/` (the public `kompas-skills` library, no setup facts);
+2. Kompanion: the rest of `skills/` (Kompanion's own coding lessons);
+3. private: `$KOMPANION_SKILLS_LOCAL` (default `/skills-local`, read-only mount of the setup's own repo).
+
+A card with the same path in a later layer replaces the earlier one. A card with `overrides: <name>`
+in its header replaces that card's body; `extends: <name>` adds its body after it. Before anything
+goes into `skills/general/`, `tools/skills/privacy_check.py skills/general` must pass (no IPs, home
+paths, emails, or host names from the private layer's `deny-hosts.txt`).

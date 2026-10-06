@@ -55,5 +55,42 @@ class SelectTest(unittest.TestCase):
         _, text = load.select("worker/web", "css", ["x.css"], root=self.root)
         self.assertNotIn("roles:", text)
 
+class LayerTest(unittest.TestCase):
+    def setUp(self):
+        self.root = tempfile.mkdtemp()
+        self.local = tempfile.mkdtemp()
+        card(self.root, "general/work-habits", "", "GENERAL HABITS")
+        card(self.root, "general/shared/git", "roles: [worker]\ntags: [git]", "GIT GENERAL")
+        card(self.root, "shared/SKILL", "name: shared", "SHARED")
+
+    def test_general_cards_load(self):
+        names, text = load.select("worker/python", "commit with git", [], root=self.root, local=self.local)
+        self.assertIn("work-habits", names)
+        self.assertIn("shared/git", names)
+        self.assertIn("GENERAL HABITS", text)
+
+    def test_private_card_overrides_general(self):
+        card(self.local, "hosts", "overrides: shared/git", "GIT PRIVATE")
+        names, text = load.select("worker/python", "commit with git", [], root=self.root, local=self.local)
+        self.assertIn("GIT PRIVATE", text)
+        self.assertNotIn("GIT GENERAL", text)
+        self.assertNotIn("hosts", names)
+
+    def test_private_card_extends_general(self):
+        card(self.local, "more", "extends: shared/git", "GIT EXTRA")
+        names, text = load.select("worker/python", "commit with git", [], root=self.root, local=self.local)
+        self.assertIn("GIT GENERAL", text)
+        self.assertIn("GIT EXTRA", text)
+
+    def test_unknown_override_fails(self):
+        card(self.local, "bad", "overrides: nope", "X")
+        with self.assertRaises(ValueError):
+            load.select("worker/python", "commit with git", [], root=self.root, local=self.local)
+
+    def test_missing_local_is_fine(self):
+        abs_local = os.path.join(self.local, "absent")
+        names, text = load.select("worker/python", "commit with git", [], root=self.root, local=abs_local)
+        self.assertIn("work-habits", names)
+
 if __name__ == "__main__":
     unittest.main()

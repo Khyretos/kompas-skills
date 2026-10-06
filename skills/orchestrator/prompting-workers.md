@@ -63,3 +63,7 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
     module's last lines in `focus`, or insert fixed code by script. Never write a correction into
     a prompt ("... NO: add it after X instead"): rewrite the instruction, or the model follows
     both halves (a stray `}` was left behind).
+24. (2026-10-06) A test job whose check runs that same test lets the fix rounds change the
+    expectations until they match a bug in the code (a "`~/Docker` gives nothing" test hid a
+    wrong home-path regex). Give the code job its own check with the spec's key cases as
+    asserts (`python3 -c "... assert ..."`), and read every changed expectation in the review.

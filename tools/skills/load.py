@@ -1,6 +1,7 @@
 import os, re, fnmatch, glob
 
 SKILLS = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "skills")
+LOCAL = os.environ.get("KOMPANION_SKILLS_LOCAL", "/skills-local")
 
 def parse(text):
     """(header dict, body) of a card. Header lines are `key: value`; a value in [ ] is a list of
@@ -33,6 +34,30 @@ def all_cards(root=SKILLS):
         out.append({"rel": rel, "meta": meta, "body": body.strip()})
     return out
 
+def merged_cards(root=SKILLS, local=LOCAL):
+    """Merge cards from general, kompanion, and private layers. Later layers override or extend earlier ones."""
+    layers = []
+    if os.path.isdir(os.path.join(root, "general")):
+        layers.append(("general", all_cards(os.path.join(root, "general"))))
+    layers.append(("kompanion", [c for c in all_cards(root) if not c["rel"].startswith("general/")]))
+    if os.path.isdir(local):
+        layers.append(("private", all_cards(local)))
+    
+    result = {}
+    for layer, cards in layers:
+        for c in cards:
+            c["layer"] = layer
+            target = c["meta"].get("overrides") or c["meta"].get("extends")
+            if not target:
+                result[c["rel"]] = c
+                continue
+            if target not in result:
+                raise ValueError(f"{c['rel']}: overrides unknown card {target}")
+            old = result[target]
+            body = c["body"] if c["meta"].get("overrides") else old["body"] + "\n\n" + c["body"]
+            result[target] = dict(old, body=body, layer=layer)
+    return result
+
 def words(text):
     return set(w for w in re.split(r"[^a-z0-9]+", text.lower()) if w)
 
@@ -45,9 +70,9 @@ def score(card, task_words, paths):
     s += sum(1 for t in card["meta"].get("tags", []) if t.lower() in task_words)
     return s
 
-def select(role, task_text="", paths=(), notes="", budget_tokens=1500, extra=(), root=SKILLS):
+def select(role, task_text="", paths=(), notes="", budget_tokens=1500, extra=(), root=SKILLS, local=LOCAL):
     """(list of rel names, text) for a job of `role` (e.g. "worker/web")."""
-    cards = {c["rel"]: c for c in all_cards(root)}
+    cards = merged_cards(root, local)
     always = ["work-habits", "shared/SKILL", f"{role}/SKILL"] + [e for e in extra] + ([f"_model-notes/{notes}/SKILL"] if notes else [])
     picked = []
     for name in always:
