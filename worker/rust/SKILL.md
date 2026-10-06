@@ -60,3 +60,7 @@ Topic lessons moved into cards (sql, processes-files, axum-api), loaded when a j
    `contains`. A refusal on every tool blocked reading the files too.
 55. (2026-10-06) A fix round fixes only errors in the file you edit. An error in another file is
    not yours: leave unrelated code (another function, another query's binds) unchanged.
+56. (2026-10-06) A type that a context file already defines is used, never defined again in your
+   file: read its fields there (a `toml::Table` field is a map, not a `toml::Value`; iterate it
+   directly). `as_integer()` returns `Option<i64>`, so compare with `Some(20)`, not `Some(&20)`.
+   A test asserts what the spec says ("unchanged" means equal to the input), not a guess.
