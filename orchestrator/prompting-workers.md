@@ -106,3 +106,9 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
     `map_into_response`) and three fix rounds did not get it to compile. Put the stub's handler
     signatures, routes and serve lines in the prompt as code (Claude applies literal code), or
     write the stub yourself and let the job write only the asserts.
+66. (2026-10-06) A patch job's check that greps the new signature and counts passing tests
+    passed while the worker had put the new public function inside `mod tests` and deleted an
+    existing test to make room. For a patch to a file with tests, check that every old test name
+    is still there (`grep -c 'fn test_a\|fn test_b'` equals the old count), and that the function
+    is outside the tests module (a non-test `cargo check` with a caller in place, or
+    `awk '/mod tests/{exit} /fn name/{f=1} END{exit !f}'`).
