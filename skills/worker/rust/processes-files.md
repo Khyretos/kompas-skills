@@ -40,3 +40,6 @@ paths: ["runner/**", "machine-stats/**", "gpu-helper/**"]
     of `take()`, keep every parameter of the signature you were given (`cwd`).
 47. (2026-10-04) Binary formats (WAV and similar): take the byte offsets from the spec in the prompt
     and test against a real file, not only a fixture you wrote with the same offsets.
+48. (2026-10-06) When the prompt says to build on an existing function (`cards(root)` walks the
+    folders), call it; never re-implement its body. A rewritten walk dropped subfolders, and a
+    SEARCH text copied from your rewrite instead of the file fails to apply.

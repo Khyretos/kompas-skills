@@ -67,3 +67,8 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
     expectations until they match a bug in the code (a "`~/Docker` gives nothing" test hid a
     wrong home-path regex). Give the code job its own check with the spec's key cases as
     asserts (`python3 -c "... assert ..."`), and read every changed expectation in the review.
+25. (2026-10-06) Jobs that depend on each other: when a patch fails, the pipeline still runs the
+    check on the untouched tree (it passes) and the next job invents the missing code. Check the
+    first job's log line for "error" before the next job, or give the next job a check that greps
+    for the new function. Test fixtures for layered folders keep each layer in its own temp dir
+    (a local folder inside root is read twice).

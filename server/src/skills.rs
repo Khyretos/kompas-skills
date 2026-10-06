@@ -5,7 +5,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use regex::Regex;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Card {
     pub name: String,
     pub meta: HashMap<String, Vec<String>>,
@@ -17,6 +17,53 @@ pub fn dir() -> PathBuf {
         .ok()
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("/app/skills"))
+}
+
+/// The private layer: this setup's own cards (read-only mount, may be missing).
+pub fn local_dir() -> PathBuf {
+    std::env::var("KOMPANION_SKILLS_LOCAL")
+        .ok()
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("/skills-local"))
+}
+
+/// Cards of the three layers (general, Kompanion, private), later layers win: the same rules as
+/// merged_cards in tools/skills/load.py. `overrides: <name>` replaces that card's body,
+/// `extends: <name>` adds to it.
+pub fn merged(root: &Path, local: &Path) -> Result<Vec<Card>, String> {
+    let mut layers = Vec::new();
+    if root.join("general").is_dir() {
+        layers.push(cards(&root.join("general")));
+    }
+    layers.push(cards(root).into_iter().filter(|c| !c.name.starts_with("general/")).collect());
+    if local.is_dir() {
+        layers.push(cards(local));
+    }
+    let mut map: HashMap<String, Card> = HashMap::new();
+    for card in layers.into_iter().flatten() {
+        let first = |k: &str| card.meta.get(k).and_then(|v| v.first()).cloned();
+        let (over, ext) = (first("overrides"), first("extends"));
+        let Some(target) = over.clone().or(ext) else {
+            map.insert(card.name.clone(), card);
+            continue;
+        };
+        let Some(old) = map.get_mut(&target) else {
+            return Err(format!("{}: overrides unknown card {}", card.name, target));
+        };
+        old.body = if over.is_some() { card.body } else { format!("{}\n\n{}", old.body, card.body) };
+    }
+    let mut out: Vec<Card> = map.into_values().collect();
+    out.sort_by(|a, b| a.name.cmp(&b.name));
+    Ok(out)
+}
+
+/// merged() with this setup's private layer; a broken layer logs a warning and falls back to
+/// Kompanion's own cards.
+pub fn layered(root: &Path) -> Vec<Card> {
+    merged(root, &local_dir()).unwrap_or_else(|e| {
+        tracing::warn!("skill layers: {e}");
+        cards(root).into_iter().filter(|c| !c.name.starts_with("general/")).collect()
+    })
 }
 
 pub fn parse(text: &str) -> (HashMap<String, Vec<String>>, String) {
@@ -208,7 +255,7 @@ pub fn select(
     notes: Option<&str>,
     budget_tokens: usize,
 ) -> Vec<String> {
-    let cards = cards(root);
+    let cards = layered(root);
     let mut cards_map: HashMap<String, &Card> = HashMap::new();
     for c in &cards {
         cards_map.insert(c.name.clone(), c);
@@ -313,7 +360,7 @@ pub fn select(
 }
 
 pub fn text(root: &Path, names: &[String]) -> String {
-    let cards = cards(root);
+    let cards = layered(root);
     let mut result = String::new();
     let mut found_first = false;
     
@@ -334,7 +381,7 @@ pub fn text(root: &Path, names: &[String]) -> String {
     }
 
 pub fn text_with(root: &Path, overlay: &Path, names: &[String]) -> String {
-    let all = cards(root);
+    let all = layered(root);
     names
         .iter()
         .filter_map(|name| all.iter().find(|c| c.name == *name))
@@ -575,6 +622,82 @@ mod tests {
         assert_eq!(area_for(&r, "worker/web", &paths_in("add a button to web/src/a.ts")), "worker/web");
         assert_eq!(area_for(&r, "worker/web", &[]), "worker/web");
         let _ = std::fs::remove_dir_all(&r);
+    }
+
+    #[test]
+    fn general_cards_load() {
+        let root = std::env::temp_dir().join(format!("kk-layers-general-{}", std::process::id()));
+        let _local = root.with_extension("local");
+        let _ = std::fs::remove_dir_all(&root);
+        let _ = std::fs::remove_dir_all(root.with_extension("local"));
+        card(&root, "general/work-habits", "", "GENERAL HABITS");
+        card(&root, "shared/SKILL", "name: shared", "SHARED");
+        let merged = merged(&root, &_local).expect("merge failed");
+        let work_habits = merged.iter().find(|c| c.name == "work-habits").unwrap();
+        assert_eq!(work_habits.body, "GENERAL HABITS");
+        assert!(!merged.iter().any(|c| c.name.starts_with("general/")));
+        let _ = std::fs::remove_dir_all(&root);
+        let _ = std::fs::remove_dir_all(root.with_extension("local"));
+    }
+
+    #[test]
+    fn private_card_overrides_general() {
+        let root = std::env::temp_dir().join(format!("kk-layers-private-{}", std::process::id()));
+        let _local = root.with_extension("local");
+        let _ = std::fs::remove_dir_all(&root);
+        let _ = std::fs::remove_dir_all(root.with_extension("local"));
+        card(&root, "general/shared/git", "roles: [worker]", "GIT GENERAL");
+        card(&_local, "hosts", "overrides: shared/git", "GIT PRIVATE");
+        let merged = merged(&root, &_local).expect("merge failed");
+        let git_card = merged.iter().find(|c| c.name == "shared/git").unwrap();
+        assert_eq!(git_card.body.trim(), "GIT PRIVATE");
+        let has_hosts = merged.iter().any(|c| c.name == "hosts");
+        assert!(!has_hosts);
+        let _ = std::fs::remove_dir_all(&root);
+        let _ = std::fs::remove_dir_all(root.with_extension("local"));
+    }
+
+    #[test]
+    fn private_card_extends_general() {
+        let root = std::env::temp_dir().join(format!("kk-layers-extends-{}", std::process::id()));
+        let _local = root.with_extension("local");
+        let _ = std::fs::remove_dir_all(&root);
+        let _ = std::fs::remove_dir_all(root.with_extension("local"));
+        card(&root, "general/shared/git", "roles: [worker]", "GIT GENERAL");
+        card(&_local, "hosts", "extends: shared/git", "GIT EXTRA");
+        let merged = merged(&root, &_local).expect("merge failed");
+        let git_card = merged.iter().find(|c| c.name == "shared/git").unwrap();
+        assert_eq!(git_card.body.trim(), "GIT GENERAL\n\nGIT EXTRA");
+        let _ = std::fs::remove_dir_all(&root);
+        let _ = std::fs::remove_dir_all(root.with_extension("local"));
+    }
+
+    #[test]
+    fn unknown_override_fails() {
+        let root = std::env::temp_dir().join(format!("kk-layers-fail-{}", std::process::id()));
+        let local = root.with_extension("local");
+        let _ = std::fs::remove_dir_all(&root);
+        let _ = std::fs::remove_dir_all(root.with_extension("local"));
+        card(&local, "bad", "overrides: nope", "X");
+        let result = merged(&root, &local);
+        assert!(result.is_err());
+        let _ = std::fs::remove_dir_all(&root);
+        let _ = std::fs::remove_dir_all(root.with_extension("local"));
+    }
+
+    #[test]
+    fn kompanion_card_replaces_general() {
+        let root = std::env::temp_dir().join(format!("kk-layers-replace-{}", std::process::id()));
+        let local = root.with_extension("local");
+        let _ = std::fs::remove_dir_all(&root);
+        let _ = std::fs::remove_dir_all(root.with_extension("local"));
+        card(&root, "general/shared/SKILL", "", "G");
+        card(&root, "shared/SKILL", "", "K");
+        let merged = merged(&root, &local).expect("merge failed");
+        let skill_card = merged.iter().find(|c| c.name == "shared/SKILL").unwrap();
+        assert_eq!(skill_card.body.trim(), "K");
+        let _ = std::fs::remove_dir_all(&root);
+        let _ = std::fs::remove_dir_all(root.with_extension("local"));
     }
 
     #[test]
