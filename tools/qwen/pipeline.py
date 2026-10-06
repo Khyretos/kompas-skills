@@ -9,8 +9,10 @@ jobs.json: [{"name": "...", "role": "worker/rust"|"worker/web"|..., "prompt": ".
 Usage: pipeline.py jobs.json [log.jsonl]
 Writes the final code to each job's "out" and one log line per job
 (seconds on the GPU, tokens). Code fences are stripped from the output.
+Supports "check": "<shell command>" which runs after the job; if it fails,
+the pipeline retries up to 3 times with a patch job fixing the errors.
 """
-import json, os, re, sys, time, tomllib, urllib.request, urllib.parse, socket, threading
+import json, os, re, subprocess, sys, time, tomllib, urllib.request, urllib.parse, socket, threading
 
 # Only quirks of one model family live in skills/_model-notes/<NOTES>; every general rule is in
 # the role skills and work-habits.md, so a bigger model loaded later (MODEL_NOTES=gemma4, ...)
@@ -248,6 +250,37 @@ def run_job(job, log):
     except RuntimeError as e:
       print(json.dumps({"name": job["name"], "error": str(e)}), flush=True)
 
+def run_check(cmd):
+    """Returns (passed, last 60 lines of output)."""
+    try:
+        p = subprocess.run(cmd, shell=True, cwd=REPO, capture_output=True, text=True, timeout=900)
+    except subprocess.TimeoutExpired as e:
+        return False, f"timed out: {e}"
+    return p.returncode == 0, "\n".join((p.stdout + p.stderr).splitlines()[-60:])
+
+def check_loop(job, log):
+    """job["check"]: a build command run after the job; on failure the errors go back to
+    the model as a patch job for the same file, at most 3 rounds (Kees, 2026-10-05: half of
+    SK-02's fix rounds were Claude relaying compiler errors by hand)."""
+    cmd, out = job["check"], job["out"]
+    passed, errors = run_check(cmd)
+    runs = 1
+    for n in range(1, 4):
+        if passed:
+            break
+        fix = {k: v for k, v in job.items() if k not in ("check", "focus", "context")}
+        fix.update(name=f"{job['name']}#fix{n}", mode="patch", prompt=f"The check `{cmd}` fails after your change to {out}. Fix these errors in {out}; change nothing else.\n\n{errors}")
+        try:
+            patch_job(fix, log)
+        except RuntimeError as e:
+            print(json.dumps({"name": fix["name"], "error": str(e)}), flush=True)
+        passed, errors = run_check(cmd)
+        runs += 1
+    rec = {"name": job["name"], "out": out, "check": cmd, "check_attempts": runs, "check_passed": passed, "at": time.strftime("%Y-%m-%dT%H:%M:%S")}
+    if not passed:
+        rec["check_errors"] = errors
+    log.write(json.dumps(rec) + "\n"); log.flush(); print(json.dumps(rec), flush=True)
+
 def with_footer(text, job):
     """Fixed boilerplate (a sign-off line, a licence header) is appended in code: models
     drop it even when the prompt shows it (2026-10-05, twice in one day)."""
@@ -279,6 +312,8 @@ def main():
                 group = queue.pop(0)
             for job in group:
                 run_job(job, log)
+                if job.get("check"):
+                    check_loop(job, log)
     lanes = [threading.Thread(target=lane)]
     for t in lanes: t.start()
     for t in lanes: t.join()
