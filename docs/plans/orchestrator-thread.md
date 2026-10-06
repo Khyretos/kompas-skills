@@ -5,6 +5,7 @@
 **Depends on:** "Skills: smart loading within a size budget per model".
 
 **Steps**
+
 1. Ensure each project has one dedicated orchestrator thread (a chat marked as the project thread) created at project creation or first use.
 2. Implement automatic posting of short updates in the thread by the orchestrator for events: task started (with computer name), step done, waiting for approval (with link to approval card), review findings posted, lesson added (with skill file path), and task done or failed (with report link).
 3. When planning, have the orchestrator pick skill cards per step using `select()` and write them into the plan step as `skills: ["worker/web", "shared/colour-themes"]`, ensuring the worker and reviewer receive exactly those skills.

@@ -4,7 +4,6 @@ The full notes as they were before the general lessons moved into role skills an
 (`skills/orchestrator/prompting-workers.md`, `skills/shared/colour-themes.md`, `skills/worker/*`, `work-habits.md`).
 Kept as evidence; not loaded into prompts. Paths starting with `~/Docker/docs/ai-capability/` are task notes on kireserver.
 
-
 ## qwen3:14b (Ollama on soucouyant)
 
 Measured 2026-10-01..03 (details: ~/Docker/docs/ai-capability/qwen3-14b-soucouyant-2026-10.md).

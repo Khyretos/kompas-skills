@@ -5,6 +5,7 @@
 **Depends on:** nothing.
 
 **Steps**
+
 1. Write `docs/modules.md`: one row per area (chat, tasks and runs, machines and runner, assets, games, GPU scheduler and roles, voice, studio, notifications, search) with its routes, tables, background jobs and which other areas it may call.
 2. In code, each area gets one `mod.rs` with a `routes()` function and a `spawn()` for its background jobs; `main.rs` only wires them. Calls between areas go through a small public function, not into another area's internals.
 3. Background jobs run under a supervisor: a panic or error is logged, the job restarts with backoff, and chat keeps answering.

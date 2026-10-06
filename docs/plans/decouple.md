@@ -5,6 +5,7 @@
 **Depends on:** nothing.
 
 **Steps**
+
 1. List every setup assumption with `grep -rn` for host names, IPs, `/home/`, `ovms`, `gpu-mode.sh`, `soucouyant`, `kireserver` in `server/`, `runner/`, `gpu-role/`, `tools/`, `web/src`; write the list into the task chat before changing anything.
 2. Providers: every base URL, model name and extra body comes from `kompanion.toml`; `tools/qwen/pipeline.py` reads the same file (provider `ovms`, role `worker`) instead of `docker inspect ovms`.
 3. GPU tools: the GPU role switch calls a configurable helper (`[gpu.role] helper_socket = ...`, commands listed in config); without it the switch is simply off and the UI says so.
