@@ -16,3 +16,6 @@ Topic lessons moved into cards (live-updates, playwright, css-layout, controls),
 58. (2026-10-06) A patch replaces its whole SEARCH text: every line in SEARCH that you keep must be
     in REPLACE too. A draft searched the import lines to add one name and dropped another import;
     three fix rounds didn't restore it. Search only the line you change.
+72. (2026-10-07) To give a `.map()` result a declared type, annotate the callback's return,
+    `.map((w): StudioType => ({ ... }))`. Never cast mid-chain (`.map(...) as T[]` followed by
+    `.sort(...)` on the next line): it does not parse (TS1128), and four fix rounds did not see why.
