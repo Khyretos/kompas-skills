@@ -26,3 +26,7 @@ paths: ["**/*.py"]
    (a step that always rewrites an entry never settles and the tests hang). A later entry with the
    same key replaces the whole earlier entry, body included; an override takes the NEW body, an
    extend appends it. Give tests a `timeout 60` so a hang fails fast.
+9. (2026-10-06) A function that returns a tuple is unpacked at every call (`_, blocks =
+   split_card(text)`), and a file is read once, before any loop over its lines, not once per item.
+10. (2026-10-06) Only inputs must exist: create output folders with `os.makedirs(parent,
+    exist_ok=True)` instead of stopping with "directory not found".

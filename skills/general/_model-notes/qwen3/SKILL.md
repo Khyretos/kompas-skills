@@ -11,23 +11,9 @@ Full history with evidence: `docs/model-notes/qwen3-history-2026-10.md`.
 
 ## Settings
 
-- Thinking off for drafting. OVMS ("Coder", Qwen3.5-9B int8 on the A770): every call sends
-  `"chat_template_kwargs": {"enable_thinking": false}`, health pings included, or it spends
-  `max_tokens` thinking and answers empty. Ollama: `reasoning_effort: "none"` (OpenAI endpoint)
-  or `think: false` (native); Ollama ignores `chat_template_kwargs`.
-- OVMS: call the container address, not the proxy (the proxy cuts answers at 60 s). Prompts are
-  cut at about 4,096 tokens (8k for some configs: `prompt_tokens` 4096/8194 is the sign).
-- Ollama on soucouyant: one tag per host (`qwen3:14b` and `qwen3:14b-16k` alternating reload the
-  model every request, ~44 s each). `qwen3.5:9b-q8_0` is built with `num_ctx 16384`, `num_thread 1`.
-
 ## Speed and memory
 
-- Qwen3.5-9B: ~30 tok/s on the A770 (one request; a running job slows Open WebUI chat from ~1.7 s
-  to ~3.2 s per answer, so batches run with concurrency 1), 59-84 tok/s on the RX 9070 XT,
-  12.8 GB card total at 16k.
 - qwen3:14b: 60 tok/s, 14.0 GB at 16k; at 32k it no longer fits. No vision.
-- Qwen3.5-9B has vision (image_url data URLs through OVMS): fine as a check, not the only gate.
-
 ## Typical slips (check these in review)
 
 - Grades its own work too kindly and follows a wrong reviewer comment.

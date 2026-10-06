@@ -17,8 +17,6 @@ From 29 CSS re-theme runs over 14 apps and the VS Code, Kate, DMS and kitty them
 4. Think about what a colour is for: `cursor_text_color` is the text under the cursor, so it must
    contrast with the cursor colour.
 5. Light and dark variants each get their own value table; do not derive one from the other.
-6. Check every text/background pair with the contrast script, never by eye: 4.5:1 body text, 7:1
-   headers and buttons (Kees's bright-text rule). Lilac and orange are never text on light.
 7. A bare `a` or generic selector (`.card`, `.sidebar`) recolours the whole UI; touch only the
    selectors you were given.
 8. Starting from a working example theme of the same app beats describing the app.

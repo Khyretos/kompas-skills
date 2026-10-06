@@ -16,7 +16,7 @@ pub fn data_dir(s: &AppState) -> PathBuf {
 
 /// Checks if a card with the given name exists in the skills directory.
 fn known_card(name: &str) -> bool {
-    crate::skills::cards(&crate::skills::dir()).iter().any(|c| c.name == name)
+    crate::skills::layered(&crate::skills::dir()).iter().any(|c| c.name == name)
 }
 
 /// Proposes a lesson to the database and posts a notification.
