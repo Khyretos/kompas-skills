@@ -91,3 +91,13 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
 60. (2026-10-06) When a job adds a branch next to existing code, say where it goes ("before the
     line `if (!x) return;`") and which existing lines stay as they are. Asked for "two cases" in
     prose, the draft merged them into one path that dropped the value the user had just chosen.
+62. (2026-10-06) A "loop until X, then use it" step in prose comes back as a `while` loop that
+    tests the first value and never rebinds it, so the code after the loop uses the wrong item
+    (the check still passed, by luck of event order). Give the shape: `let e = loop { let x =
+    next(); if ok(&x) { break x; } };`.
+63. (2026-10-06) A new-file check written as `test ! -e f || ...` also passes when the job wrote
+    nothing: an answer cut off at the token limit left no file and the job counted as passed.
+    After the precheck, a new-file job needs a check that requires the file ("precheck": false
+    and `test -e f || { echo "error: f: not written"; exit 1; }`). When a cut-off answer goes
+    into fix rounds, the fix writes a stub with just the grepped names; for a whole file, check
+    every piece of the spec (a list of signatures and literals) and ask for a compact file.
