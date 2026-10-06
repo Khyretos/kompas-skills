@@ -79,3 +79,8 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
     the model also builds SEARCH text from the prompt's new code when it resembles a real line
     (`if (firstRender || changed(...` that was not in the file): quote the anchor lines from the
     file and say "insert after these lines" instead of describing a block.
+57. (2026-10-06) A batch whose checks build the whole program (`cargo check`, `tsc`) shares one
+    tree: when one job's check fails, the tree stays broken and every later job's check fails on
+    that error, so their fix rounds rewrite code that wasn't wrong (a deleted test, invented
+    signatures). Run a job whose code the next jobs depend on in its own pipeline call, check that
+    it passes, then queue the rest.
