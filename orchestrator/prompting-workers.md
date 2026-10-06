@@ -73,3 +73,9 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
 34. (2026-10-06) A check for a renamed function must pass once the callers are updated too: rename
     the callers in the same job, or in the check's precondition, or the job can never pass. Read
     every test a fix round added: one asserted an expectation the spec never gave.
+35. (2026-10-06) A grep-only check gets gamed: the draft put `menuitemradio` in a class list and
+    changed the function's signature, and the check passed. Check the exact signature and every
+    attribute the spec names, and prefer a behaviour test (Playwright) as the check. In patch mode
+    the model also builds SEARCH text from the prompt's new code when it resembles a real line
+    (`if (firstRender || changed(...` that was not in the file): quote the anchor lines from the
+    file and say "insert after these lines" instead of describing a block.

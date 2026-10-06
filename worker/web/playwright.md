@@ -22,3 +22,7 @@ paths: ["web/tests/**", "web/tests-real/**", "web/playwright*.ts", "docs/screens
     `.click()`. To move shared steps into `test.beforeEach`, edit the existing one: a `describe` has
     one `beforeEach`, and a second copy runs the setup twice. Read the demo data (`api/mock.ts`)
     before writing expected text, such as which computer a form picks by default.
+50. (2026-10-06) Run code in the page on an element with `locator.evaluate((el) => ...)`; a locator
+    passed into `page.evaluate` cannot be serialized. WCAG luminance: `v <= 0.03928 ? v / 12.92 :
+    ((v + 0.055) / 1.055) ** 2.4` (divide, never multiply). Keep every assertion the spec lists
+    (focus after a choice, both colour schemes); never drop one to make a run pass.

@@ -24,3 +24,8 @@ paths: ["**/*.css"]
     needs hard stops, `box-shadow: inset 0 0 0 0` is invisible, an icon button needs `fill`.
 45. (2026-10-03) DOM: insert the wrapper before the node, then move the node in; `appendChild(pre)`
     followed by `replaceChild(..., pre)` throws.
+51. (2026-10-06) A new control placed inside an existing line inherits that line's phone rules: the
+    composer hint was `display: none` under 760 px, so the effort chip vanished on phones. Before
+    adding to a container, grep its class in every media query; hide the parts, not the container.
+    After a re-mount or a closed menu removes the focused element, focus falls to `<body>`: note
+    whether focus was inside before the mount and give it back to the trigger after.
