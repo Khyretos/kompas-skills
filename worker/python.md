@@ -1,0 +1,32 @@
+---
+name: worker/python
+description: Python scripts and services (ingest jobs, MCP servers, small web servers).
+roles: [worker, reviewer]
+tags: [python, psycopg, sql, scripts]
+paths: ["**/*.py"]
+---
+# Worker: Python
+
+1. (2026-10-04) psycopg 3: `conn.execute(sql, params).fetchall()`; `Connection.fetchall()` does not exist.
+2. (2026-10-04) Never build SQL with f-strings around values or filters; pass parameters.
+3. (2026-10-04) A `while ...: ... break` loop that splits text must keep the last piece; check the
+   output has all the input (count characters or lines).
+4. (2026-10-04) Keep code blocks whole when chunking markdown; never drop lines you cannot parse.
+5. (2026-10-04) A 300-line script in one draft comes back half-done ("I will assume..." and `pass`):
+   2-4 functions with exact signatures per draft.
+6. (2026-10-06) Do what the prompt says word for word: "match os.path.basename(out)" means the
+   base name, not the full path; "add to the module docstring" means the one at the top of the file,
+   not the function's. Every listed change is part of the answer (a comment line too).
+7. (2026-10-06) Use the paths the prompt names exactly (`"skills/" + key`), never a folder made up
+   from the script's own location. A list in the input (`"lessons": [...]`) means every item: loop
+   over it, never take `[0]`. A front-matter header ends at its second `---` line:
+   `end = text.index("\n---\n", 4) + 5`. Pass the value the function reads (`data[core]`, a dict),
+   not `list(data[core])` when it indexes by key.
+8. (2026-10-06) Merging layers of a dict: one pass over the layers in order, never `while changed:`
+   (a step that always rewrites an entry never settles and the tests hang). A later entry with the
+   same key replaces the whole earlier entry, body included; an override takes the NEW body, an
+   extend appends it. Give tests a `timeout 60` so a hang fails fast.
+9. (2026-10-06) A function that returns a tuple is unpacked at every call (`_, blocks =
+   split_card(text)`), and a file is read once, before any loop over its lines, not once per item.
+10. (2026-10-06) Only inputs must exist: create output folders with `os.makedirs(parent,
+    exist_ok=True)` instead of stopping with "directory not found".
