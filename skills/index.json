@@ -54,7 +54,7 @@
   ]
  },
  {
-  "chars": 5348,
+  "chars": 5784,
   "description": "How to write a job prompt any worker model can carry out, and how to run fix rounds.",
   "file": "orchestrator/prompting-workers",
   "models": [],
@@ -443,7 +443,7 @@
   ]
  },
  {
-  "chars": 2897,
+  "chars": 3165,
   "description": "Rust that runs processes and touches files: argv, pipes, temp folders in tests, sysfs, binary formats, the runner's job shape.",
   "file": "worker/rust/processes-files",
   "models": [],

@@ -8,3 +8,5 @@ node_modules
 __pycache__/
 *.pyc
 web/test-results/
+# private skill layer of this setup (SK-03), mounted read-only at /skills-local
+/skills-local/
