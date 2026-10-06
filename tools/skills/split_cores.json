@@ -1,0 +1,63 @@
+{
+  "_doc": "SK-01b, one-time: which numbered lessons of a role core move into which topic card. Each prefix is the start of a lesson's text after its number ('12. '). Used by split_cores.py.",
+  "worker/web/SKILL.md": {
+    "worker/web/live-updates.md": {
+      "description": "Web views that re-render on live updates: keeping focus, scroll, open state and user edits; redraw keys.",
+      "tags": ["render", "rerender", "live", "focus", "redraw", "pane", "search", "refresh", "state", "store"],
+      "paths": ["web/src/views/**", "web/src/state.ts", "web/src/main.ts"],
+      "lessons": ["(2026-10-03) The settings sheet", "(2026-10-04) Never keep UI state", "(2026-10-04) In `main.ts`", "A field inside a pane", "(2026-10-05) Remember UI state", "(2026-10-05) Search-as-you-type", "(2026-10-05) A live re-render", "(2026-10-05) A pane that re-renders", "(2026-10-05) A list that other views", "(2026-10-05) Step groups", "(2026-10-05) New state is drawn"]
+    },
+    "worker/web/playwright.md": {
+      "description": "Playwright tests and screenshots for the web app: locators, waits, mocks, running browsers in a container.",
+      "tags": ["playwright", "test", "tests", "e2e", "screenshot", "screenshots", "mock", "demo"],
+      "paths": ["web/tests/**", "web/tests-real/**", "web/playwright*.ts", "docs/screenshots/**"],
+      "lessons": ["Playwright: `expect()`", "A test must do what its name says", "A mock that hands", "(2026-10-04) No `test.skip`", "(2026-10-05) Playwright's click()", "(2026-10-05) kireserver has no Playwright", "(2026-10-05) A Node ESM script", "(2026-10-05) Screenshots of a dialog", "(2026-10-05) The demo needs", "(2026-10-05) Playwright actions"]
+    },
+    "worker/web/css-layout.md": {
+      "description": "CSS and layout in the web app: colour tokens, bright text, @import order, grids, display and hidden, long lists.",
+      "tags": ["css", "style", "styles", "colour", "colours", "color", "layout", "grid", "contrast", "scroll", "virtualised"],
+      "paths": ["**/*.css"],
+      "lessons": ["(2026-10-03) Colours: use the tokens", "A CSS file pulled in", "Long lists (thousands", "An `<img>` in a fixed-height", "(2026-10-04) A class that sets `display`", "(2026-10-05, Kees: \"I like my text bright", "(2026-10-04) CSS that looks fine", "(2026-10-03) DOM: insert the wrapper"]
+    },
+    "worker/web/controls.md": {
+      "description": "Web controls and markup: overlays that close three ways, buttons in cards and list rows, media with Range.",
+      "tags": ["modal", "dialog", "overlay", "sheet", "button", "buttons", "media", "audio", "video", "list", "row", "card"],
+      "paths": [],
+      "lessons": ["Every overlay (modal", "A button inside a card button", "Media served to `<audio>`", "A list row that should do something"]
+    }
+  },
+  "worker/rust/SKILL.md": {
+    "worker/rust/sql.md": {
+      "description": "SQLite with sqlx in the Kompanion server: runtime queries, tuple rows, binds, migrations, triggers, FTS5.",
+      "tags": ["sql", "sqlx", "sqlite", "query", "migration", "migrations", "database", "db", "fts5", "trigger", "column", "columns"],
+      "paths": ["server/migrations/**"],
+      "lessons": ["(2026-10-03) SQL: use runtime queries", "(2026-10-03) The database is SQLite", "`.bind(x)` takes ownership", "The server's database pool", "Migrations of a feature", "(2026-10-05) In SQLite triggers", "(2026-10-05) FTS5 ranking", "(2026-10-03) Annotate tuple rows", "(2026-10-05) A one-column `query_as`", "(2026-10-06) SQL columns", "(2026-10-06) Adding columns"]
+    },
+    "worker/rust/processes-files.md": {
+      "description": "Rust that runs processes and touches files: argv, pipes, temp folders in tests, sysfs, binary formats, the runner's job shape.",
+      "tags": ["process", "command", "argv", "pipe", "file", "files", "fs", "path", "runner", "sysfs", "binary", "wav", "stats", "temp"],
+      "paths": ["runner/**", "machine-stats/**", "gpu-helper/**"],
+      "lessons": ["(2026-10-01) Rates from counters", "(2026-10-01) sysfs", "Tests clean up only", "Build a command as one argv", "Process plumbing: `Command::current_dir`", "When you read a file, keep", "Rust runs tests in parallel", "File names with version dots", "Use only the crates in Cargo.toml. There is no `dirs`", "Know the data shape", "(2026-10-03) Process and pipe plumbing", "(2026-10-04) Binary formats", "(2026-10-04) `tools/qwen/pipeline.py` finds OVMS"]
+    },
+    "worker/rust/axum-api.md": {
+      "description": "Kompanion server handlers: axum responses and headers, query flags, access checks, model calls, events, mail links, URL allow-lists.",
+      "tags": ["axum", "api", "handler", "route", "header", "headers", "access", "model", "llm", "event", "broadcast", "mail", "url", "spawn"],
+      "paths": ["server/src/api.rs", "server/src/admin.rs", "server/src/access/**", "server/src/taskrun/**"],
+      "lessons": ["(2026-10-03) Background tasks", "(2026-10-03) Model calls", "(2026-10-03) Access checks", "axum responses", "Broadcast to every signed-in user", "(2026-10-04) Resolve a model role", "(2026-10-05) A query flag", "Array-of-tuple headers", "(2026-10-05) Anything a mail links to", "(2026-10-05) URL allow-lists"]
+    }
+  },
+  "worker/localization/SKILL.md": {
+    "worker/localization/languages.md": {
+      "description": "Per-language rules for website translation: form of address, scripts, RTL, verb order, dates, loaded words, which languages get a full audit.",
+      "tags": ["language", "languages", "address", "rtl", "script", "dates", "audit", "pt", "ru", "nl", "de", "es", "tr", "ja", "ko", "ar", "irish", "cv"],
+      "paths": [],
+      "lessons": ["(2026-09-29) The CV is written", "(2026-09-29) Hold low-resource", "(2026-10-03) English tech loanwords", "(2026-10-03) Set the form of address for each", "(2026-10-03) Kees's own languages", "(2026-10-04) Verb-final", "(2026-10-04) LibreTranslate's \"pt\"", "(2026-10-04) Stat labels", "(2026-10-04) Russian took", "(2026-10-04) Right-to-left", "(2026-10-04) Hard-fail letters", "(2026-10-04) Dates are formatted", "(2026-10-04) Watch for words", "(2026-10-04) Set the form of address for EVERY", "(2026-10-05) \"Used\" for hardware"]
+    },
+    "worker/localization/pipeline.md": {
+      "description": "The kk-localize tooling: LibreTranslate quirks, Hugo language codes, extraction, langdetect, the judge, paused model servers, releasing languages.",
+      "tags": ["libretranslate", "hugo", "langdetect", "judge", "extract", "extraction", "release", "pipeline", "flags", "switcher", "template", "server"],
+      "paths": [],
+      "lessons": ["(2026-10-03) LibreTranslate can fail", "(2026-10-03) Language switcher flags", "(2026-10-03) langdetect", "(2026-10-03) A translation far longer", "(2026-10-03) Never extract text", "(2026-10-03) A model server can be paused", "(2026-10-03) Hugo lower-cases", "(2026-10-04) LibreTranslate sometimes mangles", "(2026-10-04) Release one language", "(2026-10-04) The judge scores", "(2026-10-05) Lesson 18 again"]
+    }
+  }
+}

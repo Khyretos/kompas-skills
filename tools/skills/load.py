@@ -64,6 +64,12 @@ def select(role, task_text="", paths=(), notes="", budget_tokens=1500, extra=(),
         roles = c["meta"].get("roles", [])
         if roles and family != "shared" and family not in roles:
             continue
+        # Area rule: a card with 3 parts (e.g. "worker/rust/sql") is picked only for a job of that area.
+        # Skip it when the role has 2 parts (e.g. "worker/web") with the same first part but different second part.
+        parts_card = rel.split("/")
+        parts_role = role.split("/")
+        if len(parts_card) == 3 and len(parts_role) == 2 and parts_card[0] == parts_role[0] and parts_card[1] != parts_role[1]:
+            continue
         sc = score(c, task_words, paths)
         if sc > 0:
             candidates.append((-sc, rel))

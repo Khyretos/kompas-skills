@@ -38,6 +38,13 @@ class SelectTest(unittest.TestCase):
         names, _ = load.select("worker/web", "build a prompt", [], root=self.root)
         self.assertNotIn("orchestrator/prompting", names)
 
+    def test_area_cards_stay_in_their_area(self):
+        card(self.root, "worker/rust/api", 'roles: [worker, reviewer]\ntags: [header]', "RUST API")
+        rust_names, _ = load.select("worker/rust", "fix the header", [], root=self.root)
+        web_names, _ = load.select("worker/web", "fix the header", [], root=self.root)
+        self.assertIn("worker/rust/api", rust_names)
+        self.assertNotIn("worker/rust/api", web_names)
+
     def test_named_cards_are_always_included_and_unknown_ones_refused(self):
         names, _ = load.select("worker/web", "", [], extra=["worker/python"], root=self.root)
         self.assertIn("worker/python", names)

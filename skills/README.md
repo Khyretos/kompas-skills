@@ -24,7 +24,9 @@ Each folder has a `SKILL.md`; lessons are numbered and dated, newest last.
 These files grow with every review, so models get only what a job needs, and every model
 (today's 9B, a 27B later) reads the same lessons.
 
-- `<role>/SKILL.md` is the role's core: the rules every job in that role needs.
+- `<role>/SKILL.md` is the role's core: the rules every job in that role needs. New lessons on a
+  topic that has a card go into that card, not the core (SK-01b split the web, rust and
+  localization cores). A card in `worker/<area>/` is only given to that area's jobs.
 - `<role>/<topic>.md` is a card: one topic, with a header for the loader:
   ```
   ---
