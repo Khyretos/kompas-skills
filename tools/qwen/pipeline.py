@@ -91,6 +91,15 @@ def skill_budget():
         return int(b.get(os.environ.get("WORKER_MODEL", "Coder"), b.get("default", 1500)))
     return int(b)
 
+def skills_local():
+    """The private skill layer: $KOMPANION_SKILLS_LOCAL, else [skills] local in kompanion.toml, else /skills-local."""
+    if os.environ.get("KOMPANION_SKILLS_LOCAL"):
+        return os.environ["KOMPANION_SKILLS_LOCAL"]
+    try:
+        return tomllib.load(open(config_path(), "rb")).get("skills", {}).get("local", "/skills-local")
+    except OSError:
+        return "/skills-local"
+
 def skills(role, extra=(), task="", paths=()):
     """The job's lessons from tools/skills/load.py: work habits, shared and role cores, the cards
     the job names, the model's notes, and the cards that match the task within the budget.
@@ -98,7 +107,7 @@ def skills(role, extra=(), task="", paths=()):
     sys.path.insert(0, os.path.join(REPO, "tools", "skills"))
     import load
     try:
-        names, text = load.select(role, task, list(paths), notes=NOTES, budget_tokens=skill_budget(), extra=list(extra))
+        names, text = load.select(role, task, list(paths), notes=NOTES, budget_tokens=skill_budget(), extra=list(extra), local=skills_local())
     except ValueError as e:
         raise RuntimeError(str(e))
     LANE.skills = names

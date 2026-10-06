@@ -1,14 +1,6 @@
 ---
-name: worker/web
-description: Writing the vanilla TypeScript web app and its Playwright tests.
-roles: [worker, reviewer]
-tags: [typescript, web, css, html, playwright]
-paths: ["web/**"]
+extends: worker/web/SKILL
 ---
-# Worker: web app (vanilla TypeScript)
-
-Topic lessons moved into cards (live-updates, playwright, css-layout, controls), loaded when a job needs them. Add new lessons to the card they belong to.
-
 1. (2026-10-01) Templates: only the escaping `html` tagged template; nested `html` values and arrays of them are fine. Never `innerHTML`, never `.join("")` on `html` arrays (it escapes the markup).
 2. (2026-10-01) Clicks go through `onAction` with `data-action`; it calls `preventDefault`, so radio buttons and checkboxes must use the `change` event instead of `data-action`.
 4. (2026-10-03) `tsc` fails the build on unused imports: remove them.
@@ -41,4 +33,3 @@ Topic lessons moved into cards (live-updates, playwright, css-layout, controls),
 43. (2026-10-04) Union-typed fields in helper return types: use `Pick<Type, "a" | "b">`, not `string`.
 46. (2026-10-04) Boolean attributes in `html` templates: `${x ? "selected" : ""}`, never `${String(x)}`.
     Use only icon names that exist in `views/icons.ts`. One small function per template branch.
-47. (2026-10-05) "Plain JavaScript" means no type annotations; run `node --check` on every `.mjs`.

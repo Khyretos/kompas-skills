@@ -74,3 +74,9 @@ A card with the same path in a later layer replaces the earlier one. A card with
 in its header replaces that card's body; `extends: <name>` adds its body after it. Before anything
 goes into `skills/general/`, `tools/skills/privacy_check.py skills/general` must pass (no IPs, home
 paths, emails, or host names from the private layer's `deny-hosts.txt`).
+
+Since SK-03c (2026-10-06) the cards are split: general lessons in `skills/general/`, Kompanion's own in
+the rest of `skills/` (`extends:` cards where a card has parts in both), and the setup's private lessons
+in the `kompanion-skills-kees` repo, mounted at `/skills-local` (`KOMPANION_SKILLS_LOCAL_DIR` in `.env`;
+host tools read `[skills] local` in `kompanion.toml`). `tools/skills/split_layers.py` did the split from
+reviewed tags; new lessons go straight into the right layer.

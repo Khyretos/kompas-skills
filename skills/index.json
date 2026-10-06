@@ -1,6 +1,6 @@
 [
  {
-  "chars": 2481,
+  "chars": 2155,
   "description": "Quirks of the Gemma 4 models only (settings, speed, memory, typical slips).",
   "file": "_model-notes/gemma4/SKILL",
   "models": [
@@ -12,7 +12,7 @@
   "tags": []
  },
  {
-  "chars": 820,
+  "chars": 714,
   "description": "Quirks of the gpt-oss models only (settings, speed, memory, typical slips).",
   "file": "_model-notes/gpt-oss/SKILL",
   "models": [
@@ -24,7 +24,7 @@
   "tags": []
  },
  {
-  "chars": 3579,
+  "chars": 2531,
   "description": "Quirks of the Qwen3 and Qwen3.5 models only (settings, speed, memory, typical slips). General rules are in the role skills.",
   "file": "_model-notes/qwen3/SKILL",
   "models": [
@@ -37,24 +37,7 @@
   "tags": []
  },
  {
-  "chars": 6908,
-  "description": "Planning tasks into steps, building job prompts, running the drafting pipeline and PRs.",
-  "file": "orchestrator/SKILL",
-  "models": [],
-  "name": "orchestrator",
-  "paths": [],
-  "roles": [
-   "orchestrator"
-  ],
-  "tags": [
-   "plan",
-   "prompt",
-   "pipeline",
-   "pr"
-  ]
- },
- {
-  "chars": 5784,
+  "chars": 5768,
   "description": "How to write a job prompt any worker model can carry out, and how to run fix rounds.",
   "file": "orchestrator/prompting-workers",
   "models": [],
@@ -72,7 +55,7 @@
   ]
  },
  {
-  "chars": 2746,
+  "chars": 1012,
   "description": "What to check in a draft, in order.",
   "file": "reviewer/SKILL",
   "models": [],
@@ -87,7 +70,7 @@
   ]
  },
  {
-  "chars": 2089,
+  "chars": 696,
   "description": "Running tools on computers within the access grants.",
   "file": "runner/SKILL",
   "models": [],
@@ -103,24 +86,7 @@
   ]
  },
  {
-  "chars": 1131,
-  "description": "Facts every role needs: language priority, never pass a check by changing it.",
-  "file": "shared/SKILL",
-  "models": [],
-  "name": "shared",
-  "paths": [],
-  "roles": [
-   "orchestrator",
-   "worker",
-   "reviewer",
-   "runner"
-  ],
-  "tags": [
-   "shared"
-  ]
- },
- {
-  "chars": 1177,
+  "chars": 988,
   "description": "Writing colour themes, palettes and CSS re-themes (editors, terminals, web apps) that stay readable.",
   "file": "shared/colour-themes",
   "models": [],
@@ -145,8 +111,8 @@
   ]
  },
  {
-  "chars": 4291,
-  "description": "Running local models on shared GPUs: Ollama hosts, model tags, night batches, CPU use, OVMS VRAM.",
+  "chars": 2049,
+  "description": "Running local models on shared GPUs: Ollama hosts, model tags, night batches, CPU use, VRAM, voice.",
   "file": "shared/models-and-gpus",
   "models": [],
   "name": "shared/models-and-gpus",
@@ -158,7 +124,6 @@
   ],
   "tags": [
    "ollama",
-   "ovms",
    "gpu",
    "vram",
    "model",
@@ -189,31 +154,6 @@
   ]
  },
  {
-  "chars": 6879,
-  "description": "Theming apps and desktops in the Kreative Kompas brand: readability checks, colour roles, web, desktop and Kate themes.",
-  "file": "shared/theming-brand",
-  "models": [],
-  "name": "shared/theming-brand",
-  "paths": [
-   "**/*.css",
-   "**/*theme*"
-  ],
-  "roles": [
-   "worker",
-   "reviewer",
-   "orchestrator"
-  ],
-  "tags": [
-   "theme",
-   "css",
-   "colours",
-   "brand",
-   "contrast",
-   "desktop",
-   "kate"
-  ]
- },
- {
   "chars": 1525,
   "description": "How the reviewer works; given to every job of every role.",
   "file": "work-habits",
@@ -229,7 +169,7 @@
   "tags": []
  },
  {
-  "chars": 3002,
+  "chars": 2733,
   "description": "The Kompanion Android app (plain Java WebView app with UnifiedPush) and its build container.",
   "file": "worker/android",
   "models": [],
@@ -250,8 +190,8 @@
   ]
  },
  {
-  "chars": 4425,
-  "description": "kk-engine games in C++: cameras, controllers, assets, tests on soucouyant.",
+  "chars": 963,
+  "description": "kk-engine games in C++: cameras, controllers, assets, tests.",
   "file": "worker/cpp-games/SKILL",
   "models": [],
   "name": "worker/cpp-games",
@@ -291,7 +231,7 @@
   ]
  },
  {
-  "chars": 3420,
+  "chars": 2837,
   "description": "Translating the website (kk-localize): what to protect, what needs context.",
   "file": "worker/localization/SKILL",
   "models": [],
@@ -311,7 +251,7 @@
   ]
  },
  {
-  "chars": 4161,
+  "chars": 3245,
   "description": "Per-language rules for website translation: form of address, scripts, RTL, verb order, dates, loaded words, which languages get a full audit.",
   "file": "worker/localization/languages",
   "models": [],
@@ -343,7 +283,7 @@
   ]
  },
  {
-  "chars": 3206,
+  "chars": 2606,
   "description": "The kk-localize tooling: LibreTranslate quirks, Hugo language codes, extraction, langdetect, the judge, paused model servers, releasing languages.",
   "file": "worker/localization/pipeline",
   "models": [],
@@ -369,7 +309,7 @@
   ]
  },
  {
-  "chars": 1697,
+  "chars": 2041,
   "description": "Python scripts and services (ingest jobs, MCP servers, small web servers).",
   "file": "worker/python",
   "models": [],
@@ -389,7 +329,7 @@
   ]
  },
  {
-  "chars": 5325,
+  "chars": 5326,
   "description": "Writing Rust for the Kompanion server, runner and helpers.",
   "file": "worker/rust/SKILL",
   "models": [],
@@ -410,7 +350,7 @@
   ]
  },
  {
-  "chars": 2209,
+  "chars": 2210,
   "description": "Kompanion server handlers: axum responses and headers, query flags, access checks, model calls, events, mail links, URL allow-lists.",
   "file": "worker/rust/axum-api",
   "models": [],
@@ -443,7 +383,7 @@
   ]
  },
  {
-  "chars": 3165,
+  "chars": 3166,
   "description": "Rust that runs processes and touches files: argv, pipes, temp folders in tests, sysfs, binary formats, the runner's job shape.",
   "file": "worker/rust/processes-files",
   "models": [],
@@ -475,6 +415,115 @@
   ]
  },
  {
+  "chars": 3385,
+  "description": "Writing the vanilla TypeScript web app and its Playwright tests.",
+  "file": "worker/web/SKILL",
+  "models": [],
+  "name": "worker/web",
+  "paths": [
+   "web/**"
+  ],
+  "roles": [
+   "worker",
+   "reviewer"
+  ],
+  "tags": [
+   "typescript",
+   "web",
+   "css",
+   "html",
+   "playwright"
+  ]
+ },
+ {
+  "chars": 1755,
+  "description": "CSS and layout in the web app: colour tokens, bright text, @import order, grids, display and hidden, long lists.",
+  "file": "worker/web/css-layout",
+  "models": [],
+  "name": "worker/web/css-layout",
+  "paths": [
+   "**/*.css"
+  ],
+  "roles": [
+   "worker",
+   "reviewer"
+  ],
+  "tags": [
+   "css",
+   "style",
+   "styles",
+   "colour",
+   "colours",
+   "color",
+   "layout",
+   "grid",
+   "contrast",
+   "scroll",
+   "virtualised"
+  ]
+ },
+ {
+  "chars": 2534,
+  "description": "Playwright tests and screenshots for the web app: locators, waits, mocks, running browsers in a container.",
+  "file": "worker/web/playwright",
+  "models": [],
+  "name": "worker/web/playwright",
+  "paths": [
+   "web/tests/**",
+   "web/tests-real/**",
+   "web/playwright*.ts",
+   "docs/screenshots/**"
+  ],
+  "roles": [
+   "worker",
+   "reviewer"
+  ],
+  "tags": [
+   "playwright",
+   "test",
+   "tests",
+   "e2e",
+   "screenshot",
+   "screenshots",
+   "mock",
+   "demo"
+  ]
+ },
+ {
+  "chars": 7525,
+  "description": "Planning tasks into steps, building job prompts, running the drafting pipeline and PRs.",
+  "file": "orchestrator/SKILL",
+  "models": [],
+  "name": "orchestrator",
+  "paths": [],
+  "roles": [
+   "orchestrator"
+  ],
+  "tags": [
+   "plan",
+   "prompt",
+   "pipeline",
+   "pr"
+  ]
+ },
+ {
+  "chars": 617,
+  "description": "Facts every role needs: language priority, never pass a check by changing it.",
+  "file": "shared/SKILL",
+  "models": [],
+  "name": "shared",
+  "paths": [],
+  "roles": [
+   "orchestrator",
+   "worker",
+   "reviewer",
+   "runner"
+  ],
+  "tags": [
+   "shared"
+  ]
+ },
+ {
   "chars": 2477,
   "description": "SQLite with sqlx in the Kompanion server: runtime queries, tuple rows, binds, migrations, triggers, FTS5.",
   "file": "worker/rust/sql",
@@ -500,27 +549,6 @@
    "trigger",
    "column",
    "columns"
-  ]
- },
- {
-  "chars": 3384,
-  "description": "Writing the vanilla TypeScript web app and its Playwright tests.",
-  "file": "worker/web/SKILL",
-  "models": [],
-  "name": "worker/web",
-  "paths": [
-   "web/**"
-  ],
-  "roles": [
-   "worker",
-   "reviewer"
-  ],
-  "tags": [
-   "typescript",
-   "web",
-   "css",
-   "html",
-   "playwright"
   ]
  },
  {
@@ -550,33 +578,6 @@
   ]
  },
  {
-  "chars": 2510,
-  "description": "CSS and layout in the web app: colour tokens, bright text, @import order, grids, display and hidden, long lists.",
-  "file": "worker/web/css-layout",
-  "models": [],
-  "name": "worker/web/css-layout",
-  "paths": [
-   "**/*.css"
-  ],
-  "roles": [
-   "worker",
-   "reviewer"
-  ],
-  "tags": [
-   "css",
-   "style",
-   "styles",
-   "colour",
-   "colours",
-   "color",
-   "layout",
-   "grid",
-   "contrast",
-   "scroll",
-   "virtualised"
-  ]
- },
- {
   "chars": 4226,
   "description": "Web views that re-render on live updates: keeping focus, scroll, open state and user edits; redraw keys.",
   "file": "worker/web/live-updates",
@@ -602,33 +603,6 @@
    "refresh",
    "state",
    "store"
-  ]
- },
- {
-  "chars": 3188,
-  "description": "Playwright tests and screenshots for the web app: locators, waits, mocks, running browsers in a container.",
-  "file": "worker/web/playwright",
-  "models": [],
-  "name": "worker/web/playwright",
-  "paths": [
-   "web/tests/**",
-   "web/tests-real/**",
-   "web/playwright*.ts",
-   "docs/screenshots/**"
-  ],
-  "roles": [
-   "worker",
-   "reviewer"
-  ],
-  "tags": [
-   "playwright",
-   "test",
-   "tests",
-   "e2e",
-   "screenshot",
-   "screenshots",
-   "mock",
-   "demo"
   ]
  }
 ]

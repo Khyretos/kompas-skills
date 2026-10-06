@@ -86,3 +86,11 @@ Lessons for the orchestrator role. Numbered and dated, newest last.
 - (2026-10-05) After a branch's work, add its cost line: `tools/qwen/summary.py <branch> --task <id>`
   (Coder tokens from the drafting log, Claude tokens from the session transcript, counts only).
   It shows when a task type is cheaper to hand off and when it is not.
+- (2026-10-06) Splitting cards into layers (`tools/skills/split_layers.py`): tags use the block
+  numbers from `split_layers.py list` (the title is block 1, so they are not the lesson numbers).
+  A section heading is repeated in every layer that gets one of its items, so a private heading can
+  land in `skills/general/`: run `privacy_check.py skills/general` and grep for setup words after
+  every split.
+- (2026-10-06) Literal code in a job spec (a whole test given in the prompt) is applied by the
+  orchestrator: a patch job asked for a one-line change plus a literal test did the change and
+  dropped the test.

@@ -9,14 +9,14 @@ import sys
 script_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, script_dir)
 
-from load import all_cards, SKILLS
+from load import merged_cards, SKILLS
 
 
 def main():
     entries = []
     problems = []
 
-    for c in all_cards():
+    for c in merged_cards(SKILLS, local="").values():
         rel = c["rel"]
         meta = c.get("meta", {})
         

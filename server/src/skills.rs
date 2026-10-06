@@ -394,7 +394,7 @@ pub fn text_with(root: &Path, overlay: &Path, names: &[String]) -> String {
 }
 
 pub fn areas(root: &Path) -> Vec<String> {
-    let cards = cards(root);
+    let cards = layered(root);
     let mut areas: HashSet<String> = HashSet::new();
     
     for card in &cards {
@@ -450,7 +450,7 @@ pub fn area_for(root: &Path, chosen: &str, paths: &[String]) -> String {
         return chosen.to_string();
     }
 
-    let all = cards(root);
+    let all = layered(root);
     let covers = |area: &str| {
         let core = format!("{area}/SKILL");
         all.iter()
@@ -473,7 +473,7 @@ pub fn area_for(root: &Path, chosen: &str, paths: &[String]) -> String {
 }
 
 pub fn notes_for(root: &Path, model_id: &str) -> Option<String> {
-    let cards = cards(root);
+    let cards = layered(root);
     
     for card in &cards {
         if let Some(note_name) = card.name.strip_prefix("_model-notes/").and_then(|n| n.strip_suffix("/SKILL")) {
@@ -590,6 +590,18 @@ mod tests {
         let areas = areas(&r);
         assert_eq!(areas, vec!["worker/rust", "worker/web"]);
         let _ = std::fs::remove_dir_all(&r);
+    }
+
+    #[test]
+    fn general_layer_cores_count() {
+        let root = fixture("general_layer_cores_count");
+        card(&root, "general/worker/demo/SKILL", "name: worker/demo\nroles: [worker]\npaths: [\"**/*.demo\"]", "Demo core.");
+        card(&root, "worker/demo/SKILL", "extends: worker/demo/SKILL", "Kompanion part.");
+        card(&root, "general/_model-notes/fam/SKILL", "name: fam\nmodels: [famous]", "Notes.");
+        assert!(areas(&root).contains(&"worker/demo".to_string()));
+        assert_eq!(area_for(&root, "worker", &s(&["a/b.demo"])), "worker/demo");
+        assert_eq!(notes_for(&root, "Famous-7B").as_deref(), Some("fam"));
+        assert!(text(&root, &s(&["worker/demo/SKILL"])).contains("Demo core.\n\nKompanion part."));
     }
 
     #[test]
