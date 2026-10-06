@@ -145,3 +145,12 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
     Never end a chk.py needle with `,`; cut it at the last word (`pub add: i64`). A fill-loop
     insertion sent as a patch job was gamed in the test module (the needle `for a in &p.also`
     went into a test): a new block goes through a scratch file and a splice script (lesson 70).
+75. (2026-10-07) Lesson 74 was broken twice more in the next task (`count: u32,`, `pub also:
+    Vec<Also>,` as the last struct fields): a rule Claude keeps forgetting belongs in the tool.
+    chk.py now drops a needle's own trailing comma. Literal code in a spec (one `let` line, one
+    struct field) is still applied by Claude: sent as a job it landed at the wrong anchor and the
+    fix rounds renamed `g` to `t` across `fill` to make it compile.
+76. (2026-10-07) A scratch-file test job whose check was only needles came back with the helper as
+    `todo!()` under `#[test]` and the TOML pasted loose between functions: every needle matched.
+    A scratch file's check splices it into its place (idempotent script) and compiles and runs
+    it (`cargo test -q <module>`, Playwright for a spec); the second draft passed first time.
