@@ -14,3 +14,6 @@ paths: ["**/*.py"]
 4. (2026-10-04) Keep code blocks whole when chunking markdown; never drop lines you cannot parse.
 5. (2026-10-04) A 300-line script in one draft comes back half-done ("I will assume..." and `pass`):
    2-4 functions with exact signatures per draft.
+6. (2026-10-06) Do what the prompt says word for word: "match os.path.basename(out)" means the
+   base name, not the full path; "add to the module docstring" means the one at the top of the file,
+   not the function's. Every listed change is part of the answer (a comment line too).
