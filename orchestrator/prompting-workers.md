@@ -84,3 +84,10 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
     that error, so their fix rounds rewrite code that wasn't wrong (a deleted test, invented
     signatures). Run a job whose code the next jobs depend on in its own pipeline call, check that
     it passes, then queue the rest.
+59. (2026-10-06) Give a test job the exact asserts (inputs and expected value), not a prose list
+    of cases: from prose the draft wrote an assert that contradicted the rule it tested and built
+    cards whose names never matched, and the fix rounds then chased the wrong side. Name the
+    module of every symbol to import; a "fix" otherwise invents aliases from the wrong file.
+60. (2026-10-06) When a job adds a branch next to existing code, say where it goes ("before the
+    line `if (!x) return;`") and which existing lines stay as they are. Asked for "two cases" in
+    prose, the draft merged them into one path that dropped the value the user had just chosen.
