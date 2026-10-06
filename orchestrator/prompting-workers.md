@@ -60,3 +60,9 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
     plugin into the live database. A script with side effects needs a check that runs it against a stub (or
     asserts every step the spec names, the redirect included), and its first real run is verified at once.
     Progress output written with `\r` (git subtree push, curl) is one long line for `tail`: add `tr '\r' '\n'`.
+31. (2026-10-06) A check made of `grep -q` prints nothing when it fails, so the pipeline had no errors to
+    send back and ran no fix rounds; three wrong drafts passed as done. A content check prints a line the
+    fix round can use: `grep -qF 'x' f || { echo 'error: f: what is missing'; exit 1; }`.
+32. (2026-10-06) When one job changes a function's parameters and another job edits its callers, the
+    second draft guessed the order (twice). Give every caller job the full new parameter list, and check
+    the call's exact argument order: type checks miss swapped optional parameters of similar types.
