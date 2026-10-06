@@ -274,7 +274,15 @@ pub fn select(
         if !roles_list.is_empty() && family != "shared" && !roles_list.contains(&family.to_string()) {
             continue;
         }
-        
+
+        // Area rule: a card in an area folder (3 parts, e.g. "worker/rust/sql") is picked only for a job of that area.
+        // Skip it when the role has two parts (e.g. "worker/web") with the same first part but different first two parts.
+        let rel_parts: Vec<&str> = rel.split('/').collect();
+        let role_parts: Vec<&str> = role.split('/').collect();
+        if rel_parts.len() == 3 && role_parts.len() >= 2 && rel_parts[0] == role_parts[0] && rel_parts[..2] != role_parts[..2] {
+            continue;
+        }
+
         // Calculate score
         let sc = score(card, &task_words, paths);
         if sc > 0 {

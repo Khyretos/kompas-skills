@@ -17,3 +17,8 @@ paths: ["**/*.py"]
 6. (2026-10-06) Do what the prompt says word for word: "match os.path.basename(out)" means the
    base name, not the full path; "add to the module docstring" means the one at the top of the file,
    not the function's. Every listed change is part of the answer (a comment line too).
+7. (2026-10-06) Use the paths the prompt names exactly (`"skills/" + key`), never a folder made up
+   from the script's own location. A list in the input (`"lessons": [...]`) means every item: loop
+   over it, never take `[0]`. A front-matter header ends at its second `---` line:
+   `end = text.index("\n---\n", 4) + 5`. Pass the value the function reads (`data[core]`, a dict),
+   not `list(data[core])` when it indexes by key.
