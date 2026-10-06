@@ -1,0 +1,17 @@
+# Fails when a card holds setup facts: IPs, home paths, emails, or a host name from the
+# DENY_HOSTS secret (one per line; kept secret so the names stay out of this repo).
+name: privacy
+on:
+  push:
+  pull_request:
+jobs:
+  check:
+    runs-on: kireserver
+    steps:
+      - uses: https://code.forgejo.org/actions/checkout@v4
+      - name: privacy check
+        env:
+          DENY_HOSTS: ${{ secrets.DENY_HOSTS }}
+        run: |
+          printf '%s\n' "$DENY_HOSTS" > "$RUNNER_TEMP/deny-hosts.txt"
+          python3 tools/privacy_check.py . --deny "$RUNNER_TEMP/deny-hosts.txt"
