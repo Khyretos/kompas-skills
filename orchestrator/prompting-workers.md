@@ -112,3 +112,13 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
     is still there (`grep -c 'fn test_a\|fn test_b'` equals the old count), and that the function
     is outside the tests module (a non-test `cargo check` with a caller in place, or
     `awk '/mod tests/{exit} /fn name/{f=1} END{exit !f}'`).
+67. (2026-10-06) A check built by pasting needles in single quotes broke on `&'static`: the
+    shell stopped with `Syntax error: "(" unexpected`, the job had `"precheck": false`, so the
+    pipeline logged a failed check with no compiler errors and ran no fix round; the draft had 10
+    compile errors. Quote every needle with `shlex.quote()` when building checks in Python, and
+    run `sh -n -c "<check>"` on each check before starting the pipeline.
+68. (2026-10-06) A fix round turned `docker stop <container>` into `docker stop` (the args vec
+    lost the container) and still passed: the tests only covered refusals, never the command
+    line. For code that runs a program, put a fake program first on PATH in the test (a script
+    that writes its argv to a file) and assert the exact argv, or route the command through a
+    pure `fn args(...) -> Vec<String>` that a test checks.
