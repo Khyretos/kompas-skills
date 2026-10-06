@@ -1,2 +1,0 @@
-{"name": "ten01-fresh-install-ci", "out": ".forgejo/workflows/fresh-install.yml", "gpu_seconds": 54.7, "tokens": 1699, "lines": 59, "model": "Coder", "at": "2026-10-05T15:25:20"}
-{"name": "ten01-fresh-install-cfgvol", "out": ".forgejo/workflows/fresh-install.yml", "mode": "patch", "gpu_seconds": 13.8, "tokens": 413, "lines": 2, "attempts": 1, "model": "Coder", "at": "2026-10-05T15:26:12"}

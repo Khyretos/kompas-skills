@@ -1,2 +1,0 @@
-{"name": "task-simple-push", "out": "docs/plans/simple-push.md", "gpu_seconds": 44.8, "tokens": 1355, "lines": 22, "model": "Coder", "at": "2026-10-05T12:59:59"}
-{"name": "task-simple-push-fix", "out": "docs/plans/simple-push.md", "mode": "patch", "gpu_seconds": 4.7, "tokens": 120, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T13:00:21"}

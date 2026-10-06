@@ -1,7 +1,0 @@
-{"name": "ten03-forge-module", "out": "server/src/forge.rs", "gpu_seconds": 177.5, "tokens": 5386, "lines": 256, "model": "Coder", "at": "2026-10-05T15:58:01"}
-{"name": "ten03-guard", "out": "server/src/auth.rs", "mode": "patch", "gpu_seconds": 7.0, "tokens": 166, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T15:58:08"}
-{"name": "ten03-main", "out": "server/src/main.rs", "mode": "patch", "gpu_seconds": 5.9, "tokens": 155, "lines": 2, "attempts": 1, "model": "Coder", "at": "2026-10-05T15:58:14"}
-{"name": "ten03-tasks-pub", "out": "server/src/tasks.rs", "mode": "patch", "gpu_seconds": 6.8, "tokens": 188, "lines": 2, "attempts": 1, "model": "Coder", "at": "2026-10-05T15:58:21"}
-{"name": "ten03-cargo", "out": "server/Cargo.toml", "mode": "patch", "gpu_seconds": 4.7, "tokens": 112, "lines": 1, "attempts": 1, "model": "Coder", "at": "2026-10-05T15:58:25"}
-{"name": "ten03-task-key-fix", "out": "server/src/forge.rs", "mode": "patch", "gpu_seconds": 59.7, "tokens": 1859, "lines": 1, "attempts": 2, "model": "Coder", "at": "2026-10-05T15:59:47"}
-{"name": "ten03-docs", "out": "docs/forge-webhook.md", "gpu_seconds": 29.4, "tokens": 840, "lines": 20, "model": "Coder", "at": "2026-10-05T16:02:15"}

@@ -1,7 +1,0 @@
-**/node_modules
-**/dist
-**/target
-**/*.db*
-.git
-runner/target
-machine-stats/target

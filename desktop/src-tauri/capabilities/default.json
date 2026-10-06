@@ -1,8 +1,0 @@
-{
-  "$schema": "../gen/schemas/desktop-schema.json",
-  "identifier": "default",
-  "description": "The Kompanion server's own pages may show notifications; nothing else is exposed.",
-  "windows": ["main"],
-  "remote": { "urls": ["https://kompanion.kreative-kompas.com/*"] },
-  "permissions": ["core:default", "notification:default"]
-}
