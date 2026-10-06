@@ -154,3 +154,12 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
     `todo!()` under `#[test]` and the TOML pasted loose between functions: every needle matched.
     A scratch file's check splices it into its place (idempotent script) and compiles and runs
     it (`cargo test -q <module>`, Playwright for a spec); the second draft passed first time.
+77. (2026-10-07) A patch job got three edits in one function (queue, execute signature, upload
+    block) and twice came back with the block in the wrong function and invented signatures;
+    split into one edit per job, each passed first time. A `focus` entry is a regex: `studioMake(`
+    crashed the pipeline mid-batch (pipeline.py now matches an invalid pattern literally).
+78. (2026-10-07) A needle that is only a message string ("takes no face photo.") was met by a
+    `// takes no face photo.` comment in another function. Needles carry code around the text
+    (`format!("{} takes no face photo."`, `return Err(`), never the bare message. Fix rounds left
+    a spliced function badly indented: rustfmt only that function (`rustfmt --edition 2024` on
+    the extracted text) when the file itself is not rustfmt-clean.
