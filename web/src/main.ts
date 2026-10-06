@@ -1092,7 +1092,7 @@ function wire(shell: HTMLElement): void {
       const known = rc?.taskId === id && rc.machine === machine && rc.path === (folder.replace(/\/+$/, "") || "/") ? rc.result : undefined;
       void busyWhile(runForm, (ok(known) ? Promise.resolve(known) : folderCheck(id, machine, folder)).then((r) => {
         if (!ok(r)) throw new Error(r?.message ?? "That folder could not be checked.");
-        return api.startTask(id, machine, folder, String(f.get("check") ?? "").trim());
+        return api.startTask(id, machine, folder, String(f.get("check") ?? "").trim(), f.get("tests_may_change") === "on");
       })
         .then(async () => {
           // Open the task's own chat, where the plan, the steps and the review show.

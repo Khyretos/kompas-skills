@@ -140,3 +140,6 @@ paths: ["**/*.rs", "**/Cargo.toml"]
    are read with `json_extract(tool, '$.path')`; there was no `path` column.
 55. (2026-10-06) A fix round fixes only errors in the file you edit. An error in another file is
    not yours: leave unrelated code (another function, another query's binds) unchanged.
+56. (2026-10-06) Adding columns to a `query_as` tuple changes three places together: the SELECT
+   string, the tuple type and the destructuring, all appended at the end in the same order. A
+   tuple that compiles but doesn't match the SELECT fails only at run time.
