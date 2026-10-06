@@ -22,3 +22,7 @@ paths: ["**/*.py"]
    over it, never take `[0]`. A front-matter header ends at its second `---` line:
    `end = text.index("\n---\n", 4) + 5`. Pass the value the function reads (`data[core]`, a dict),
    not `list(data[core])` when it indexes by key.
+8. (2026-10-06) Merging layers of a dict: one pass over the layers in order, never `while changed:`
+   (a step that always rewrites an entry never settles and the tests hang). A later entry with the
+   same key replaces the whole earlier entry, body included; an override takes the NEW body, an
+   extend appends it. Give tests a `timeout 60` so a hang fails fast.
