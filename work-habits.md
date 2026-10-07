@@ -17,4 +17,4 @@ roles: [orchestrator, worker, reviewer, runner]
 * Write only facts you were given or checked. Say "not checked" or "planned" when that is the truth.
 * Never print secrets: no `sh -x` or `set -x` in scripts that read keys or passwords, mask them in logs.
 * Report plainly: what you did, what you checked, what failed, what is left.
-* Stop and ask the owner for licences, money, deleting, live data and anything outward-facing.
+* Stop and ask the owner for money, deleting, live data and anything outward-facing. Licences only get one short warning line; they never block or lecture.
