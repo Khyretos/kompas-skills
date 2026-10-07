@@ -172,3 +172,15 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
     compiler named the spliced target (`gaming.rs:119`) while the job's file was the scratch, and
     the error sat between twenty old warnings from other files. Filter the check's output to the
     edited file (`grep -A5 'gaming.rs'`), and name the scratch file in the fix prompt.
+81. (2026-10-07) A test of a rounding formula passed on wrong code: the asserted inputs (1, 3,
+    5 seconds) were all multiples of the step, so a draft that rounded up and reassigned a
+    `const` (a crash for any other input) went green. Assert at least one input where rounding
+    down and up differ (2.5 s -> 61 frames). In plain CommonJS review destructuring: Coder
+    dropped the `const` from `[w, h] = ...`, which silently makes globals.
+82. (2026-10-07) `node --test test/` (Node 22) loads the directory as a module ("Cannot find
+    module .../test") and failed every round of a correct draft. Name the files:
+    `node --test test/*.test.js`, and pass only on `# fail 0`.
+83. (2026-10-07) A needle written as one assignment form (`job.kompanionId = await ...`)
+    rejected an equal draft that put `kompanionId` into the object literal; three fix rounds
+    were spent. Needle the call itself (`kompanion.makeAudio(req.userEmail,`) and prove the
+    rest with a behaviour run (a stub server), not with the shape of the code.
