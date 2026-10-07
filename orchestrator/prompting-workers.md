@@ -205,3 +205,9 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
 88. (2026-10-07) `pkill -f <pattern>` inside a shell command whose own text contains the pattern
     kills that shell (exit 144) and skips the rest of the command. Stop a test server by its
     port's PID (`ss -ltnp`) or a saved `$!`, never by a pattern written in the same command.
+89. (2026-10-07) A check written as `a && b | grep . && exit 1 || exit 0` passes when `a` fails:
+    the `|| exit 0` catches every earlier failure. End each step with `|| exit 1` and run the
+    check by hand on the untouched tree first; it must fail there for a job that adds the code.
+90. (2026-10-07) A keyboard test on a UI that re-renders on the next animation frame must wait
+    for the focus to land (`toBeFocused()`) after each key. Two presses in a row hit the old,
+    removed element and the second key does nothing: a correct draft looks broken.
