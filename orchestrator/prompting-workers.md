@@ -244,3 +244,6 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
     (sh -n can still pass), and steps given in prose ("an empty answer takes the default", "refuse
     a wrong mode") were dropped or guarded by the wrong `if`. Give the steps as code lines and
     check with a stub-PATH test that runs every branch (tools/test_install_host.sh).
+102. (2026-10-07) A docs job checked by keyword needles gets gamed: the worker stuffed the missing
+    names into one sentence and put a wrong value in a table cell. For a docs job, needle whole
+    facts ("56 s (shape") and read the result; or give it the table rows to copy.
