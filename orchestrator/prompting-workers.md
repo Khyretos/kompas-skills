@@ -218,3 +218,6 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
 92. (2026-10-07) A new CSS rule meant to restyle elements that already carry a shared class (`.task`)
     must out-rank that class (`.task.cap`, not `.cap`): equal specificity loses to whichever file
     loads later. Let the test compare a computed style (the card's background against the page's).
+93. (2026-10-07) A patch job's check that runs only the new test (a name pattern) lets fix rounds
+    break other functions in the same file unnoticed: chasing a syntax error, a round rewrote an
+    unrelated rounding formula. Run the whole test file(s) of the edited module in every check.
