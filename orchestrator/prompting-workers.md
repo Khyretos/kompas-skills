@@ -184,3 +184,13 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
     rejected an equal draft that put `kompanionId` into the object literal; three fix rounds
     were spent. Needle the call itself (`kompanion.makeAudio(req.userEmail,`) and prove the
     rest with a behaviour run (a stub server), not with the shape of the code.
+84. (2026-10-07) Lesson 83 again, twice in one task: a needle `'/types'` missed the template
+    literal `` `${API_BASE}/types` ``, and a listener needle assumed
+    `document.querySelector(..).addEventListener` while the correct draft kept the element in a
+    variable. For jobs whose behaviour a later job's test covers, needle only declarations
+    (`function x(`, `async function y(`) plus a parse check; the behaviour test decides.
+85. (2026-10-07) Conditions and filters given in prose were rewritten: "append 'rating' only
+    when `!t || t.rating`" became `if (t && t.rating) append('rating', t.rating)` (the boolean
+    sent as the value), "drop tags that contain a said word" became a per-character compare,
+    "not one of presetType's values" filtered on the label. Give such lines as code
+    (`if (!t || t.rating) formData.append('rating', ratingSelect.value);`) and test each branch.
