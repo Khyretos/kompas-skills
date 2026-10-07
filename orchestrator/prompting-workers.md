@@ -194,3 +194,14 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
     sent as the value), "drop tags that contain a said word" became a per-character compare,
     "not one of presetType's values" filtered on the label. Give such lines as code
     (`if (!t || t.rating) formData.append('rating', ratingSelect.value);`) and test each branch.
+86. (2026-10-07) A check script prefixed its errors with `sed 's/^/error: /tmp/x/f.js: /'`: the
+    slashes in the path ended the sed expression, so the check printed only a sed error and
+    the fix round ran on that instead of the test failure. Prefix with `sed 's|^|error: PATH: |'`
+    (or awk), and run each check once by hand on a known-bad tree before the pipeline.
+87. (2026-10-07) A server module that loads its saved state only under `require.main === module`
+    gives a test that requires it an empty state: the behaviour test failed on a correct draft.
+    Before sending the job, check what the module does on require; export the loader and
+    await it in the test (or set the state through the API).
+88. (2026-10-07) `pkill -f <pattern>` inside a shell command whose own text contains the pattern
+    kills that shell (exit 144) and skips the rest of the command. Stop a test server by its
+    port's PID (`ss -ltnp`) or a saved `$!`, never by a pattern written in the same command.
