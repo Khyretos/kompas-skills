@@ -233,3 +233,6 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
 98. (2026-10-07) A behaviour asked for in prose ("show the chip and the menu") came back as one or
     the other. Give the condition as code (lesson 85) AND put that behaviour in the check (a test
     that sends twice), not only the markup needles.
+99. (2026-10-07) A behaviour test against a temp server catches what compiles and passes unit
+    tests: a new log kind hit an old CHECK constraint (500). After adding a migration file, touch
+    the file with `sqlx::migrate!()` (or main.rs) before building, or the binary keeps the old set.
