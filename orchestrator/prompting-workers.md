@@ -221,3 +221,6 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
 93. (2026-10-07) A patch job's check that runs only the new test (a name pattern) lets fix rounds
     break other functions in the same file unnoticed: chasing a syntax error, a round rewrote an
     unrelated rounding formula. Run the whole test file(s) of the edited module in every check.
+94. (2026-10-07) When a CSS prompt lists rules in order, the model writes them in that order: list a
+    `@media (prefers-color-scheme: light)` override AFTER the base rules it overrides, or the base rule
+    (same specificity, later in the file) wins and light mode keeps the dark colour.
