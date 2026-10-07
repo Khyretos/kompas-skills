@@ -224,3 +224,12 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
 94. (2026-10-07) When a CSS prompt lists rules in order, the model writes them in that order: list a
     `@media (prefers-color-scheme: light)` override AFTER the base rules it overrides, or the base rule
     (same specificity, later in the file) wins and light mode keeps the dark colour.
+95. (2026-10-07) Never offer the worker an alternative ("if X is not imported, write Y") that the
+    check's needle does not accept: it picked the alternative and three fix rounds chased the needle.
+    Check the file's imports yourself and give one exact form.
+97. (2026-10-07) Needles that are only CSS selectors (`.x {`) get gamed: asked to append rules,
+    the worker wrote `.x { display: block; }` for each needle. Needle whole declarations
+    (`.x { gap: 0.35rem;`), or apply a plain CSS append yourself.
+98. (2026-10-07) A behaviour asked for in prose ("show the chip and the menu") came back as one or
+    the other. Give the condition as code (lesson 85) AND put that behaviour in the check (a test
+    that sends twice), not only the markup needles.

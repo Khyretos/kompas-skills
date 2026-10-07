@@ -69,3 +69,6 @@ Topic lessons moved into cards (sql, processes-files, axum-api), loaded when a j
    use `as_object_mut()` and `.entry(k).or_insert_with(..)`. Bind values by reference in an sqlx
    chain (`.bind(&id)`) when they are used after the query, and build each query once, as one
    chain. A variable made inside one `.map(|..| ..)` closure does not exist in the next `.map`.
+96. (2026-10-07) A nullable column read with `sqlx::query_scalar` goes into `Option<T>` with
+   `.fetch_one(..)`. `.fetch_optional(..)` into `Option<T>` makes the column type `T`, so a NULL
+   fails at run time (a 500), while it still compiles.
