@@ -274,3 +274,8 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
     calls; the same model filled a structured tool (a list of shapes with enums) right on the
     first try (BLD-01). Tools meant for small models take structured arguments; free code stays
     as the expert tool next to it.
+112. (2026-10-07) A job that leaves the build broken poisons every later job on the same tree:
+    their fix rounds "fix" correct code to make someone else's error go away (CHAT-03b: binds
+    dropped from a finished query, invented counters, a test module replaced, callers rewired).
+    A shared-tree check prints only errors of the job's own file and otherwise says "another
+    file is broken: change nothing"; stop and repair before the next job (57, 69, 80).
