@@ -240,3 +240,7 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
     `precheck: false` a broken line of yours (a wrong variable name in another file) fails the
     worker's correct draft and its fix rounds edit the wrong file. Also check a helper's parameter
     types before naming it in a spec (busyWhile takes a form, not any element).
+101. (2026-10-07) Shell scripts by the worker: `'it\'s'` inside single quotes is not an escape
+    (sh -n can still pass), and steps given in prose ("an empty answer takes the default", "refuse
+    a wrong mode") were dropped or guarded by the wrong `if`. Give the steps as code lines and
+    check with a stub-PATH test that runs every branch (tools/test_install_host.sh).
