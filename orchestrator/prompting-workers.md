@@ -163,3 +163,12 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
     (`format!("{} takes no face photo."`, `return Err(`), never the bare message. Fix rounds left
     a spliced function badly indented: rustfmt only that function (`rustfmt --edition 2024` on
     the extracted text) when the file itself is not rustfmt-clean.
+79. (2026-10-07) A test check `cargo test ... | grep -E '^error|test result: ok'` passed on a
+    failing test: cargo's `error: test failed` line matched. Capture the output, print the error
+    lines for the fix round, and pass only on `grep -q 'test result: ok'`. The same job's prompt
+    lost all its code (lesson 17 broken: an unquoted heredoc ran the backticks), and Coder then
+    put the wanted SQL into a comment, which the needle accepted.
+80. (2026-10-07) A scratch-file job's fix rounds could not fix a one-character error: the
+    compiler named the spliced target (`gaming.rs:119`) while the job's file was the scratch, and
+    the error sat between twenty old warnings from other files. Filter the check's output to the
+    edited file (`grep -A5 'gaming.rs'`), and name the scratch file in the fix prompt.
