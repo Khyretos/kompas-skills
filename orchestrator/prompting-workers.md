@@ -260,3 +260,17 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
 107. (2026-10-07) A check that only needles the new line passes a draft that deleted the lines
     around it (BUG-02: the coder switch vanished, the new call landed outside its branch). A
     patch check needles every line the prompt says to keep and the branch the new line goes in.
+108. (2026-10-07) "The body becomes one line that calls the new function" left the old body in
+    place with the new line at its end, so every call ran twice; the stub test passed because it
+    only checked the answer (BLD-01, Coder). When a job moves a body into a new function, the
+    check counts calls on the stub (or needles the old body's absence), not just the result.
+109. (2026-10-07) A check that runs a test runner from the wrong folder printed "No tests found";
+    the fix rounds treated that as the job's error and added junk (BLD-01). Every check must
+    fail with a spec error when the runner finds no tests, and runs once by hand first (86).
+110. (2026-10-07) "Only the creation goes under the if, the rest runs every time" made the model
+    drop the if block entirely (BLD-01, Coder). For a restructured block, give the whole new
+    block as code lines (85) and needle the kept branch (107).
+111. (2026-10-07) A 9B chat model writing free-form code for a tool (Blender bpy) failed most
+    calls; the same model filled a structured tool (a list of shapes with enums) right on the
+    first try (BLD-01). Tools meant for small models take structured arguments; free code stays
+    as the expert tool next to it.
