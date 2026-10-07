@@ -279,3 +279,6 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
     dropped from a finished query, invented counters, a test module replaced, callers rewired).
     A shared-tree check prints only errors of the job's own file and otherwise says "another
     file is broken: change nothing"; stop and repair before the next job (57, 69, 80).
+
+115. In a git worktree run tools/qwen/pipeline.py with KOMPANION_CONFIG=<main checkout>/kompanion.toml: the key is read from the .env next to the config, and a symlinked toml has none. HTTP 500 "invalid or missing api-key" is a config error, not a Coder reload.
+116. A shell installer with several independent sections (resolve a tool, firewall, self-check) is one job per section, or Claude writes it. One patch job for the whole file piled up duplicate validators and unset variables over 3 fix rounds.
