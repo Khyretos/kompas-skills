@@ -211,3 +211,10 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
 90. (2026-10-07) A keyboard test on a UI that re-renders on the next animation frame must wait
     for the focus to land (`toBeFocused()`) after each key. Two presses in a row hit the old,
     removed element and the second key does nothing: a correct draft looks broken.
+91. (2026-10-07) When a job replaces a wrapper element with a helper call (`<span class=x>${v}</span>`
+    -> `${helper(v)}`), positive needles for the call pass while the old wrapper stays around it
+    (nested spans). Add a negative check that the old wrapper text is gone, e.g.
+    `grep -n 'x">\${helper' f && exit 1`.
+92. (2026-10-07) A new CSS rule meant to restyle elements that already carry a shared class (`.task`)
+    must out-rank that class (`.task.cap`, not `.cap`): equal specificity loses to whichever file
+    loads later. Let the test compare a computed style (the card's background against the page's).
