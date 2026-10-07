@@ -250,3 +250,13 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
 103. (2026-10-07) Lesson 100 twice in one day: a hand edit (a struct inserted in the middle of
     another struct's doc comment) broke the build and burned two drafts and six fix rounds. Run
     `cargo check` after EVERY hand edit, before the pipeline, no exceptions.
+105. (2026-10-07) While a job's check builds the whole crate, the shared tree is the job's: a
+    test or call Claude adds for the NEXT job breaks that check, and the fix rounds then "fix"
+    the wrong file (BUG-02: twice, two jobs lost). Keep next-job tests in a scratch file and
+    splice them in only when no pipeline runs on that tree.
+106. (2026-10-07) A 9B model given a whole function as literal code still rewrote it and changed
+    the given tests (BUG-02 audio and ComfyUI jobs, both models). Lesson 75 holds without
+    exceptions: literal code is pasted by Claude; a job gets intent, signatures and a test.
+107. (2026-10-07) A check that only needles the new line passes a draft that deleted the lines
+    around it (BUG-02: the coder switch vanished, the new call landed outside its branch). A
+    patch check needles every line the prompt says to keep and the branch the new line goes in.
