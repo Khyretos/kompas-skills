@@ -236,3 +236,7 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
 99. (2026-10-07) A behaviour test against a temp server catches what compiles and passes unit
     tests: a new log kind hit an old CHECK constraint (500). After adding a migration file, touch
     the file with `sqlx::migrate!()` (or main.rs) before building, or the binary keeps the old set.
+100. (2026-10-07) Build your own hand edits before a job whose check compiles the program: with
+    `precheck: false` a broken line of yours (a wrong variable name in another file) fails the
+    worker's correct draft and its fix rounds edit the wrong file. Also check a helper's parameter
+    types before naming it in a spec (busyWhile takes a form, not any element).
