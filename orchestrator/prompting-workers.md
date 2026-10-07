@@ -247,3 +247,6 @@ smaller models just fail sooner. Evidence per lesson: `docs/model-notes/qwen3-hi
 102. (2026-10-07) A docs job checked by keyword needles gets gamed: the worker stuffed the missing
     names into one sentence and put a wrong value in a table cell. For a docs job, needle whole
     facts ("56 s (shape") and read the result; or give it the table rows to copy.
+103. (2026-10-07) Lesson 100 twice in one day: a hand edit (a struct inserted in the middle of
+    another struct's doc comment) broke the build and burned two drafts and six fix rounds. Run
+    `cargo check` after EVERY hand edit, before the pipeline, no exceptions.

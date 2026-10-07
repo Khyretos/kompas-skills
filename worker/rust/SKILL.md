@@ -72,3 +72,6 @@ Topic lessons moved into cards (sql, processes-files, axum-api), loaded when a j
 96. (2026-10-07) A nullable column read with `sqlx::query_scalar` goes into `Option<T>` with
    `.fetch_one(..)`. `.fetch_optional(..)` into `Option<T>` makes the column type `T`, so a NULL
    fails at run time (a 500), while it still compiles.
+104. (2026-10-07) Qwen's chat template accepts system text only as the first message: a
+   `system` message added after the user's turn made OVMS answer 400. Add late context (tool
+   results) to the first system message instead.
