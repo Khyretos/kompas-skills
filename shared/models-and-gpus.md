@@ -7,6 +7,7 @@ tags: [ollama, gpu, vram, model, batch, llama]
 # Shared: Models and gpus
 
 ## 5. Ollama hosts: one model name, and what the RAM is (2026-10-03)
+
 - Ollama 0.35 runs models through llama.cpp's llama-server. It keeps a prompt cache in system RAM
   (`--cache-ram`, default 8192 MiB) that fills after a few hundred different prompts: that, not the model,
   is the ~8 GB of RAM next to ~12 GB of VRAM. `journalctl -u ollama | grep "cache state"` shows it.
@@ -26,6 +27,7 @@ tags: [ollama, gpu, vram, model, batch, llama]
 - Only for models that are fully on the GPU: a partly offloaded model needs its CPU threads.
 
 ## (2026-10-04) VRAM and voice
+
 - VRAM planning must count KV-cache growth per parallel sequence, not only the weights.
 - Build WAVs for Whisper yourself (44-byte PCM header with real sizes). ffmpeg writing WAV to a pipe
   leaves 0xFFFFFFFF sizes and a LIST chunk, and Whisper answers 400.

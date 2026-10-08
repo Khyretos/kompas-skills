@@ -6,6 +6,7 @@ models: [gemma4]
 # Gemma 4 family, notes for prompts
 
 ## gemma4:12b-it-qat (Ollama, RX 9070 XT)
+
 - Apache 2.0, vision, tools. 65 tok/s, ~2,600 tok/s prompt; 8.8 GB VRAM at 16k and still only
   12.4 GB card total at 128k context (sliding-window attention keeps the KV cache small).
 - Thinking off: `think: false` (native API) or `reasoning_effort: "none"` (OpenAI endpoint); tool calls

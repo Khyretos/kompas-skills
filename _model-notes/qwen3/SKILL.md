@@ -14,6 +14,7 @@ Full history with evidence: `docs/model-notes/qwen3-history-2026-10.md`.
 ## Speed and memory
 
 - qwen3:14b: 60 tok/s, 14.0 GB at 16k; at 32k it no longer fits. No vision.
+
 ## Typical slips (check these in review)
 
 - Grades its own work too kindly and follows a wrong reviewer comment.

@@ -19,4 +19,5 @@ Car space in `games/racing`: +Z forward, +X left, yaw + turns right.
     screenshots showed it.
 
 ## Testing
+
 - xdotool at about 10 fps misses quick presses: hold keys about 0.4 s. A HUD note lasts 1.2 s: screenshot within it.

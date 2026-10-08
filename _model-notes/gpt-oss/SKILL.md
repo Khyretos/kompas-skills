@@ -6,6 +6,7 @@ models: [gpt-oss]
 # gpt-oss, notes for prompts
 
 ## gpt-oss:20b (Ollama, RX 9070 XT)
+
 - Fastest local option: 125 tok/s, ~4,900 tok/s prompt. No vision. Fills the 16 GB card to 15.6 GB at 16k.
 - Thinking cannot be turned off (`think: "low"` is the minimum). Give it about 4x the usual `max_tokens`,
   or the answer comes back empty or cut off mid-sentence because the budget went to reasoning.
