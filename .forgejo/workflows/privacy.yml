@@ -6,7 +6,7 @@ on:
   pull_request:
 jobs:
   check:
-    runs-on: kireserver
+    runs-on: ubuntu-latest
     steps:
       - uses: https://code.forgejo.org/actions/checkout@v4
       - name: privacy check
